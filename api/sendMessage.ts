@@ -110,7 +110,7 @@ interface AIResponse {
 }
 
 const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFiles' | 'groundingChunks' | 'duration'> => {
-    let rawText = response.text;
+    let rawText = response.text ?? "";
     let thinkingText: string | undefined = undefined;
 
     const thinkingMatch = rawText.match(/<thinking>([\s\S]*?)<\/thinking>/);
@@ -233,8 +233,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             ? searchTranslations[langKey].webSearchResults + "\n" + items.map((item: any) => `- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
                             : searchTranslations[langKey].noResultsFound;
 
+                        let finalSummary = summary;
+                        if (language) {
+                            const languageMap: { [key: string]: string } = {
+                                'en': 'English',
+                                'el': 'Greek (Ελληνικά)',
+                            };
+                            const fullLanguageName = languageMap[language] || language;
+                            finalSummary += `\n\n---\n**IMPORTANT REMINDER:** Based on these search results, formulate your final answer to the user strictly in ${fullLanguageName}.`;
+                        }
+
                         groundingChunks = items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
+                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: finalSummary } } };
 
                     } catch (searchError: any) {
                          console.error("Error calling Google Custom Search API:", searchError);

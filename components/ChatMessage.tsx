@@ -71,6 +71,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
   const htmlContent = useMemo(() => {
     if (isUser) return '';
     const renderer = new marked.Renderer();
+    
+    // FIX: Update link renderer for newer 'marked' version.
+    // The signature changed from `(href, title, text)` to a single token object.
+    // Using a `function` preserves `this` context to access `this.parser`.
+    renderer.link = function(this: any, { href, title, tokens }: any) {
+        const text = this.parser.parse(tokens);
+        const safeHref = (href || '').startsWith('http') ? href : '#';
+        const titleAttr = title ? `title="${escapeHtml(title)}"` : '';
+
+        return `<a
+            href="${safeHref}"
+            target="_blank"
+            rel="noopener noreferrer"
+            ${titleAttr}
+            class="inline-flex items-center no-underline gap-1 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 hover:bg-blue-200/80 dark:hover:bg-blue-900/80 px-2 py-0.5 font-medium text-sm transition-colors"
+        >
+            ${text}
+        </a>`;
+    };
 
     renderer.code = (token) => {
       const code = token.text;

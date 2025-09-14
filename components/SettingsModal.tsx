@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Conversation, Persona } from '../types';
-import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon } from './icons';
+import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon } from './icons';
 import { translations } from '../translations';
 
 type Language = keyof typeof translations;
@@ -20,7 +20,7 @@ interface SettingsModalProps {
   t: (key: string) => string;
 }
 
-type SettingsTab = 'General' | 'Personalization';
+type SettingsTab = 'General' | 'Personalization' | 'Usage';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, setPersonas,
@@ -81,6 +81,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
            <div className="flex flex-row md:flex-col md:w-48 shrink-0 border-b md:border-r md:border-b-0 border-token-border-light bg-token-bg-elevated-secondary md:p-2">
               <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
+              <TabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
           </div>
 
           <div className="flex-1 p-6 overflow-y-auto space-y-8">
@@ -134,6 +135,42 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     ))}
                     <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-gray-600 rounded-md border border-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-800/50">{t('personaAdd')}</button>
                   </div>
+                </div>
+              </section>
+            )}
+            
+            {activeTab === 'Usage' && (
+              <section>
+                <h3 className="text-lg font-normal text-token-text-primary mb-4 pb-3 border-b border-token-border-light">{t('tabUsage')}</h3>
+                <div className="space-y-4">
+                    <p className="text-sm text-token-text-secondary">Token usage is unlimited on this plan.</p>
+                    <div className="w-full rounded-lg border border-token-border-light bg-token-main-surface-secondary text-token-text-primary shadow-sm text-sm overflow-hidden">
+                        <div className="w-full space-y-2 p-3">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                                <p>0%</p>
+                                <p className="font-mono text-token-text-secondary">0 / ∞</p>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-token-main-surface-primary">
+                                    <div className="bg-blue-500 h-full w-full flex-1 transition-all" style={{ width: '0%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-full p-3 border-t border-token-border-light">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-token-text-secondary">Input</span>
+                                <span>0<span className="ml-2 text-token-text-secondary">• $0.00</span></span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-token-text-secondary">Output</span>
+                                <span>0<span className="ml-2 text-token-text-secondary">• $0.00</span></span>
+                            </div>
+                        </div>
+                        <div className="flex w-full items-center justify-between gap-3 bg-token-main-surface-primary p-3 text-xs">
+                            <span className="text-token-text-secondary">Total cost</span>
+                            <span>$0.00</span>
+                        </div>
+                    </div>
                 </div>
               </section>
             )}

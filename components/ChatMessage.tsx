@@ -72,20 +72,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     if (isUser) return '';
     const renderer = new marked.Renderer();
     
-    // FIX: Update link renderer for newer 'marked' version.
-    // The signature changed from `(href, title, text)` to a single token object.
-    // Using a `function` preserves `this` context to access `this.parser`.
-    renderer.link = function(this: any, { href, title, tokens }: any) {
-        const text = this.parser.parse(tokens);
+    // FIX: Revert to a standard link renderer to fix the crash and restore normal link appearance.
+    // The previous implementation caused an error because `this.parser` is not available in the renderer context.
+    renderer.link = ({ href, title, text }) => {
         const safeHref = (href || '').startsWith('http') ? href : '#';
         const titleAttr = title ? `title="${escapeHtml(title)}"` : '';
-
+        // Return a standard <a> tag. Styling is handled by the `.prose a` CSS rules.
         return `<a
             href="${safeHref}"
             target="_blank"
             rel="noopener noreferrer"
             ${titleAttr}
-            class="inline-flex items-center no-underline gap-1 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 hover:bg-blue-200/80 dark:hover:bg-blue-900/80 px-2 py-0.5 font-medium text-sm transition-colors"
         >
             ${text}
         </a>`;

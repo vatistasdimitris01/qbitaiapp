@@ -107,13 +107,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
             const safeTitle = escapeHtml(source.web.title);
             const safeDomain = escapeHtml(domain);
 
-            return `<span class="group inline items-center gap-1.5 align-middle">
-                     <span class="transition-colors group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 rounded">${text}</span>
-                     <a href="${safeUri}" target="_blank" rel="noopener noreferrer" title="${safeTitle}"
-                        class="inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:border-zinc-800 dark:focus:ring-zinc-300 border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80 rounded-full no-underline truncate">
-                           ${safeDomain}
-                     </a>
-                   </span>`;
+            return `<span class="group inline items-center gap-1.5 align-middle">` +
+                     `<span class="transition-colors group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 rounded">${text}</span>` +
+                     `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" title="${safeTitle}" ` +
+                        `class="inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:border-zinc-800 dark:focus:ring-zinc-300 border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80 rounded-full no-underline">` +
+                           `${safeDomain}` +
+                     `</a>` +
+                   `</span>`;
         }
         // If it's a numeric link but not a valid citation, just render the text.
         // This prevents broken links if the AI hallucinates a citation number.

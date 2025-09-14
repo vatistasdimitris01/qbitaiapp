@@ -4,13 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>qbit</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="qbit">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="shortcut icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
+    <link rel="icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" sizes="any" type="image/png">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- KaTeX for math rendering -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0KOVEMSMMYLsnDQCHQNXBpEVohr7pAIabTKa+JBcsHEaOAMxMVkT5" crossorigin="anonymous">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlVwcjNcsNQpWgAIxBZpemEtWxUhGmvvoWJiNbVahdwfZBJxt0rzDRo72os" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-DotA03/s2/xPE0s2cQj2M2z4P2zBv5/u0025oDfu7d/c1oYVb4C2C0sJp/bLDi+f" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIo3e0cA2O+V/5e2iQoM62W/j/wQ/M3zT/2oD4e/xYgqB40v/JpG+s+A1b/yMSc" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-bYMnagPcmBC/f7MhFnBv5O8IazkRBNO0bX/f+A3f2p1kLh4r2wAFb4Lw3T/d/U+f" crossorigin="anonymous"></script>
+
     <!-- highlight.js for code highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -235,5 +246,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      // Register service worker for PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

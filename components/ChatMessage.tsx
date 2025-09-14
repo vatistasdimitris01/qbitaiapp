@@ -159,7 +159,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
 
   const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || message.thinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
-  const hasDownload = !isUser && message.downloadableFile;
+  const hasDownloads = !isUser && message.downloadableFiles && message.downloadableFiles.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
 
   return (
@@ -232,16 +232,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
               dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
           )}
-          {hasDownload && (
-            <div className="mt-4 border-t dark:border-gray-600/50 pt-3">
-                <a
-                    href={message.downloadableFile?.url}
-                    download={message.downloadableFile?.name}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-100 dark:bg-sidebar-accent dark:text-sidebar-foreground rounded-lg hover:bg-blue-200 dark:hover:opacity-80"
-                >
-                    <DownloadIcon className="size-4" />
-                    <span>Download {message.downloadableFile?.name}</span>
-                </a>
+          {hasDownloads && (
+            <div className="mt-4 border-t dark:border-gray-600/50 pt-3 space-y-2">
+                {message.downloadableFiles?.map((file, index) =>
+                  <a
+                      key={index}
+                      href={file.url}
+                      download={file.name}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-100 dark:bg-sidebar-accent dark:text-sidebar-foreground rounded-lg hover:bg-blue-200 dark:hover:opacity-80 transition-colors"
+                  >
+                      <DownloadIcon className="size-4" />
+                      <span>Download {file.name}</span>
+                  </a>
+                )}
             </div>
           )}
         </div>

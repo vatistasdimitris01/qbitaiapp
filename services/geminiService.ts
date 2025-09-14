@@ -3,7 +3,7 @@ import { Attachment, LocationInfo, Message } from "../types";
 export interface AIResponse {
     text: string;
     groundingChunks?: any[];
-    downloadableFile?: { name: string; content: string }; // content instead of url
+    downloadableFiles?: { name: string; content: string }[]; // content instead of url
     thinkingText?: string;
     duration?: number;
 }
@@ -14,7 +14,8 @@ export const sendMessageToAI = async (
     message: string,
     attachments?: Omit<Attachment, 'preview' | 'name'>[],
     personaInstruction?: string,
-    location?: LocationInfo | null
+    location?: LocationInfo | null,
+    language?: string
 ): Promise<AIResponse> => {
     try {
         const response = await fetch('/api/sendMessage', {
@@ -25,7 +26,8 @@ export const sendMessageToAI = async (
                 message,
                 attachments,
                 personaInstruction,
-                location
+                location,
+                language
             })
         });
 

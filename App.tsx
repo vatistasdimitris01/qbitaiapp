@@ -194,13 +194,15 @@ const App: React.FC = () => {
     try {
       const currentPersona = personas.find(p => p.id === activeConversation.personaId);
       const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText, duration } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation);
+      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
       
-      let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
-      if (downloadableFile && downloadableFile.content) {
-          const blob = new Blob([downloadableFile.content], { type: 'application/octet-stream' });
+      let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
+      if (downloadableFiles && downloadableFiles.length > 0) {
+        downloadableFilesForState = downloadableFiles.map(file => {
+          const blob = new Blob([file.content], { type: 'application/octet-stream' });
           const url = URL.createObjectURL(blob);
-          downloadableFileForState = { name: downloadableFile.name, url };
+          return { name: file.name, url };
+        });
       }
 
       const aiMessage: Message = {
@@ -208,7 +210,7 @@ const App: React.FC = () => {
         author: 'ai',
         text: aiResponseText,
         groundingChunks,
-        downloadableFile: downloadableFileForState,
+        downloadableFiles: downloadableFilesForState,
         thinkingText,
         duration,
       };
@@ -246,13 +248,15 @@ const App: React.FC = () => {
         try {
           const currentPersona = personas.find(p => p.id === activeConversation.personaId);
           const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
-          const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText, duration } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation);
+          const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
           
-          let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
-          if (downloadableFile && downloadableFile.content) {
-              const blob = new Blob([downloadableFile.content], { type: 'application/octet-stream' });
+          let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
+          if (downloadableFiles && downloadableFiles.length > 0) {
+            downloadableFilesForState = downloadableFiles.map(file => {
+              const blob = new Blob([file.content], { type: 'application/octet-stream' });
               const url = URL.createObjectURL(blob);
-              downloadableFileForState = { name: downloadableFile.name, url };
+              return { name: file.name, url };
+            });
           }
           
           const aiMessage: Message = {
@@ -260,7 +264,7 @@ const App: React.FC = () => {
             author: 'ai',
             text: aiResponseText,
             groundingChunks,
-            downloadableFile: downloadableFileForState,
+            downloadableFiles: downloadableFilesForState,
             thinkingText,
             duration,
           };

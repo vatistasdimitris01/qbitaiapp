@@ -20,10 +20,10 @@ export interface Message {
   text: string;
   groundingChunks?: GroundingChunk[];
   attachments?: Attachment[];
-  downloadableFile?: {
+  downloadableFiles?: {
     name: string;
     url: string;
-  };
+  }[];
   thinkingText?: string;
   duration?: number;
 }

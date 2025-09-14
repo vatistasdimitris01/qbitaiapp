@@ -25,6 +25,7 @@ export interface Message {
     url: string;
   };
   thinkingText?: string;
+  duration?: number;
 }
 
 export interface Persona {

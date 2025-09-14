@@ -160,6 +160,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
   const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || message.thinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
   const hasDownload = !isUser && message.downloadableFile;
+  const hasDuration = !isUser && typeof message.duration === 'number';
 
   return (
     <div className={`flex my-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -247,6 +248,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
         
         {!isUser && (
           <div className="flex items-center gap-2 mt-2 text-gray-500 dark:text-gray-400">
+             {hasDuration && (
+              <span className="text-xs mr-2">{ (message.duration! / 1000).toFixed(1) }s</span>
+            )}
             <IconButton onClick={handleCopy} aria-label="Copy message">
                 {isCopied ? <span className="text-xs">Copied!</span> : <CopyIcon className="size-4" />}
             </IconButton>

@@ -194,7 +194,7 @@ const App: React.FC = () => {
     try {
       const currentPersona = personas.find(p => p.id === activeConversation.personaId);
       const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation);
+      const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText, duration } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation);
       
       let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
       if (downloadableFile && downloadableFile.content) {
@@ -210,6 +210,7 @@ const App: React.FC = () => {
         groundingChunks,
         downloadableFile: downloadableFileForState,
         thinkingText,
+        duration,
       };
 
       setConversations(prev => prev.map(c => 
@@ -245,7 +246,7 @@ const App: React.FC = () => {
         try {
           const currentPersona = personas.find(p => p.id === activeConversation.personaId);
           const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
-          const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation);
+          const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText, duration } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation);
           
           let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
           if (downloadableFile && downloadableFile.content) {
@@ -261,6 +262,7 @@ const App: React.FC = () => {
             groundingChunks,
             downloadableFile: downloadableFileForState,
             thinkingText,
+            duration,
           };
           setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...updatedMessages, aiMessage] } : c));
         } catch (error) {

@@ -5,6 +5,7 @@ export interface AIResponse {
     groundingChunks?: any[];
     downloadableFile?: { name: string; content: string }; // content instead of url
     thinkingText?: string;
+    duration?: number;
 }
 
 // This function now sends the request to our secure serverless function

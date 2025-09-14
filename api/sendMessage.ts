@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { performance } from 'perf_hooks';
 // FIX: Removed non-exported 'Role' type from import.
 import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
 import type { GroundingChunk } from '../types';
@@ -69,9 +70,10 @@ interface AIResponse {
     groundingChunks?: GroundingChunk[];
     downloadableFile?: { name: string; content: string };
     thinkingText?: string;
+    duration?: number;
 }
 
-const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFile' | 'groundingChunks'> => {
+const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFile' | 'groundingChunks' | 'duration'> => {
     let rawText = response.text;
     let thinkingText: string | undefined = undefined;
 
@@ -88,6 +90,7 @@ const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'dow
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    const startTime = performance.now();
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -181,12 +184,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (toolResponsePart) {
                 finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
                 const parsed = parseResponse(finalResponse);
-                return res.status(200).json({ ...parsed, groundingChunks, downloadableFile });
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                return res.status(200).json({ ...parsed, groundingChunks, downloadableFile, duration });
             }
         }
 
         const parsed = parseResponse(response);
-        return res.status(200).json(parsed);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        return res.status(200).json({ ...parsed, duration });
 
     } catch (error: any) {
         console.error("Error in sendMessage API:", error);

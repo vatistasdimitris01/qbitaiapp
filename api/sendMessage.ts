@@ -152,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }));
         
         const chat = ai.chats.create({
-            model: 'gemini-2.5-flash-lite',
+            model: 'gemini-2.5-flash',
             config: { tools, systemInstruction: finalSystemInstruction },
             history: geminiHistory,
         });
@@ -188,6 +188,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const { query } = call.args as { query: string };
                 const GOOGLE_SEARCH_API_KEY = 'AIzaSyBXIpu3bPdzi_5DTgnMVoZB1RUpJ3GhqeI';
                 const GOOGLE_SEARCH_ENGINE_ID = '41cbe099d93374452';
+                
+                const searchTranslations = {
+                    en: {
+                        webSearchResults: 'Here are the top web search results:',
+                        noResultsFound: 'No relevant results found.'
+                    },
+                    el: {
+                        webSearchResults: 'Αυτά είναι τα κορυφαία αποτελέσματα αναζήτησης στον ιστό:',
+                        noResultsFound: 'Δεν βρέθηκαν σχετικά αποτελέσματα.'
+                    }
+                };
+                const langKey = (language === 'el' ? 'el' : 'en');
+
 
                 if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
                     toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "Web search is not configured on the server." } } };
@@ -204,8 +217,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const items = searchData.items?.slice(0, 5) || [];
                         
                         const summary = items.length > 0
-                            ? "Here are the top web search results:\n" + items.map((item: any) => `- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
-                            : "No relevant results found.";
+                            ? searchTranslations[langKey].webSearchResults + "\n" + items.map((item: any) => `- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
+                            : searchTranslations[langKey].noResultsFound;
 
                         groundingChunks = items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };

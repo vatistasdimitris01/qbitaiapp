@@ -45,9 +45,8 @@ You have access to a set of tools to help you answer questions and complete task
     *   If a user requests a format you can't create directly (like a PDF, DOCX, or ZIP), you should first generate the content as a markdown (.md) or text (.txt) file using the tool. Then, in your response, provide the downloadable file and explain that you've created a text version that they can easily save or convert to their desired format. Do not say you cannot create files.
 
 2.  **Web Search (\`web_search\`):**
-    *   You can search the web for up-to-date information on any topic.
-    *   Use this tool when you need current information, are unsure about an answer, or when the user asks for information about recent events.
-    *   **Citations:** When you use information from a web search, you MUST cite your sources. To do this, wrap the exact text that comes from a source in a markdown link, where the URL is the number of the source. For example, if the first source says "The sky is blue", your response should include "[The sky is blue](1)". Do not add a separate list of sources at the end.
+    *   You can search the web for up-to-date information on any topic. When you use this tool, I will provide you with a summary of the search results. You should use this summary to formulate your answer.
+    *   Do not mention that you are summarizing search results or that you performed a web search; just provide the answer directly to the user as if you knew the information.
 
 **Response Format:**
 For every response, you must first write out your thought process in a <thinking>...</thinking> XML block. This should explain your reasoning and which tools you plan to use. After the thinking block, write the final, user-facing answer.
@@ -195,7 +194,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const call = functionCalls[0].functionCall!;
             let toolResponsePart: Part | null = null;
             let finalResponse: GenerateContentResponse | null = null;
-            let groundingChunks: GroundingChunk[] | undefined;
             let downloadableFiles: { name: string, content: string }[] | undefined;
 
             if (call.name === 'create_files' && call.args) {
@@ -213,56 +211,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             } else if (call.name === 'web_search' && call.args) {
                 const { query } = call.args as { query: string };
-                const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-                const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
-                
-                const searchTranslations = {
-                    en: {
-                        webSearchResults: 'Here are the top web search results:',
-                        noResultsFound: 'No relevant results found.'
-                    },
-                    el: {
-                        webSearchResults: 'Αυτά είναι τα κορυφαία αποτελέσματα αναζήτησης στον ιστό:',
-                        noResultsFound: 'Δεν βρέθηκαν σχετικά αποτελέσματα.'
-                    }
-                };
-                const langKey = (language === 'el' ? 'el' : 'en');
 
-
-                if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
-                    toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "Web search is not configured on the server." } } };
+                if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
+                    console.error("Web search is not configured. Missing GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID.");
+                    toolResponsePart = { 
+                        functionResponse: { 
+                            name: 'web_search', 
+                            response: { 
+                                summary: "The web_search tool is not configured on the server. Please contact the administrator." 
+                            } 
+                        } 
+                    };
                 } else {
-                    let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
-                    if (language) {
-                        searchUrl += `&lr=lang_${language}`;
-                    }
+                    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
                     try {
                         const searchRes = await fetch(searchUrl);
-                        if (!searchRes.ok) throw new Error(`Google Search API responded with status ${searchRes.status}`);
-
+                        if (!searchRes.ok) {
+                            const errorBody = await searchRes.text();
+                            throw new Error(`Google Search API responded with status ${searchRes.status}: ${errorBody}`);
+                        }
                         const searchData = await searchRes.json();
-                        const items = searchData.items?.slice(0, 5) || [];
                         
-                        const summary = items.length > 0
-                            ? searchTranslations[langKey].webSearchResults + "\n" + items.map((item: any, index: number) => `Source ${index + 1}:\n- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
-                            : searchTranslations[langKey].noResultsFound;
-
-                        let finalSummary = summary;
+                        let summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
+                        
+                        // Add language instruction
                         if (language) {
-                            const languageMap: { [key: string]: string } = {
-                                'en': 'English',
-                                'el': 'Greek (Ελληνικά)',
-                            };
+                            const languageMap: { [key: string]: string } = { 'en': 'English', 'el': 'Greek (Ελληνικά)' };
                             const fullLanguageName = languageMap[language] || language;
-                            finalSummary += `\n\n---\n**IMPORTANT REMINDER:** Based on these search results, formulate your final answer to the user strictly in ${fullLanguageName}.`;
+                            summary += `\n\n---\n**IMPORTANT REMINDER:** Based on these search results, formulate your final answer to the user strictly in ${fullLanguageName}.`;
                         }
 
-                        groundingChunks = items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: finalSummary } } };
-
+                        toolResponsePart = { 
+                            functionResponse: { 
+                                name: 'web_search', 
+                                response: { summary } 
+                            } 
+                        };
                     } catch (searchError: any) {
-                         console.error("Error calling Google Custom Search API:", searchError);
-                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "There was an error performing the web search." } } };
+                        console.error("Error during Google Custom Search:", searchError);
+                        toolResponsePart = { 
+                            functionResponse: { 
+                                name: 'web_search', 
+                                response: { 
+                                    summary: "There was an error performing the web search." 
+                                } 
+                            } 
+                        };
                     }
                 }
             }
@@ -273,7 +267,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const usageMetadata = finalResponse.usageMetadata;
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                return res.status(200).json({ ...parsed, groundingChunks, downloadableFiles, duration, usageMetadata });
+                return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
             }
         }
 

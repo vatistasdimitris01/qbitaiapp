@@ -205,8 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     functionResponse: {
                         name: 'create_files',
                         response: {
-                            success: true,
-                            message: `Successfully created ${files.length} file(s): ${createdFilenames.join(', ')}. Now, you must inform the user that the files have been created and are available for download.`,
+                           files_created: createdFilenames.map(filename => ({ filename, status: "SUCCESS" })),
                         }
                     }
                 };

@@ -1,22 +1,13 @@
 {
-  "name": "qbit",
+  "name": "qbit-app",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
   "dependencies": {
-    "@google/genai": "^1.19.0",
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1",
-    "marked": "latest"
+    "@google/genai": "^1.19.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "^5.2.2",
+    "@types/node": "^20.11.24",
+    "@vercel/node": "^3.0.0"
   }
 }

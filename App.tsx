@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
 import { useTranslations } from './hooks/useTranslations';
-import { sendMessageToAI, deleteChatSession } from './services/geminiService';
+import { sendMessageToAI } from './services/geminiService';
 import { translations } from './translations';
 import { LayoutGridIcon } from './components/icons';
 
@@ -132,7 +132,6 @@ const App: React.FC = () => {
     const newConversations = conversations.filter(c => c.id !== id);
     
     setConversations(newConversations);
-    deleteChatSession(id);
     
     if (activeConversationId === id) {
         if (newConversations.length > 0) {
@@ -153,7 +152,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string, attachments: Attachment[] = []) => {
-    if (!activeConversationId) return;
+    if (!activeConversationId || !activeConversation) return;
     const trimmedText = text.trim();
     if (isLoading || (!trimmedText && attachments.length === 0)) return;
 
@@ -168,13 +167,14 @@ const App: React.FC = () => {
       attachments,
     };
     
-    const isFirstMessage = activeConversation?.messages.length === 0;
+    const isFirstMessage = activeConversation.messages.length === 0;
+    const conversationHistory = [...activeConversation.messages, userMessage];
 
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
             ? {
                 ...c,
-                messages: [...c.messages, userMessage],
+                messages: conversationHistory,
                 ...(isFirstMessage && messageText && { title: messageText.substring(0, 50) })
               }
             : c
@@ -182,21 +182,28 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const currentPersona = personas.find(p => p.id === activeConversation?.personaId);
+      const currentPersona = personas.find(p => p.id === activeConversation.personaId);
       const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(activeConversationId, messageText, attachmentsForApi, currentPersona?.instruction, userLocation);
+      const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation);
       
+      let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
+      if (downloadableFile && downloadableFile.content) {
+          const blob = new Blob([downloadableFile.content], { type: 'application/octet-stream' });
+          const url = URL.createObjectURL(blob);
+          downloadableFileForState = { name: downloadableFile.name, url };
+      }
+
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
         author: 'ai',
         text: aiResponseText,
         groundingChunks,
-        downloadableFile,
+        downloadableFile: downloadableFileForState,
         thinkingText,
       };
 
       setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...c.messages, aiMessage] } : c
+        c.id === activeConversationId ? { ...c, messages: [...conversationHistory, aiMessage] } : c
       ));
 
     } catch (error) {
@@ -206,7 +213,7 @@ const App: React.FC = () => {
         text: 'Sorry, I ran into a problem. Please try again.',
       };
       setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...c.messages, errorMessage] } : c
+        c.id === activeConversationId ? { ...c, messages: [...conversationHistory, errorMessage] } : c
       ));
     } finally {
       setIsLoading(false);
@@ -228,13 +235,21 @@ const App: React.FC = () => {
         try {
           const currentPersona = personas.find(p => p.id === activeConversation.personaId);
           const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
-          const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(activeConversationId, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation);
+          const { text: aiResponseText, groundingChunks, downloadableFile, thinkingText } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation);
+          
+          let downloadableFileForState: Message['downloadableFile'] | undefined = undefined;
+          if (downloadableFile && downloadableFile.content) {
+              const blob = new Blob([downloadableFile.content], { type: 'application/octet-stream' });
+              const url = URL.createObjectURL(blob);
+              downloadableFileForState = { name: downloadableFile.name, url };
+          }
+          
           const aiMessage: Message = {
             id: `ai-${Date.now()}`,
             author: 'ai',
             text: aiResponseText,
             groundingChunks,
-            downloadableFile,
+            downloadableFile: downloadableFileForState,
             thinkingText,
           };
           setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...updatedMessages, aiMessage] } : c));

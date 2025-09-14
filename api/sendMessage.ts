@@ -118,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }));
         
         const chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-flash-lite',
             config: { tools, systemInstruction: finalSystemInstruction },
             history: geminiHistory,
         });
@@ -151,7 +151,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } else if (call.name === 'web_search' && call.args) {
                 const { query } = call.args as { query: string };
                 const searchResponse = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash', contents: query, config: { tools: [{ googleSearch: {} }] }
+                    model: 'gemini-2.5-flash-lite',
+                    contents: query, config: { tools: [{ googleSearch: {} }] }
                 });
                 const toolResponsePart: Part = { functionResponse: { name: 'web_search', response: { summary: searchResponse.text } } };
                 const finalResponse = await chat.sendMessage({ message: [toolResponsePart] });

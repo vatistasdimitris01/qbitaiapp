@@ -1,0 +1,7 @@
+{
+  "name": "qbit",
+  "description": "A modern AI chat application with beautiful light and dark themes.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

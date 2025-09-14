@@ -221,7 +221,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
           </div>
         )}
 
-        <div className={` ${isUser ? 'bg-gray-100 dark:bg-neutral-800 rounded-2xl p-3 px-4' : ''}`}>
+        <div className={` ${isUser ? 'bg-muted border border-border rounded-3xl rounded-br-lg p-3 px-4' : ''}`}>
            {isUser && message.text ? (
             <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{message.text}</p>
           ) : (

@@ -348,7 +348,7 @@ const App: React.FC = () => {
           </div>
         </main>
         
-        <div className="mt-auto bg-gradient-to-t from-background via-background/90 to-transparent">
+        <div className="mt-auto pt-4">
           <footer className="max-w-3xl mx-auto px-4 sm:px-6 pb-4">
               <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} />
           </footer>

@@ -50,6 +50,10 @@
         --token-text-primary: #171717;
         --token-text-secondary: #6e6e6e;
         --token-border-light: #e5e5e5;
+
+        --muted: #f3f4f6;
+        --card: rgba(255, 255, 255, 0.75);
+        --border: rgba(0, 0, 0, 0.08);
     }
     .dark {
         --background: #000000;
@@ -67,6 +71,10 @@
         --token-text-primary: #ffffff;
         --token-text-secondary: #a1a1aa;
         --token-border-light: #27272a;
+
+        --muted: #27272a;
+        --card: rgba(24, 24, 27, 0.7);
+        --border: rgba(255, 255, 255, 0.1);
     }
     body {
         background-color: var(--background);
@@ -82,6 +90,16 @@
     .border-sidebar-accent { border-color: var(--sidebar-accent); }
     .placeholder-sidebar-accent-foreground::placeholder { color: var(--sidebar-accent-foreground); }
     .focus\:bg-sidebar-accent:focus { background-color: var(--sidebar-accent); }
+
+    /* Glassy UI Helpers */
+    .bg-card {
+        background-color: var(--card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+    .bg-muted { background-color: var(--muted); }
+    .border-border { border-color: var(--border); }
+
 
     /* Settings Modal Tokens */
     .bg-token-main-surface-primary { background-color: var(--token-main-surface-primary); }

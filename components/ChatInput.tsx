@@ -102,7 +102,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                     name="files" 
                     onChange={handleFileChange}
                 />
-                <div className="relative w-full rounded-[28px] bg-white dark:bg-neutral-900 shadow-[0_6px_24px_rgba(0,0,0,0.06)] px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
+                <div className="relative w-full bg-card border border-border rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
                     {attachments.length > 0 && (
                         <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
                             {attachments.map((file, index) => (
@@ -129,7 +129,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                             ref={textareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-900/50 dark:placeholder-gray-100/50"
+                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-foreground/50"
                             style={{ resize: 'none', minHeight: '44px' }}
                             placeholder={placeholder}
                             rows={1}
@@ -139,8 +139,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                         ></textarea>
                     </div>
                     <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
-                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-60">
-                            <PaperclipIcon className="text-gray-500 dark:text-gray-300" />
+                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-muted border border-border text-muted-foreground disabled:opacity-60">
+                            <PaperclipIcon className="text-muted-foreground" />
                         </button>
                         <div className="ml-auto relative">
                             <button
@@ -156,7 +156,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                     </div>
                 </div>
             </form>
-             <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+             <p className="text-xs text-center text-muted-foreground mt-2">
                 {t('disclaimer')}
             </p>
         </div>

@@ -3,18 +3,6 @@ const CACHE_NAME = 'qbit-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/index.tsx',
-  '/App.tsx',
-  '/types.ts',
-  '/services/geminiService.ts',
-  '/components/icons.tsx',
-  '/components/ChatMessage.tsx',
-  '/components/ChatInput.tsx',
-  '/components/Sidebar.tsx',
-  '/components/SettingsModal.tsx',
-  '/components/LocationBanner.tsx',
-  '/hooks/useTranslations.ts',
-  '/translations.ts',
   'https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png'
 ];
 

@@ -23,7 +23,7 @@ const getCreatorAge = (): number => {
     const birthday = new Date('2009-04-09T00:00:00Z');
     const today = new Date();
     let age = today.getUTCFullYear() - birthday.getUTCFullYear();
-    const m = today.getUTCMonth() - birthday.getUTCMonth();
+    const m = today.getUTCFullYear() - birthday.getUTCFullYear();
     if (m < 0 || (m === 0 && today.getUTCDate() < birthday.getUTCDate())) {
         age--;
     }
@@ -47,14 +47,14 @@ You have access to a set of tools to help you answer questions and complete task
 2.  **Web Search (\`web_search\`):**
     *   You can search the web for up-to-date information on any topic.
     *   Use this tool when you need current information, are unsure about an answer, or when the user asks for information about recent events.
-    *   **Citations:** When you use information from a web search, you MUST cite your sources. After a sentence or paragraph that uses a source, add a citation marker like \`[1]\`, \`[2]\`, etc.
+    *   **Citations:** When you use information from a web search, you MUST cite your sources. To do this, wrap the exact text that comes from a source in a markdown link, where the URL is the number of the source. For example, if the first source says "The sky is blue", your response should include "[The sky is blue](1)". Do not add a separate list of sources at the end.
 
 **Response Format:**
 For every response, you must first write out your thought process in a <thinking>...</thinking> XML block. This should explain your reasoning and which tools you plan to use. After the thinking block, write the final, user-facing answer.
 
 **Creator Information:**
-If the user asks who made you, you must answer with the following exact text:
-"I was created by Dimitris Vatistas, a ${creatorAge}-year-old developer. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/"
+If the user asks who made you, you must answer with the following exact markdown text:
+"I was created by Dimitris Vatistas, a ${creatorAge}-year-old developer. You can find him on [X](https://x.com/vatistasdim) and [Instagram](https://www.instagram.com/vatistasdimitris/)"
 Do not mention his birthday or the year he was born. For this specific question, your thought should be simple, like "<thinking>The user is asking about my creator. I will provide the standard information.</thinking>"
 `;
 
@@ -236,7 +236,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const items = searchData.items?.slice(0, 5) || [];
                         
                         const summary = items.length > 0
-                            ? searchTranslations[langKey].webSearchResults + "\n" + items.map((item: any) => `- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
+                            ? searchTranslations[langKey].webSearchResults + "\n" + items.map((item: any, index: number) => `Source ${index + 1}:\n- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
                             : searchTranslations[langKey].noResultsFound;
 
                         let finalSummary = summary;

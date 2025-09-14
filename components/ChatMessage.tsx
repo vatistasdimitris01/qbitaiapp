@@ -72,17 +72,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     if (isUser) return '';
     const renderer = new marked.Renderer();
     
-    renderer.link = ({ href, title, text }) => {
+    // Override link renderer to handle both regular links and our new citation format
+    // Must use `function` not `=>` to preserve `this` context for `this.parser`.
+    renderer.link = function(token) {
+        const { href, title, tokens } = token;
+        
+        // Handle citation links (href is just a number string)
+        const citationIndex = parseInt(href || '', 10);
+        if (href && /^\d+$/.test(href) && message.groundingChunks && citationIndex > 0 && citationIndex <= message.groundingChunks.length) {
+            const source = message.groundingChunks[citationIndex - 1];
+            const domain = new URL(source.web.uri).hostname;
+            const text = this.parser.parseInline(tokens);
+
+            return `<span class="group inline-flex items-center gap-1.5">
+                      <span class="transition-colors group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 rounded">${text}</span>
+                      <a href="${source.web.uri}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(source.web.title)}" 
+                         class="inline-flex items-center border px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:border-zinc-800 dark:focus:ring-zinc-300 border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80 rounded-full">
+                        ${domain}
+                      </a>
+                    </span>`;
+        }
+
+        // Handle regular links
+        const text = this.parser.parseInline(tokens);
         const safeHref = (href || '').startsWith('http') ? href : '#';
         const titleAttr = title ? `title="${escapeHtml(title)}"` : '';
-        return `<a
-            href="${safeHref}"
-            target="_blank"
-            rel="noopener noreferrer"
-            ${titleAttr}
-        >
-            ${text}
-        </a>`;
+        return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer" ${titleAttr}>${text}</a>`;
     };
 
     renderer.code = (token) => {
@@ -98,26 +113,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
       return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
     };
 
-    let processedHtml = marked.parse(message.text, { 
+    return marked.parse(message.text, { 
       breaks: true, 
       gfm: true,
       renderer,
     }) as string;
 
-    // Process citations: find [1], [2], etc. and turn them into links
-    if (message.groundingChunks && message.groundingChunks.length > 0) {
-        processedHtml = processedHtml.replace(/\[(\d+)\]/g, (match, numberStr) => {
-            const number = parseInt(numberStr, 10);
-            if (number > 0 && number <= message.groundingChunks!.length) {
-                return `<a href="#msg-${message.id}-source-${number}" class="text-blue-500 dark:text-blue-400 no-underline"><sup>[${number}]</sup></a>`;
-            }
-            return match; // Return original if number is out of bounds
-        });
-    }
-
-    return processedHtml;
-
-  }, [message.id, message.text, message.groundingChunks, isUser]);
+  }, [message.text, message.groundingChunks, isUser]);
 
   const thinkingHtml = useMemo(() => {
     if (!message.thinkingText) return '';
@@ -188,7 +190,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
   const hasDownloads = !isUser && message.downloadableFiles && message.downloadableFiles.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
-  const hasCitations = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
 
   return (
     <div className={`flex my-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -259,20 +260,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
               className="prose prose-sm max-w-none text-gray-800 dark:text-white"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
-          )}
-          {hasCitations && (
-            <div className="mt-4 border-t dark:border-gray-600/50 pt-3">
-              <h4 className="text-xs font-semibold text-muted-foreground mb-2">Sources</h4>
-              <ol className="list-decimal list-inside text-sm space-y-1">
-                {message.groundingChunks?.map((chunk, index) => (
-                  <li key={index} id={`msg-${message.id}-source-${index + 1}`} className="truncate">
-                    <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" title={chunk.web.title}>
-                      {chunk.web.title || new URL(chunk.web.uri).hostname}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </div>
           )}
           {hasDownloads && (
             <div className="mt-4 border-t dark:border-gray-600/50 pt-3 space-y-2">

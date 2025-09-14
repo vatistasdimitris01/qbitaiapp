@@ -17,7 +17,7 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'a
 const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) => {
     return (
         <div className="mt-2 space-y-3 pl-6 border-l border-gray-200 dark:border-gray-600 ml-2">
-            <div className="flex gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex gap-2 text-sm text-gray-500 dark:text-white">
                 <div className="relative mt-0.5">
                     <SearchIcon className="size-4" />
                 </div>
@@ -186,7 +186,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
                         {message.thinkingText && (
                             <div className="mt-2 space-y-3 pl-6 border-l border-gray-200 dark:border-gray-600 ml-2">
                                 <div
-                                    className="prose prose-sm max-w-none text-gray-500 dark:text-gray-400"
+                                    className="prose prose-sm max-w-none text-gray-500 dark:text-white"
                                     dangerouslySetInnerHTML={{ __html: thinkingHtml }}
                                 />
                             </div>
@@ -228,7 +228,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
           ) : (
             <div
               ref={contentRef}
-              className="prose prose-sm max-w-none text-gray-800 dark:text-gray-100"
+              className="prose prose-sm max-w-none text-gray-800 dark:text-white"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
           )}

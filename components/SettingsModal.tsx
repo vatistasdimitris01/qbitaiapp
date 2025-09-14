@@ -59,9 +59,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const TabButton: React.FC<{tab: SettingsTab, label: string, icon: React.ReactNode}> = ({tab, label, icon}) => (
      <button 
         onClick={() => setActiveTab(tab)}
-        className={`group w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors truncate ${activeTab === tab ? 'bg-sidebar-accent text-sidebar-foreground' : 'hover:bg-sidebar-accent text-sidebar-foreground'}`}
+        className={`group flex-1 md:w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 md:py-2 md:rounded-lg text-center md:text-left transition-colors truncate
+        ${activeTab === tab ? 'bg-sidebar-accent text-sidebar-foreground' : 'hover:bg-sidebar-accent text-sidebar-foreground'}`}
       >
-        <div className="flex items-center justify-center text-sidebar-accent-foreground group-hover:text-sidebar-foreground transition-colors">{icon}</div>
+        <div className="hidden md:block text-sidebar-accent-foreground group-hover:text-sidebar-foreground transition-colors">{icon}</div>
         <span className="font-medium text-sm truncate">{label}</span>
       </button>
   );
@@ -76,8 +77,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </header>
         
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-48 border-r border-token-border-light p-2 space-y-1 bg-token-bg-elevated-secondary">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+           <div className="flex flex-row md:flex-col md:w-48 shrink-0 border-b md:border-r md:border-b-0 border-token-border-light bg-token-bg-elevated-secondary md:p-2">
               <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
           </div>

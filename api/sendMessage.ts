@@ -153,8 +153,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             } else if (call.name === 'web_search' && call.args) {
                 const { query } = call.args as { query: string };
-                const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-                const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+                const GOOGLE_SEARCH_API_KEY = 'AIzaSyBXIpu3bPdzi_5DTgnMVoZB1RUpJ3GhqeI';
+                const GOOGLE_SEARCH_ENGINE_ID = '41cbe099d93374452';
 
                 if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
                     toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "Web search is not configured on the server." } } };

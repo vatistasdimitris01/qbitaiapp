@@ -35,9 +35,19 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState('system');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
+  const [appHeight, setAppHeight] = useState(window.innerHeight);
 
   const mainContentRef = useRef<HTMLElement>(null);
   const { t, setLang, lang } = useTranslations(language);
+
+  // Dynamic height for mobile keyboard fix
+  useEffect(() => {
+    const handleResize = () => {
+      setAppHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -275,7 +285,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden">
+    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
       {/* Mobile Sidebar */}
       <div className="md:hidden">
           <div 
@@ -324,7 +334,7 @@ const App: React.FC = () => {
       )}
       
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col h-screen transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
+      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">

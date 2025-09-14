@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // FIX: Removed non-exported 'Role' type from import.
 import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
+import type { GroundingChunk } from '../types';
 
 // Simplified types for the API request body
 interface ApiAttachment {
@@ -65,12 +66,12 @@ const tools: Tool[] = [
 
 interface AIResponse {
     text: string;
-    groundingChunks?: any[];
+    groundingChunks?: GroundingChunk[];
     downloadableFile?: { name: string; content: string };
     thinkingText?: string;
 }
 
-const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFile'> => {
+const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFile' | 'groundingChunks'> => {
     let rawText = response.text;
     let thinkingText: string | undefined = undefined;
 
@@ -83,7 +84,6 @@ const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'dow
     return {
         text: rawText,
         thinkingText,
-        groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks,
     };
 };
 
@@ -110,11 +110,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-        // Convert client history to Gemini history format, excluding the last user message which is sent separately.
         const geminiHistory: Content[] = history.slice(0, -1).map((msg: ApiMessage) => ({
-            // FIX: Removed 'as Role' cast as Role type is not exported from @google/genai
             role: msg.author === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }], // Note: attachments in history are not yet handled here for simplicity
+            parts: [{ text: msg.text }],
         }));
         
         const chat = ai.chats.create({
@@ -140,24 +138,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (functionCalls.length > 0) {
             const call = functionCalls[0].functionCall!;
+            let toolResponsePart: Part | null = null;
+            let finalResponse: GenerateContentResponse | null = null;
+            let groundingChunks: GroundingChunk[] | undefined;
+            let downloadableFile: { name: string, content: string } | undefined;
 
             if (call.name === 'create_file' && call.args) {
                 const { filename, content } = call.args as { filename: string, content: string };
-                const toolResponsePart: Part = { functionResponse: { name: 'create_file', response: { success: true } } };
-                const finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
-                const parsed = parseResponse(finalResponse);
-                
-                return res.status(200).json({ ...parsed, downloadableFile: { name: filename, content } });
+                toolResponsePart = { functionResponse: { name: 'create_file', response: { success: true } } };
+                downloadableFile = { name: filename, content };
+
             } else if (call.name === 'web_search' && call.args) {
                 const { query } = call.args as { query: string };
-                const searchResponse = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-lite',
-                    contents: query, config: { tools: [{ googleSearch: {} }] }
-                });
-                const toolResponsePart: Part = { functionResponse: { name: 'web_search', response: { summary: searchResponse.text } } };
-                const finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
+                const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+                const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+                if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+                    toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "Web search is not configured on the server." } } };
+                } else {
+                    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
+                    try {
+                        const searchRes = await fetch(searchUrl);
+                        if (!searchRes.ok) throw new Error(`Google Search API responded with status ${searchRes.status}`);
+
+                        const searchData = await searchRes.json();
+                        const items = searchData.items?.slice(0, 5) || [];
+                        
+                        const summary = items.length > 0
+                            ? "Here are the top web search results:\n" + items.map((item: any) => `- Title: ${item.title}\n  URL: ${item.link}\n  Snippet: ${item.snippet}`).join('\n\n')
+                            : "No relevant results found.";
+
+                        groundingChunks = items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
+                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
+
+                    } catch (searchError: any) {
+                         console.error("Error calling Google Custom Search API:", searchError);
+                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "There was an error performing the web search." } } };
+                    }
+                }
+            }
+            
+            if (toolResponsePart) {
+                finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
                 const parsed = parseResponse(finalResponse);
-                return res.status(200).json({ ...parsed, groundingChunks: searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks });
+                return res.status(200).json({ ...parsed, groundingChunks, downloadableFile });
             }
         }
 

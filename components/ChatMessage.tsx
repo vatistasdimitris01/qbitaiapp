@@ -224,7 +224,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
 
         <div className={` ${isUser ? 'bg-muted border border-border rounded-3xl rounded-br-lg p-3 px-4' : ''}`}>
            {isUser && message.text ? (
-            <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{message.text}</p>
+            <p className="text-gray-800 dark:text-white whitespace-pre-wrap">{message.text}</p>
           ) : (
             <div
               ref={contentRef}

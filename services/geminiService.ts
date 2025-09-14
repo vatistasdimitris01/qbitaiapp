@@ -6,6 +6,11 @@ export interface AIResponse {
     downloadableFiles?: { name: string; content: string }[]; // content instead of url
     thinkingText?: string;
     duration?: number;
+    usageMetadata?: {
+        promptTokenCount: number;
+        candidatesTokenCount: number;
+        totalTokenCount: number;
+    };
 }
 
 // This function now sends the request to our secure serverless function

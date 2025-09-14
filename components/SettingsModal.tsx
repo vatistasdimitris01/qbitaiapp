@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Conversation, Persona } from '../types';
 import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon } from './icons';
 import { translations } from '../translations';
@@ -22,6 +22,16 @@ interface SettingsModalProps {
 
 type SettingsTab = 'General' | 'Personalization' | 'Usage';
 
+// Pricing for gemini-2.5-flash
+const INPUT_PRICE_PER_1M_TOKENS = 0.35;
+const OUTPUT_PRICE_PER_1M_TOKENS = 0.70;
+
+const formatTokens = (tokens: number): string => {
+    if (tokens < 1000) return tokens.toString();
+    return `${(tokens / 1000).toFixed(1)}K`;
+};
+
+
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, setPersonas,
   conversations, setConversations, activeConversationId, t
@@ -29,6 +39,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>('General');
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
   const activeConversation = conversations.find(c => c.id === activeConversationId);
+
+  const usageStats = useMemo(() => {
+    if (!activeConversation) {
+        return { inputTokens: 0, outputTokens: 0, totalCost: 0 };
+    }
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    activeConversation.messages.forEach(message => {
+        if (message.author === 'ai' && message.usageMetadata) {
+            inputTokens += message.usageMetadata.promptTokenCount;
+            outputTokens += message.usageMetadata.candidatesTokenCount;
+        }
+    });
+
+    const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS;
+    const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS;
+    const totalCost = inputCost + outputCost;
+
+    return { inputTokens, outputTokens, totalCost };
+  }, [activeConversation]);
 
   const handlePersonaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const personaId = e.target.value;
@@ -143,32 +174,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <section>
                 <h3 className="text-lg font-normal text-token-text-primary mb-4 pb-3 border-b border-token-border-light">{t('tabUsage')}</h3>
                 <div className="space-y-4">
-                    <p className="text-sm text-token-text-secondary">Token usage is unlimited on this plan.</p>
+                    <p className="text-sm text-token-text-secondary">Usage statistics for the current conversation.</p>
                     <div className="w-full rounded-lg border border-token-border-light bg-token-main-surface-secondary text-token-text-primary shadow-sm text-sm overflow-hidden">
                         <div className="w-full space-y-2 p-3">
                             <div className="flex items-center justify-between gap-3 text-xs">
-                                <p>0%</p>
-                                <p className="font-mono text-token-text-secondary">0 / ∞</p>
+                                <p>Unlimited</p>
+                                <p className="font-mono text-token-text-secondary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)} / ∞</p>
                             </div>
                             <div className="space-y-2">
                                 <div className="relative h-2 w-full overflow-hidden rounded-full bg-token-main-surface-primary">
-                                    <div className="bg-blue-500 h-full w-full flex-1 transition-all" style={{ width: '0%' }}></div>
+                                    <div className="bg-blue-500 h-full w-full flex-1 transition-all" style={{ width: '100%' }}></div>
                                 </div>
                             </div>
                         </div>
                         <div className="w-full p-3 border-t border-token-border-light">
                             <div className="flex items-center justify-between text-xs">
                                 <span className="text-token-text-secondary">Input</span>
-                                <span>0<span className="ml-2 text-token-text-secondary">• $0.00</span></span>
+                                <span>{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-text-secondary">• ${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
                                 <span className="text-token-text-secondary">Output</span>
-                                <span>0<span className="ml-2 text-token-text-secondary">• $0.00</span></span>
+                                <span>{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-text-secondary">• ${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                         </div>
                         <div className="flex w-full items-center justify-between gap-3 bg-token-main-surface-primary p-3 text-xs">
                             <span className="text-token-text-secondary">Total cost</span>
-                            <span>$0.00</span>
+                            <span>${usageStats.totalCost.toFixed(4)}</span>
                         </div>
                     </div>
                 </div>

@@ -115,11 +115,16 @@ const App: React.FC = () => {
 
   const scrollToBottom = () => {
     if (mainContentRef.current) {
-        mainContentRef.current.scrollTop = mainContentRef.current.scrollHeight;
+        requestAnimationFrame(() => {
+          if (mainContentRef.current) {
+            mainContentRef.current.scrollTop = mainContentRef.current.scrollHeight;
+          }
+        });
     }
   };
 
   useEffect(() => {
+    // A small delay helps ensure content is rendered before scrolling.
     setTimeout(scrollToBottom, 100);
   }, [activeConversation?.messages, isLoading]);
 
@@ -194,7 +199,7 @@ const App: React.FC = () => {
     try {
       const currentPersona = personas.find(p => p.id === activeConversation.personaId);
       const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
+      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
       
       let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
       if (downloadableFiles && downloadableFiles.length > 0) {
@@ -213,6 +218,7 @@ const App: React.FC = () => {
         downloadableFiles: downloadableFilesForState,
         thinkingText,
         duration,
+        usageMetadata,
       };
 
       setConversations(prev => prev.map(c => 
@@ -248,7 +254,7 @@ const App: React.FC = () => {
         try {
           const currentPersona = personas.find(p => p.id === activeConversation.personaId);
           const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
-          const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
+          const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
           
           let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
           if (downloadableFiles && downloadableFiles.length > 0) {
@@ -267,6 +273,7 @@ const App: React.FC = () => {
             downloadableFiles: downloadableFilesForState,
             thinkingText,
             duration,
+            usageMetadata,
           };
           setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...updatedMessages, aiMessage] } : c));
         } catch (error) {

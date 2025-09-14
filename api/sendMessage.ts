@@ -47,6 +47,7 @@ You have access to a set of tools to help you answer questions and complete task
 2.  **Web Search (\`web_search\`):**
     *   You can search the web for up-to-date information on any topic.
     *   Use this tool when you need current information, are unsure about an answer, or when the user asks for information about recent events.
+    *   **Citations:** When you use information from a web search, you MUST cite your sources. After a sentence or paragraph that uses a source, add a citation marker like \`[1]\`, \`[2]\`, etc.
 
 **Response Format:**
 For every response, you must first write out your thought process in a <thinking>...</thinking> XML block. This should explain your reasoning and which tools you plan to use. After the thinking block, write the final, user-facing answer.
@@ -107,9 +108,14 @@ interface AIResponse {
     downloadableFiles?: { name: string; content: string }[];
     thinkingText?: string;
     duration?: number;
+    usageMetadata?: {
+        promptTokenCount: number;
+        candidatesTokenCount: number;
+        totalTokenCount: number;
+    };
 }
 
-const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFiles' | 'groundingChunks' | 'duration'> => {
+const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFiles' | 'groundingChunks' | 'duration' | 'usageMetadata'> => {
     let rawText = response.text ?? "";
     let thinkingText: string | undefined = undefined;
 
@@ -256,16 +262,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (toolResponsePart) {
                 finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
                 const parsed = parseResponse(finalResponse);
+                const usageMetadata = finalResponse.usageMetadata;
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                return res.status(200).json({ ...parsed, groundingChunks, downloadableFiles, duration });
+                return res.status(200).json({ ...parsed, groundingChunks, downloadableFiles, duration, usageMetadata });
             }
         }
 
         const parsed = parseResponse(response);
+        const usageMetadata = response.usageMetadata;
         const endTime = performance.now();
         const duration = endTime - startTime;
-        return res.status(200).json({ ...parsed, duration });
+        return res.status(200).json({ ...parsed, duration, usageMetadata });
 
     } catch (error: any) {
         console.error("Error in sendMessage API:", error);

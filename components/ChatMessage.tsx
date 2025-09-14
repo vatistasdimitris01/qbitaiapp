@@ -72,12 +72,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     if (isUser) return '';
     const renderer = new marked.Renderer();
     
-    // FIX: Revert to a standard link renderer to fix the crash and restore normal link appearance.
-    // The previous implementation caused an error because `this.parser` is not available in the renderer context.
     renderer.link = ({ href, title, text }) => {
         const safeHref = (href || '').startsWith('http') ? href : '#';
         const titleAttr = title ? `title="${escapeHtml(title)}"` : '';
-        // Return a standard <a> tag. Styling is handled by the `.prose a` CSS rules.
         return `<a
             href="${safeHref}"
             target="_blank"
@@ -101,12 +98,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
       return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
     };
 
-    return marked.parse(message.text, { 
+    let processedHtml = marked.parse(message.text, { 
       breaks: true, 
       gfm: true,
       renderer,
     }) as string;
-  }, [message.text, isUser]);
+
+    // Process citations: find [1], [2], etc. and turn them into links
+    if (message.groundingChunks && message.groundingChunks.length > 0) {
+        processedHtml = processedHtml.replace(/\[(\d+)\]/g, (match, numberStr) => {
+            const number = parseInt(numberStr, 10);
+            if (number > 0 && number <= message.groundingChunks!.length) {
+                return `<a href="#msg-${message.id}-source-${number}" class="text-blue-500 dark:text-blue-400 no-underline"><sup>[${number}]</sup></a>`;
+            }
+            return match; // Return original if number is out of bounds
+        });
+    }
+
+    return processedHtml;
+
+  }, [message.id, message.text, message.groundingChunks, isUser]);
 
   const thinkingHtml = useMemo(() => {
     if (!message.thinkingText) return '';
@@ -177,6 +188,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
   const hasDownloads = !isUser && message.downloadableFiles && message.downloadableFiles.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
+  const hasCitations = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
 
   return (
     <div className={`flex my-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -247,6 +259,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
               className="prose prose-sm max-w-none text-gray-800 dark:text-white"
               dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
+          )}
+          {hasCitations && (
+            <div className="mt-4 border-t dark:border-gray-600/50 pt-3">
+              <h4 className="text-xs font-semibold text-muted-foreground mb-2">Sources</h4>
+              <ol className="list-decimal list-inside text-sm space-y-1">
+                {message.groundingChunks?.map((chunk, index) => (
+                  <li key={index} id={`msg-${message.id}-source-${index + 1}`} className="truncate">
+                    <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" title={chunk.web.title}>
+                      {chunk.web.title || new URL(chunk.web.uri).hostname}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
           {hasDownloads && (
             <div className="mt-4 border-t dark:border-gray-600/50 pt-3 space-y-2">

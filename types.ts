@@ -26,6 +26,11 @@ export interface Message {
   }[];
   thinkingText?: string;
   duration?: number;
+  usageMetadata?: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
 }
 
 export interface Persona {

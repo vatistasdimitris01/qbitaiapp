@@ -200,13 +200,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (call.name === 'create_files' && call.args) {
                 const { files } = call.args as { files: { filename: string, content: string }[] };
-                toolResponsePart = { functionResponse: { name: 'create_files', response: { success: true, files_created: files.length } } };
+                const createdFilenames = files.map(f => f.filename);
+                toolResponsePart = {
+                    functionResponse: {
+                        name: 'create_files',
+                        response: {
+                            success: true,
+                            message: `Successfully created ${files.length} file(s): ${createdFilenames.join(', ')}. Now, you must inform the user that the files have been created and are available for download.`,
+                        }
+                    }
+                };
                 downloadableFiles = files.map(f => ({ name: f.filename, content: f.content }));
             
             } else if (call.name === 'web_search' && call.args) {
                 const { query } = call.args as { query: string };
-                const GOOGLE_SEARCH_API_KEY = 'AIzaSyBXIpu3bPdzi_5DTgnMVoZB1RUpJ3GhqeI';
-                const GOOGLE_SEARCH_ENGINE_ID = '41cbe099d93374452';
+                const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+                const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
                 
                 const searchTranslations = {
                     en: {

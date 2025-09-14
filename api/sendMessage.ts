@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { performance } from 'perf_hooks';
 // FIX: Removed non-exported 'Role' type from import.
@@ -187,15 +188,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
         
-        const response = await chat.sendMessage({ message: messageParts });
-        const functionCalls = response.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall) || [];
+        let response = await chat.sendMessage({ message: messageParts });
+        let downloadableFiles: { name: string, content: string }[] | undefined;
 
-        if (functionCalls.length > 0) {
+        // Loop to handle sequential tool calls (e.g., search -> create file)
+        // Limited to 5 iterations to prevent potential infinite loops.
+        for (let i = 0; i < 5; i++) {
+            const functionCalls = response.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall) || [];
+            
+            // If there are no more function calls, we have the final response.
+            if (functionCalls.length === 0) {
+                break;
+            }
+
+            // For simplicity, we handle the first function call. Gemini may support parallel calls in the future.
             const call = functionCalls[0].functionCall!;
             let toolResponsePart: Part | null = null;
-            let finalResponse: GenerateContentResponse | null = null;
-            let downloadableFiles: { name: string, content: string }[] | undefined;
-
+            
             if (call.name === 'create_files' && call.args) {
                 const { files } = call.args as { files: { filename: string, content: string }[] };
                 const createdFilenames = files.map(f => f.filename);
@@ -207,6 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         }
                     }
                 };
+                // Store the files to be sent to the client for download.
                 downloadableFiles = files.map(f => ({ name: f.filename, content: f.content }));
             
             } else if (call.name === 'web_search' && call.args) {
@@ -234,7 +244,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         
                         let summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
                         
-                        // Add language instruction
                         if (language) {
                             const languageMap: { [key: string]: string } = { 'en': 'English', 'el': 'Greek (Ελληνικά)' };
                             const fullLanguageName = languageMap[language] || language;
@@ -261,21 +270,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
             
+            // If a tool was executed, send the result back to the model to get the next response.
             if (toolResponsePart) {
-                finalResponse = await chat.sendMessage({ message: [toolResponsePart] });
-                const parsed = parseResponse(finalResponse);
-                const usageMetadata = finalResponse.usageMetadata;
-                const endTime = performance.now();
-                const duration = endTime - startTime;
-                return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
+                response = await chat.sendMessage({ message: [toolResponsePart] });
+            } else {
+                // Should not happen if functionCalls.length > 0, but acts as a safeguard.
+                break;
             }
         }
 
+        // After the loop, `response` contains the final text response from the AI.
         const parsed = parseResponse(response);
         const usageMetadata = response.usageMetadata;
         const endTime = performance.now();
         const duration = endTime - startTime;
-        return res.status(200).json({ ...parsed, duration, usageMetadata });
+        // The `downloadableFiles` variable will have been set if `create_files` was called at any point.
+        return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
 
     } catch (error: any) {
         console.error("Error in sendMessage API:", error);

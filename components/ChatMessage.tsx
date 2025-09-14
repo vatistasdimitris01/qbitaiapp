@@ -84,6 +84,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
       return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
     };
     
+    // NO custom link renderer is used. This fixes the crash.
     const rawHtml = marked.parse(message.text, { 
       breaks: true, 
       gfm: true,
@@ -106,18 +107,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
             const safeTitle = escapeHtml(source.web.title);
             const safeDomain = escapeHtml(domain);
 
-            // The cited text itself is the link, styled to be subtle with a hover effect.
-            // The domain badge appears next to it.
-            return `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" title="${safeTitle}" ` +
-                        `class="text-current no-underline group/citation">` +
-                            `<span class="underline decoration-zinc-900/50 dark:decoration-zinc-500/50 group-hover/citation:decoration-blue-500 transition-colors">${text}</span>` +
-                    `</a>` +
-                    `<span class="inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50 rounded-full ml-1.5 align-middle">` +
-                        `${safeDomain}` +
-                    `</span>`;
+            return `<span class="group inline items-center gap-1.5 align-middle">` +
+                     `<span class="transition-colors group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 rounded">${text}</span>` +
+                     `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" title="${safeTitle}" ` +
+                        `class="inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:border-zinc-800 dark:focus:ring-zinc-300 border-transparent bg-zinc-100 text-black hover:text-black hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80 rounded-full no-underline">` +
+                           `${safeDomain}` +
+                     `</a>` +
+                   `</span>`;
         }
-        // If it's a numeric link but not a valid citation, or any other link, pass it through.
-        return match; 
+        // If it's a numeric link but not a valid citation, just render the text.
+        // This prevents broken links if the AI hallucinates a citation number.
+        return text; 
     });
 
     return processedHtml;

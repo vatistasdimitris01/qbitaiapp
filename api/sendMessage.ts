@@ -285,6 +285,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const usageMetadata = response.usageMetadata;
         const endTime = performance.now();
         const duration = endTime - startTime;
+
+        // Fallback: If files were created but the AI didn't provide a text response, create one.
+        if (downloadableFiles && downloadableFiles.length > 0 && !parsed.text.trim()) {
+            const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
+            if (downloadableFiles.length > 1) {
+                parsed.text = `I've created the following files for you: ${fileNames}. You can download them below.`;
+            } else {
+                parsed.text = `I've created the file ${fileNames} for you. You can download it below.`;
+            }
+        }
+
         // The `downloadableFiles` variable will have been set if `create_files` was called at any point.
         return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
 

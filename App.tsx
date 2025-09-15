@@ -37,8 +37,60 @@ const App: React.FC = () => {
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
   const [appHeight, setAppHeight] = useState(window.innerHeight);
 
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+
   const mainContentRef = useRef<HTMLElement>(null);
   const { t, setLang, lang } = useTranslations(language);
+  
+  const handleUpdate = () => {
+    if (waitingWorkerRef.current) {
+        waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' });
+        // The page will reload after the new service worker takes control.
+        setShowUpdateBanner(false);
+    }
+  };
+
+
+  // Service Worker Update Handler
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+        const handleControllerChange = () => {
+            window.location.reload();
+        };
+        
+        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+        const registerServiceWorker = async () => {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                registration.onupdatefound = () => {
+                    const installingWorker = registration.installing;
+                    if (installingWorker) {
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // New update available
+                                    waitingWorkerRef.current = installingWorker;
+                                    setShowUpdateBanner(true);
+                                }
+                            }
+                        };
+                    }
+                };
+            } catch (error) {
+                console.error('Service worker registration failed:', error);
+            }
+        };
+
+        window.addEventListener('load', registerServiceWorker);
+
+        return () => {
+            window.removeEventListener('load', registerServiceWorker);
+            navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+        };
+    }
+  }, []);
 
   // Dynamic height for mobile keyboard fix
   useEffect(() => {
@@ -301,6 +353,14 @@ const App: React.FC = () => {
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
+      {showUpdateBanner && (
+        <div className="absolute top-0 left-0 right-0 bg-blue-500 text-white text-sm text-center p-2 flex items-center justify-center gap-4 z-[100]">
+            <p>A new version is available!</p>
+            <button onClick={handleUpdate} className="bg-white text-blue-500 font-semibold px-3 py-1 rounded-md hover:opacity-90">
+                Refresh
+            </button>
+        </div>
+      )}
       {/* Mobile Sidebar */}
       <div className="md:hidden">
           <div 

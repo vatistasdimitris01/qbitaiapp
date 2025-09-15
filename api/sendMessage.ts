@@ -263,11 +263,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const endTime = performance.now();
         const duration = endTime - startTime;
 
-        if (downloadableFiles && downloadableFiles.length > 0 && !parsed.text.trim()) {
+        if (downloadableFiles && downloadableFiles.length > 0) {
             const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
-            parsed.text = downloadableFiles.length > 1
+            const confirmationText = downloadableFiles.length > 1
                 ? `I've created the following files for you: ${fileNames}. You can download them below.`
-                : `I've created the file ${fileNames} for you. You can download it below.`;
+                : `I've created the file \`${fileNames}\` for you. You can download it below.`;
+            
+            // If the model gave no text response, use our confirmation.
+            // If it did, prepend our confirmation to its response.
+            if (!parsed.text || !parsed.text.trim()) {
+                parsed.text = confirmationText;
+            } else {
+                parsed.text = `${confirmationText}\n\n${parsed.text}`;
+            }
         }
 
         return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });

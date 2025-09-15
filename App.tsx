@@ -204,8 +204,11 @@ const App: React.FC = () => {
       let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
       if (downloadableFiles && downloadableFiles.length > 0) {
         downloadableFilesForState = downloadableFiles.map(file => {
-          const blob = new Blob([file.content], { type: 'application/octet-stream' });
-          const url = URL.createObjectURL(blob);
+          // A robust way to handle Unicode strings for btoa
+          const toBinary = (string: string) => unescape(encodeURIComponent(string));
+          const base64Content = btoa(toBinary(file.content));
+          const mimeType = 'application/octet-stream'; // Force download
+          const url = `data:${mimeType};base64,${base64Content}`;
           return { name: file.name, url };
         });
       }
@@ -257,10 +260,12 @@ const App: React.FC = () => {
           const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
           
           let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
-          if (downloadableFiles && downloadableFiles.length > 0) {
+           if (downloadableFiles && downloadableFiles.length > 0) {
             downloadableFilesForState = downloadableFiles.map(file => {
-              const blob = new Blob([file.content], { type: 'application/octet-stream' });
-              const url = URL.createObjectURL(blob);
+              const toBinary = (string: string) => unescape(encodeURIComponent(string));
+              const base64Content = btoa(toBinary(file.content));
+              const mimeType = 'application/octet-stream';
+              const url = `data:${mimeType};base64,${base64Content}`;
               return { name: file.name, url };
             });
           }

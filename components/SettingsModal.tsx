@@ -31,6 +31,14 @@ const formatTokens = (tokens: number): string => {
     return `${(tokens / 1000).toFixed(1)}K`;
 };
 
+const languageNames: Record<Language, string> = {
+    en: 'English',
+    el: 'Ελληνικά (Greek)',
+    es: 'Español (Spanish)',
+    fr: 'Français (French)',
+    de: 'Deutsch (German)',
+};
+
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, setPersonas,
@@ -132,9 +140,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="language-select" className="text-sm font-medium text-token-text-primary">{t('language')}</label>
-                    <select id="language-select" value={language} onChange={e => setLanguage(e.target.value as Language)} className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary">
-                      <option value="en">English</option>
-                      <option value="el">Ελληνικά (Greek)</option>
+                    <select
+                      id="language-select"
+                      value={language}
+                      onChange={e => setLanguage(e.target.value as Language)}
+                      className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary"
+                    >
+                      {Object.keys(translations).map(langCode => (
+                        <option key={langCode} value={langCode}>
+                          {languageNames[langCode as Language] || langCode}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

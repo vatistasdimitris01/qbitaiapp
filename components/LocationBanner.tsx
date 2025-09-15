@@ -8,7 +8,15 @@ interface LocationBannerProps {
 }
 
 const countryToLang: Record<string, string> = {
-  GR: 'el', // Greece -> Greek
+  GR: 'el', // Greece
+  ES: 'es', // Spain
+  MX: 'es', // Mexico
+  AR: 'es', // Argentina
+  CO: 'es', // Colombia
+  FR: 'fr', // France
+  CA: 'fr', // Canada
+  DE: 'de', // Germany
+  AT: 'de', // Austria
 };
 
 const LocationBanner: React.FC<LocationBannerProps> = ({ onLocationUpdate, t }) => {

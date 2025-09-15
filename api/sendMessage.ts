@@ -156,13 +156,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : defaultSystemInstruction;
 
         if (language) {
-            const languageMap: { [key: string]: string } = {
-                'en': 'English',
-                'el': 'Greek (Ελληνικά)',
-            };
-            const fullLanguageName = languageMap[language] || language;
-            finalSystemInstruction += `\n\n**IMPORTANT:** The user is communicating in ${fullLanguageName}. You MUST respond in ${fullLanguageName}.`;
+            // Use Intl.DisplayNames for a scalable way to get language names.
+            const languageName = new Intl.DisplayNames(['en'], { type: 'language' }).of(language);
+            const fullLanguageName = languageName || language;
+            finalSystemInstruction += `\n\n**User's Language Context:** The user's primary language appears to be ${fullLanguageName}. Please conduct the conversation primarily in this language, adapting naturally if the user switches.`;
         }
+
 
         // Manually construct the conversation history in the format Gemini expects.
         const contents: Content[] = [];
@@ -238,9 +237,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const searchData = await searchRes.json();
                         let summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
                          if (language) {
-                            const languageMap: { [key: string]: string } = { 'en': 'English', 'el': 'Greek (Ελληνικά)' };
-                            const fullLanguageName = languageMap[language] || language;
-                            summary += `\n\n---\n**IMPORTANT REMINDER:** Based on these search results, formulate your final answer to the user strictly in ${fullLanguageName}.`;
+                            const languageName = new Intl.DisplayNames(['en'], { type: 'language' }).of(language);
+                            const fullLanguageName = languageName || language;
+                            summary += `\n\n---\n**Reminder:** The user's language is ${fullLanguageName}. Please use that language when summarizing these results in your final answer.`;
                         }
                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
                     } catch (searchError: any) {

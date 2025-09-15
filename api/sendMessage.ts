@@ -41,9 +41,10 @@ Current date: ${currentDate}
 You have access to a set of tools to help you answer questions and complete tasks. You should use them whenever appropriate.
 
 1.  **File Creation (\`create_files\`):**
-    *   You can create various text-based files, such as \`.txt\`, \`.md\`, \`.html\`, \`.css\`, \`.js\`, \`.py\`, and more.
-    *   When a user asks to create a file, use this tool to generate the file with the specified name and content.
-    *   If a user requests a format you can't create directly (like a PDF, DOCX, or ZIP), you should first generate the content as a markdown (.md) or text (.txt) file using the tool. Then, in your response, provide the downloadable file and explain that you've created a text version that they can easily save or convert to their desired format. Do not say you cannot create files.
+    *   **CRITICAL RULE:** Any user request that involves generating code (e.g., HTML, Python, JavaScript, CSS, etc.) or any other type of document (e.g., a report, a story, a list) **MUST** be fulfilled using the \`create_files\` tool.
+    *   Do **NOT** display code or document content in a markdown block inside your response. The user's intent is **always** to receive a downloadable file.
+    *   For example, if the user says "create an html website for a vet", your primary action is to call \`create_files\` with a payload like \`{ "files": [{ "filename": "index.html", "content": "<!DOCTYPE html>..." }] }\`. After calling the tool, your final text response to the user should be a simple confirmation, like "I've created the HTML file for the vet website for you."
+    *   If a user requests a format you can't create directly (like a PDF or DOCX), generate the content as a markdown (.md) or text (.txt) file using the tool, and inform the user you've provided a text-based version they can convert.
 
 2.  **Web Search (\`web_search\`):**
     *   You can search the web for up-to-date information on any topic. When you use this tool, I will provide you with a summary of the search results. You should use this summary to formulate your answer.
@@ -63,7 +64,7 @@ const tools: Tool[] = [
         functionDeclarations: [
             {
                 name: 'create_files',
-                description: 'Creates one or more files with the given content and filenames. Call this function when the user asks to create any kind of file (e.g., code, documents, spreadsheets). You can create multiple files at once. If the user asks for a ZIP archive, use this function to create the individual files and inform the user that they can be downloaded separately.',
+                description: "Use this tool to create any kind of text-based file, especially code files (like .html, .py, .js) and documents (.md, .txt). When a user asks for code or a document, you MUST use this function to create a downloadable file for them. Do not show code in your response.",
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
@@ -75,7 +76,7 @@ const tools: Tool[] = [
                                 properties: {
                                     filename: { 
                                         type: Type.STRING,
-                                        description: 'The name of the file, including its extension (e.g., "my_script.py", "report.docx").'
+                                        description: 'The name of the file, including its extension (e.g., "my_script.py", "report.md").'
                                     },
                                     content: {
                                         type: Type.STRING,

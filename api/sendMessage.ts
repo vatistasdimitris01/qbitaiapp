@@ -1,7 +1,7 @@
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { performance } from 'perf_hooks';
-// FIX: Removed non-exported 'Role' type from import.
 import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
 import type { GroundingChunk } from '../types';
 
@@ -24,7 +24,7 @@ const getCreatorAge = (): number => {
     const birthday = new Date('2009-04-09T00:00:00Z');
     const today = new Date();
     let age = today.getUTCFullYear() - birthday.getUTCFullYear();
-    const m = today.getUTCFullYear() - birthday.getUTCFullYear();
+    const m = today.getUTCMonth() - birthday.getUTCMonth();
     if (m < 0 || (m === 0 && today.getUTCDate() < birthday.getUTCDate())) {
         age--;
     }
@@ -144,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { history, message, attachments, personaInstruction, location, language } = req.body as {
             history: ApiMessage[],
-            message: string,
+            message: string, // Note: message and attachments are from the most recent user turn
             attachments?: ApiAttachment[],
             personaInstruction?: string,
             location?: LocationInfo | null,
@@ -164,45 +164,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             finalSystemInstruction += `\n\n**IMPORTANT:** The user is communicating in ${fullLanguageName}. You MUST respond in ${fullLanguageName}.`;
         }
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        // Manually construct the conversation history in the format Gemini expects.
+        const contents: Content[] = [];
+        for (const msg of history) {
+            const parts: Part[] = [];
+            // Add location context to the latest user message
+            if (msg.author === 'user' && msg === history[history.length - 1] && location) {
+                 parts.push({ text: `Context: User is in ${location.city}, ${location.country}.\n\nUser message: ${msg.text}` });
+            } else {
+                 parts.push({ text: msg.text });
+            }
 
-        const geminiHistory: Content[] = history.slice(0, -1).map((msg: ApiMessage) => ({
-            role: msg.author === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }],
-        }));
-        
-        const chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: { tools, systemInstruction: finalSystemInstruction },
-            history: geminiHistory,
-        });
-
-        let userMessageText = message;
-        if (location) {
-            userMessageText = `Context: User is in ${location.city}, ${location.country}.\n\nUser message: ${message}`;
-        }
-        const messageParts: Part[] = [{ text: userMessageText }];
-        
-        if (attachments && attachments.length > 0) {
-            attachments.forEach(file => {
-                messageParts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
+            if (msg.attachments) {
+                for (const file of msg.attachments) {
+                    parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
+                }
+            }
+            contents.push({
+                role: msg.author === 'user' ? 'user' : 'model',
+                parts: parts,
             });
         }
         
-        let response = await chat.sendMessage({ message: messageParts });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         let downloadableFiles: { name: string, content: string }[] | undefined;
+        let finalResponse: GenerateContentResponse | undefined;
 
-        // Loop to handle sequential tool calls (e.g., search -> create file)
-        // Limited to 5 iterations to prevent potential infinite loops.
         for (let i = 0; i < 5; i++) {
+            // FIX: The 'tools' and 'systemInstruction' properties must be placed inside a 'config' object.
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents,
+                config: {
+                    tools,
+                    systemInstruction: finalSystemInstruction,
+                },
+            });
+
+            finalResponse = response;
             const functionCalls = response.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall) || [];
-            
-            // If there are no more function calls, we have the final response.
+
             if (functionCalls.length === 0) {
-                break;
+                break; // No more function calls, we have the final response.
             }
 
-            // For simplicity, we handle the first function call. Gemini may support parallel calls in the future.
+            // Add the model's tool-calling request to the history
+            contents.push(response.candidates![0].content);
             const call = functionCalls[0].functionCall!;
             let toolResponsePart: Part | null = null;
             
@@ -212,91 +219,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 toolResponsePart = {
                     functionResponse: {
                         name: 'create_files',
-                        response: {
-                           files_created: createdFilenames.map(filename => ({ filename, status: "SUCCESS" })),
-                        }
+                        response: { files_created: createdFilenames.map(filename => ({ filename, status: "SUCCESS" })) }
                     }
                 };
-                // Store the files to be sent to the client for download.
                 downloadableFiles = files.map(f => ({ name: f.filename, content: f.content }));
-            
             } else if (call.name === 'web_search' && call.args) {
-                const { query } = call.args as { query: string };
-
+                 const { query } = call.args as { query: string };
                 if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
-                    console.error("Web search is not configured. Missing GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID.");
-                    toolResponsePart = { 
-                        functionResponse: { 
-                            name: 'web_search', 
-                            response: { 
-                                summary: "The web_search tool is not configured on the server. Please contact the administrator." 
-                            } 
-                        } 
-                    };
+                    toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "The web_search tool is not configured on the server." } } };
                 } else {
                     const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
                     try {
                         const searchRes = await fetch(searchUrl);
-                        if (!searchRes.ok) {
-                            const errorBody = await searchRes.text();
-                            throw new Error(`Google Search API responded with status ${searchRes.status}: ${errorBody}`);
-                        }
+                        if (!searchRes.ok) throw new Error(`Google Search API responded with status ${searchRes.status}`);
                         const searchData = await searchRes.json();
-                        
                         let summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
-                        
-                        if (language) {
+                         if (language) {
                             const languageMap: { [key: string]: string } = { 'en': 'English', 'el': 'Greek (Ελληνικά)' };
                             const fullLanguageName = languageMap[language] || language;
                             summary += `\n\n---\n**IMPORTANT REMINDER:** Based on these search results, formulate your final answer to the user strictly in ${fullLanguageName}.`;
                         }
-
-                        toolResponsePart = { 
-                            functionResponse: { 
-                                name: 'web_search', 
-                                response: { summary } 
-                            } 
-                        };
+                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
                     } catch (searchError: any) {
                         console.error("Error during Google Custom Search:", searchError);
-                        toolResponsePart = { 
-                            functionResponse: { 
-                                name: 'web_search', 
-                                response: { 
-                                    summary: "There was an error performing the web search." 
-                                } 
-                            } 
-                        };
+                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "There was an error performing the web search." } } };
                     }
                 }
             }
             
-            // If a tool was executed, send the result back to the model to get the next response.
             if (toolResponsePart) {
-                response = await chat.sendMessage({ message: [toolResponsePart] });
+                contents.push({ role: 'tool', parts: [toolResponsePart] });
             } else {
-                // Should not happen if functionCalls.length > 0, but acts as a safeguard.
                 break;
             }
         }
+        
+        if (!finalResponse) {
+            throw new Error("Failed to get a final response from the AI model.");
+        }
 
-        // After the loop, `response` contains the final text response from the AI.
-        const parsed = parseResponse(response);
-        const usageMetadata = response.usageMetadata;
+        const parsed = parseResponse(finalResponse);
+        const usageMetadata = finalResponse.usageMetadata;
         const endTime = performance.now();
         const duration = endTime - startTime;
 
-        // Fallback: If files were created but the AI didn't provide a text response, create one.
         if (downloadableFiles && downloadableFiles.length > 0 && !parsed.text.trim()) {
             const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
-            if (downloadableFiles.length > 1) {
-                parsed.text = `I've created the following files for you: ${fileNames}. You can download them below.`;
-            } else {
-                parsed.text = `I've created the file ${fileNames} for you. You can download it below.`;
-            }
+            parsed.text = downloadableFiles.length > 1
+                ? `I've created the following files for you: ${fileNames}. You can download them below.`
+                : `I've created the file ${fileNames} for you. You can download it below.`;
         }
 
-        // The `downloadableFiles` variable will have been set if `create_files` was called at any point.
         return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
 
     } catch (error: any) {

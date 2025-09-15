@@ -222,7 +222,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         response: { files_created: createdFilenames.map(filename => ({ filename, status: "SUCCESS" })) }
                     }
                 };
-                downloadableFiles = files.map(f => ({ name: f.filename, content: f.content }));
+                downloadableFiles = files.map(f => ({
+                    name: f.filename,
+                    content: Buffer.from(f.content).toString('base64')
+                }));
             } else if (call.name === 'web_search' && call.args) {
                  const { query } = call.args as { query: string };
                 if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
@@ -266,17 +269,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (downloadableFiles && downloadableFiles.length > 0) {
             const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
             const confirmationText = downloadableFiles.length > 1
-                ? `I've created the following files for you: ${fileNames}. You can download them below.`
-                : `I've created the file \`${fileNames}\` for you. You can download it below.`;
-            
-            // If the model gave no text response, use our confirmation.
-            // If it did, prepend our confirmation to its response.
-            if (!parsed.text || !parsed.text.trim()) {
-                parsed.text = confirmationText;
-            } else {
-                parsed.text = `${confirmationText}\n\n${parsed.text}`;
-            }
+                ? `I've created the files ${fileNames} for you. You can download them below.`
+                : `I've created the file ${fileNames} for you. You can download it below.`;
+
+            // ALWAYS override the model's text response with our own standard confirmation
+            // when files are created. This ensures a consistent, safe message is displayed
+            // and prevents potentially malformed model output from breaking the UI.
+            parsed.text = confirmationText;
         }
+
 
         return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
 

@@ -204,11 +204,9 @@ const App: React.FC = () => {
       let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
       if (downloadableFiles && downloadableFiles.length > 0) {
         downloadableFilesForState = downloadableFiles.map(file => {
-          // A robust way to handle Unicode strings for btoa
-          const toBinary = (string: string) => unescape(encodeURIComponent(string));
-          const base64Content = btoa(toBinary(file.content));
-          const mimeType = 'application/octet-stream'; // Force download
-          const url = `data:${mimeType};base64,${base64Content}`;
+          // The content is now pre-encoded in base64 from the server
+          const mimeType = 'application/octet-stream';
+          const url = `data:${mimeType};base64,${file.content}`;
           return { name: file.name, url };
         });
       }
@@ -262,10 +260,9 @@ const App: React.FC = () => {
           let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
            if (downloadableFiles && downloadableFiles.length > 0) {
             downloadableFilesForState = downloadableFiles.map(file => {
-              const toBinary = (string: string) => unescape(encodeURIComponent(string));
-              const base64Content = btoa(toBinary(file.content));
+              // The content is now pre-encoded in base64 from the server
               const mimeType = 'application/octet-stream';
-              const url = `data:${mimeType};base64,${base64Content}`;
+              const url = `data:${mimeType};base64,${file.content}`;
               return { name: file.name, url };
             });
           }

@@ -28,15 +28,34 @@ export const sendMessageToAI = async (
     const MAX_RETRIES = 3;
     const INITIAL_BACKOFF_MS = 1000;
 
+    // Sanitize history to prevent "413 Content Too Large" errors.
+    // We remove the large base64 data from past attachments and replace it with a text placeholder for context.
+    const sanitizedHistory = conversationHistory.map(msg => {
+        if (!msg.attachments || msg.attachments.length === 0) {
+            return msg; // Return message as is if no attachments
+        }
+        
+        // Create a text placeholder for each attachment
+        const attachmentText = msg.attachments.map(a => `[User previously uploaded image: ${a.name}]`).join('\n');
+        
+        // Create a new message object without the heavy 'attachments' array
+        const { attachments, ...restOfMsg } = msg;
+        return {
+            ...restOfMsg,
+            text: `${msg.text}\n${attachmentText}`.trim(),
+        };
+    });
+
+
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
             const response = await fetch('/api/sendMessage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    history: conversationHistory,
-                    message,
-                    attachments,
+                    history: sanitizedHistory, // Send the light-weight, sanitized history
+                    message,                   // Send the current message text
+                    attachments,               // Send the full data for *new* attachments
                     personaInstruction,
                     location,
                     language

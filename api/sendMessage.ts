@@ -1,9 +1,17 @@
 
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { performance } from 'perf_hooks';
 import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
 import type { GroundingChunk } from '../types';
+
+// Vercel Function config to increase payload size limit
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '4mb',
+    },
+  },
+};
 
 // Simplified types for the API request body
 interface ApiAttachment {
@@ -13,7 +21,7 @@ interface ApiAttachment {
 interface ApiMessage {
   author: 'user' | 'ai';
   text: string;
-  attachments?: ApiAttachment[];
+  attachments?: ApiAttachment[]; // Note: attachments on history messages will be undefined due to client-side sanitization
 }
 interface LocationInfo {
     city: string;
@@ -144,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { history, message, attachments, personaInstruction, location, language } = req.body as {
             history: ApiMessage[],
-            message: string, // Note: message and attachments are from the most recent user turn
+            message: string,
             attachments?: ApiAttachment[],
             personaInstruction?: string,
             location?: LocationInfo | null,
@@ -156,41 +164,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : defaultSystemInstruction;
 
         if (language) {
-            // Use Intl.DisplayNames for a scalable way to get language names.
             const languageName = new Intl.DisplayNames(['en'], { type: 'language' }).of(language);
             const fullLanguageName = languageName || language;
             finalSystemInstruction += `\n\n**User's Language Context:** The user's primary language appears to be ${fullLanguageName}. Please conduct the conversation primarily in this language, adapting naturally if the user switches.`;
         }
 
-
-        // Manually construct the conversation history in the format Gemini expects.
         const contents: Content[] = [];
+        
+        // 1. Process the sanitized conversation history from the client
         for (const msg of history) {
-            const parts: Part[] = [];
-            // Add location context to the latest user message
-            if (msg.author === 'user' && msg === history[history.length - 1] && location) {
-                 parts.push({ text: `Context: User is in ${location.city}, ${location.country}.\n\nUser message: ${msg.text}` });
-            } else {
-                 parts.push({ text: msg.text });
-            }
-
-            if (msg.attachments) {
-                for (const file of msg.attachments) {
-                    parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
-                }
-            }
+            // Attachments from history are already stripped by the client,
+            // the text contains placeholders like "[User previously uploaded...]"
             contents.push({
                 role: msg.author === 'user' ? 'user' : 'model',
-                parts: parts,
+                parts: [{ text: msg.text }],
             });
         }
+        
+        // 2. Add the current user message with its full attachments
+        const currentUserParts: Part[] = [];
+        
+        // Add location context along with the user's message text
+        if (location) {
+            currentUserParts.push({ text: `Context: User is in ${location.city}, ${location.country}.\n\nUser message: ${message}` });
+        } else {
+            currentUserParts.push({ text: message });
+        }
+
+        if (attachments) {
+            for (const file of attachments) {
+                currentUserParts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
+            }
+        }
+        contents.push({ role: 'user', parts: currentUserParts });
         
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         let downloadableFiles: { name: string, content: string }[] | undefined;
         let finalResponse: GenerateContentResponse | undefined;
 
         for (let i = 0; i < 5; i++) {
-            // FIX: The 'tools' and 'systemInstruction' properties must be placed inside a 'config' object.
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents,
@@ -207,7 +219,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break; // No more function calls, we have the final response.
             }
 
-            // Add the model's tool-calling request to the history
             contents.push(response.candidates![0].content);
             const call = functionCalls[0].functionCall!;
             let toolResponsePart: Part | null = null;
@@ -270,13 +281,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const confirmationText = downloadableFiles.length > 1
                 ? `I've created the files ${fileNames} for you. You can download them below.`
                 : `I've created the file ${fileNames} for you. You can download it below.`;
-
-            // ALWAYS override the model's text response with our own standard confirmation
-            // when files are created. This ensures a consistent, safe message is displayed
-            // and prevents potentially malformed model output from breaking the UI.
             parsed.text = confirmationText;
         }
-
 
         return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
 

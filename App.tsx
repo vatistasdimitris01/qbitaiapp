@@ -235,13 +235,13 @@ const App: React.FC = () => {
     };
     
     const isFirstMessage = activeConversation.messages.length === 0;
-    const conversationHistory = [...activeConversation.messages, userMessage];
+    const conversationHistoryForState = [...activeConversation.messages, userMessage];
 
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
             ? {
                 ...c,
-                messages: conversationHistory,
+                messages: conversationHistoryForState,
                 ...(isFirstMessage && messageText && { title: messageText.substring(0, 50) })
               }
             : c
@@ -251,7 +251,9 @@ const App: React.FC = () => {
     try {
       const currentPersona = personas.find(p => p.id === activeConversation.personaId);
       const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(conversationHistory, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
+      
+      // Pass the history *before* the new message to the API service.
+      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(activeConversation.messages, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
       
       let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
       if (downloadableFiles && downloadableFiles.length > 0) {
@@ -275,7 +277,7 @@ const App: React.FC = () => {
       };
 
       setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...conversationHistory, aiMessage] } : c
+        c.id === activeConversationId ? { ...c, messages: [...conversationHistoryForState, aiMessage] } : c
       ));
 
     } catch (error) {
@@ -285,7 +287,7 @@ const App: React.FC = () => {
         text: 'Sorry, I ran into a problem. Please try again.',
       };
       setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...conversationHistory, errorMessage] } : c
+        c.id === activeConversationId ? { ...c, messages: [...conversationHistoryForState, errorMessage] } : c
       ));
     } finally {
       setIsLoading(false);
@@ -307,6 +309,7 @@ const App: React.FC = () => {
         try {
           const currentPersona = personas.find(p => p.id === activeConversation.personaId);
           const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
+          // The history here is already correct (updatedMessages)
           const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
           
           let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;

@@ -165,6 +165,15 @@ const App: React.FC = () => {
     return conversations.find(c => c.id === activeConversationId);
   }, [conversations, activeConversationId]);
 
+  // SEO: Update document title based on active conversation
+  useEffect(() => {
+    if (activeConversation && activeConversation.title && activeConversation.title !== t('newChat')) {
+      document.title = `qbit - ${activeConversation.title}`;
+    } else {
+      document.title = 'qbit - AI Chat Assistant';
+    }
+  }, [activeConversation, t]);
+
   const scrollToBottom = () => {
     if (mainContentRef.current) {
         requestAnimationFrame(() => {

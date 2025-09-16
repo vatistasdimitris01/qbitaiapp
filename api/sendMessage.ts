@@ -163,12 +163,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ? `${defaultSystemInstruction}\n\n---\n\n**Persona Instructions:**\n${personaInstruction}`
             : defaultSystemInstruction;
 
-        if (language) {
-            const languageName = new Intl.DisplayNames(['en'], { type: 'language' }).of(language);
-            const fullLanguageName = languageName || language;
-            finalSystemInstruction += `\n\n**User's Language Context:** The user's primary language appears to be ${fullLanguageName}. Please conduct the conversation primarily in this language, adapting naturally if the user switches.`;
-        }
-
         const contents: Content[] = [];
         
         // 1. Process the sanitized conversation history from the client
@@ -246,12 +240,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const searchRes = await fetch(searchUrl);
                         if (!searchRes.ok) throw new Error(`Google Search API responded with status ${searchRes.status}`);
                         const searchData = await searchRes.json();
-                        let summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
-                         if (language) {
-                            const languageName = new Intl.DisplayNames(['en'], { type: 'language' }).of(language);
-                            const fullLanguageName = languageName || language;
-                            summary += `\n\n---\n**Reminder:** The user's language is ${fullLanguageName}. Please use that language when summarizing these results in your final answer.`;
-                        }
+                        const summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
                     } catch (searchError: any) {
                         console.error("Error during Google Custom Search:", searchError);

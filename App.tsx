@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Message, Attachment, Conversation, Persona, LocationInfo } from './types';
 import ChatInput from './components/ChatInput';
@@ -473,20 +472,15 @@ const App: React.FC = () => {
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
             {activeConversation && activeConversation.messages.length > 0 ? (
-              activeConversation.messages.map((msg) => <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} />)
+              activeConversation.messages.map((msg, index) => {
+                const isLastAiMessage = index === activeConversation.messages.length - 1 && msg.author === 'ai';
+                const isCurrentlyLoading = isLoading && isLastAiMessage;
+                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} />;
+              })
             ) : (
                <div className="text-center text-muted pt-16">
                  {t('startConversation')}
                </div>
-            )}
-            {isLoading && activeConversation?.messages.slice(-1)[0]?.author === 'ai' && activeConversation?.messages.slice(-1)[0]?.text === '' && (
-              <div className="flex my-6 justify-start">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                </div>
-              </div>
             )}
           </div>
         </main>

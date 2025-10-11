@@ -273,6 +273,34 @@
         font-weight: 600;
         cursor: pointer;
     }
+    
+    .typing-indicator {
+        display: inline-block;
+        background-color: var(--foreground);
+        transition: all 0.2s ease-in-out;
+    }
+    .typing-indicator.breathing {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        animation: breath 1.5s infinite ease-in-out;
+    }
+    .typing-indicator.cursor {
+        width: 2.5px;
+        height: 1.1em;
+        border-radius: 1px;
+        animation: blink 1s infinite;
+        margin-left: 1px;
+    }
+
+    @keyframes breath {
+        0%, 100% { transform: scale(0.9); opacity: 0.7; }
+        50% { transform: scale(1.1); opacity: 1; }
+    }
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
 </style>
 <script type="importmap">
 {

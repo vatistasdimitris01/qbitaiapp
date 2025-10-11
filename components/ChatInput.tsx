@@ -1,29 +1,26 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
-import { Attachment } from '../types';
+import { FileAttachment } from '../types';
 
 interface ChatInputProps {
-    onSendMessage: (message: string, attachments: Attachment[]) => void;
+    onSendMessage: (message: string, attachments: FileAttachment[]) => void;
     isLoading: boolean;
     t: (key: string) => string;
 }
 
-const fileToBase64 = (file: File): Promise<{ data: string, preview: string }> => {
+const fileToDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => {
-            const result = reader.result as string;
-            const data = result.split(',')[1];
-            resolve({ data, preview: result });
-        };
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = error => reject(error);
     });
 };
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) => {
     const [text, setText] = useState('');
-    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,14 +38,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
     
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            // FIX: Explicitly type `file` as `File` to correct the type inference issue.
             const filePromises = Array.from(e.target.files).map(async (file: File) => {
-                const { data, preview } = await fileToBase64(file);
+                const dataUrl = await fileToDataURL(file);
                 return {
                     name: file.name,
-                    mimeType: file.type,
-                    data,
-                    preview
+                    type: file.type,
+                    size: file.size,
+                    dataUrl
                 };
             });
             const newAttachments = await Promise.all(filePromises);
@@ -110,7 +106,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                                 <div key={index} className="relative group/chip flex-shrink-0 mt-2">
                                     <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
                                         <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
-                                            <img alt={file.name} className="h-full w-full object-cover" src={file.preview} />
+                                            <img alt={file.name} className="h-full w-full object-cover" src={file.dataUrl} />
                                         </figure>
                                     </div>
                                     <button

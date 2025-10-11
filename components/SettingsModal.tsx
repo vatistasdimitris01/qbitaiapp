@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Conversation, Persona } from '../types';
+import { Conversation, Persona, MessageType } from '../types';
 import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon } from './icons';
 import { translations } from '../translations';
 
@@ -56,7 +57,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     let outputTokens = 0;
 
     activeConversation.messages.forEach(message => {
-        if (message.author === 'ai' && message.usageMetadata) {
+        if (message.type !== MessageType.USER && message.usageMetadata) {
             inputTokens += message.usageMetadata.promptTokenCount;
             outputTokens += message.usageMetadata.candidatesTokenCount;
         }

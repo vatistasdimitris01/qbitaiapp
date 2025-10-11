@@ -1,6 +1,8 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, GroundingChunk, PreviewContent } from '../types';
+import type { Message, GroundingChunk, PreviewContent, MessageContent, CodeBlockContent } from '../types';
+import { MessageType } from '../types';
 import {
 BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon
 } from './icons';
@@ -56,26 +58,37 @@ p.appendChild(text);
 return p.innerHTML;
 };
 
-// FIX: Added a helper function to check if an attachment is an image based on its MIME type.
 const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
 
+// Helper to get string content from MessageContent
+const getTextFromMessage = (content: MessageContent): string => {
+    if (typeof content === 'string') {
+        return content;
+    }
+    return ''; // Other content types are handled as structured data.
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onPreview }) => {
-const isUser = message.author === 'user';
+const isUser = message.type === MessageType.USER;
 const [isThinkingOpen, setIsThinkingOpen] = useState(false);
 const [isCopied, setIsCopied] = useState(false);
 const contentRef = useRef<HTMLDivElement>(null);
 
 const handleCopy = () => {
-navigator.clipboard.writeText(message.text).then(() => {
-setIsCopied(true);
-setTimeout(() => setIsCopied(false), 2000);
-});
+const textToCopy = getTextFromMessage(message.content);
+if (textToCopy) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    });
+}
 };
 
 const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
-if (isUser) return { parsedThinkingText: null, parsedResponseText: message.text, hasThinkingTag: false };
+const messageText = getTextFromMessage(message.content);
+if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
 
-const text = message.text || '';
+const text = messageText || '';
 
 const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
 if (thinkingMatch) {
@@ -95,12 +108,13 @@ hasThinkingTag: true
 };
 }
 
-return { parsedThinkingText: message.thinkingText || null, parsedResponseText: text, hasThinkingTag: false };
-}, [message.text, message.thinkingText, isUser]);
+return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
+}, [message.content, isUser]);
 
 const isThinkingInProgress = useMemo(() => {
-return hasThinkingTag && !message.text.includes('</thinking>');
-}, [hasThinkingTag, message.text]);
+const messageText = getTextFromMessage(message.content);
+return hasThinkingTag && !messageText.includes('</thinking>');
+}, [hasThinkingTag, message.content]);
 
 useEffect(() => {
 if (isThinkingInProgress) {
@@ -109,9 +123,16 @@ setIsThinkingOpen(true);
 }, [isThinkingInProgress]);
 
 const contentParts = useMemo(() => {
-    if (message.author === 'user') return [];
+    if (message.type === MessageType.USER) return [];
     
-    const textToRender = parsedResponseText || '';
+    let textToRender = '';
+    if (message.type === MessageType.AI_RESPONSE) {
+      textToRender = parsedResponseText || getTextFromMessage(message.content) || '';
+    } else if (message.type === MessageType.AI_CODE || message.type === MessageType.AI_EXECUTABLE_CODE) {
+      const { lang, code } = message.content as CodeBlockContent;
+      return [{ type: 'code', lang, code }];
+    }
+    
     if (!textToRender) return [];
 
     const parts: { type: 'text' | 'code'; content?: string; lang?: string; code?: string }[] = [];
@@ -120,7 +141,6 @@ const contentParts = useMemo(() => {
     let match;
 
     while ((match = codeBlockRegex.exec(textToRender)) !== null) {
-        // Add text before the code block
         if (match.index > lastIndex) {
             const textPart = textToRender.substring(lastIndex, match.index).trim();
             if (textPart) {
@@ -135,7 +155,6 @@ const contentParts = useMemo(() => {
         lastIndex = match.index + match[0].length;
     }
 
-    // Add any remaining text after the last code block
     if (lastIndex < textToRender.length) {
         const remainingText = textToRender.substring(lastIndex).trim();
         if (remainingText) {
@@ -143,13 +162,12 @@ const contentParts = useMemo(() => {
         }
     }
 
-    // If no code blocks were found, treat the whole response as text
     if (parts.length === 0 && textToRender) {
         parts.push({ type: 'text', content: textToRender });
     }
 
     return parts;
-}, [parsedResponseText, message.author]);
+}, [parsedResponseText, message.type, message.content]);
 
 const markedRenderer = useMemo(() => {
 const renderer = new marked.Renderer();
@@ -180,7 +198,7 @@ return marked.parse(parsedThinkingText, { breaks: true, gfm: true, renderer: mar
 }, [parsedThinkingText, markedRenderer]);
 
 useEffect(() => {
-if (contentRef.current && message.author === 'ai') {
+if (contentRef.current && message.type !== MessageType.USER) {
 try {
 if ((window as any).renderMathInElement && (window as any).katex) {
 (window as any).renderMathInElement(contentRef.current, {
@@ -201,7 +219,7 @@ try {
 const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
 if (mermaidElements.length > 0 && (window as any).mermaid) {
 mermaidElements.forEach((el, i) => {
-const id = `mermaid-graph-${message.id}-${i}`;
+const id = `mermaid-graph-${message.id || 'msg'}-${i}`;
 const code = el.textContent || '';
 if (code && !el.hasAttribute('data-processed')) {
 try {
@@ -228,11 +246,10 @@ try {
     console.error('Task list checkbox error:', error);
 }
 }
-}, [contentParts, message.author, message.id]);
+}, [contentParts, message.type, message.id]);
 
-const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || hasThinkingTag || parsedThinkingText);
-const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
-const hasDuration = !isUser && typeof message.duration === 'number';
+const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
+const hasAttachments = isUser && message.files && message.files.length > 0;
 const showBreathingIndicator = !isUser && isLoading && contentParts.length === 0;
 
 return (
@@ -253,8 +270,8 @@ aria-expanded={isThinkingOpen}
 </button>
 {isThinkingOpen && (
 <div className="pt-2 mt-2 border-t border-default">
-{message.groundingChunks && message.groundingChunks.length > 0 && (
-<GroundingDisplay chunks={message.groundingChunks} />
+{message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
+<GroundingDisplay chunks={message.content as GroundingChunk[]} />
 )}
 {parsedThinkingText && (
 <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
@@ -271,11 +288,11 @@ dangerouslySetInnerHTML={{ __html: thinkingHtml }}
 
 {hasAttachments && (
   <div className="flex flex-wrap justify-end gap-2 mb-2">
-    {message.attachments?.map((file, index) =>
-      isImageFile(file.mimeType) ? (
+    {message.files?.map((file, index) =>
+      isImageFile(file.type) ? (
         <img
           key={index}
-          src={file.preview}
+          src={file.dataUrl}
           alt={file.name}
           className="w-32 h-32 object-cover rounded-lg border border-default"
         />
@@ -298,8 +315,8 @@ dangerouslySetInnerHTML={{ __html: thinkingHtml }}
 {isUser ? (
     <>
         <div className="relative px-4 py-2 rounded-full bg-gray-100 dark:bg-zinc-800 text-foreground">
-           {message.text ? (
-            <p className="whitespace-pre-wrap">{message.text}</p>
+           {typeof message.content === 'string' && message.content ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-2 mt-2 transition-opacity opacity-0 group-hover:opacity-100">
@@ -318,7 +335,7 @@ dangerouslySetInnerHTML={{ __html: thinkingHtml }}
               }
               if (part.type === 'code' && part.code) {
                   const lang = part.lang?.toLowerCase() || 'plaintext';
-                  if (lang === 'python') {
+                  if (message.type === MessageType.AI_EXECUTABLE_CODE) {
                       return (
                           <div key={index} className="not-prose my-4">
                               <CodeExecutor code={part.code} onPreview={onPreview} />
@@ -356,18 +373,13 @@ dangerouslySetInnerHTML={{ __html: thinkingHtml }}
             <IconButton onClick={handleCopy} aria-label="Copy message">
                 {isCopied ? <span className="text-xs px-1">Copied!</span> : <CopyIcon className="size-4" />}
             </IconButton>
-            <IconButton onClick={() => onRegenerate(message.id)} aria-label="Regenerate response">
+            <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
                 <RefreshCwIcon className="size-4" />
             </IconButton>
         </div>
     </>
 )}
 
-{hasDuration && (
-  <div className="text-xs text-muted mt-1.5">
-    Generated in { (message.duration! / 1000).toFixed(1) }s
-  </div>
-)}
 </div>
 </div>
 );

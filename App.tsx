@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { Message, Attachment, Conversation, Persona, LocationInfo, PreviewContent } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, PreviewContent, MessageContent } from './types';
+import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
@@ -190,7 +192,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // A small delay helps ensure content is rendered before scrolling.
     setTimeout(scrollToBottom, 100);
-  }, [activeConversation?.messages?.slice(-1)[0]?.text, isLoading]);
+  }, [activeConversation?.messages?.slice(-1)[0]?.content, isLoading]);
 
   const handleNewChat = () => {
     const newConversation: Conversation = {
@@ -230,7 +232,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (text: string, attachments: Attachment[] = []) => {
+  const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
     if (!activeConversationId || !activeConversation) return;
     const trimmedText = text.trim();
     if (isLoading || (!trimmedText && attachments.length === 0)) return;
@@ -241,20 +243,21 @@ const App: React.FC = () => {
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      author: 'user',
-      text: messageText,
-      attachments,
+      type: MessageType.USER,
+      content: messageText,
+      files: attachments,
     };
     
     const isFirstMessage = activeConversation.messages.length === 0;
-    const conversationHistoryForState = [...activeConversation.messages, userMessage];
-
+    
     const aiMessageId = `ai-${Date.now()}`;
     const placeholderAiMessage: Message = {
       id: aiMessageId,
-      author: 'ai',
-      text: '',
+      type: MessageType.AI_RESPONSE,
+      content: '',
     };
+    
+    const conversationHistoryForState = [...activeConversation.messages, userMessage];
 
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
@@ -268,45 +271,70 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     const currentPersona = personas.find(p => p.id === activeConversation.personaId);
-    const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-
+    
     await streamMessageToAI(
-        activeConversation.messages, // History before the user's new message
+        conversationHistoryForState,
         messageText,
-        attachmentsForApi,
+        attachments,
         currentPersona?.instruction,
         userLocation,
         lang,
         (update) => { // onUpdate callback
             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
-
-                const newMessages = c.messages.map(msg => {
-                    if (msg.id !== aiMessageId) return msg;
-
-                    let updatedMsg = { ...msg };
-                    switch (update.type) {
-                        case 'chunk':
-                            updatedMsg.text += update.payload;
-                            break;
-                        case 'grounding':
-                            updatedMsg.groundingChunks = update.payload;
-                            break;
-                        case 'usage':
-                            updatedMsg.usageMetadata = update.payload;
-                            break;
-                    }
-                    return updatedMsg;
-                });
+        
+                let newMessages = [...c.messages];
+        
+                switch (update.type) {
+                    case 'chunk':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, content: (msg.content as string || '') + update.payload } : msg
+                        );
+                        break;
+                    case 'grounding':
+                        const sourcesMessage: Message = {
+                            id: `sources-${aiMessageId}`,
+                            type: MessageType.AI_SOURCES,
+                            content: update.payload,
+                        };
+                        const aiMsgIndex = newMessages.findIndex(m => m.id === aiMessageId);
+                        if (aiMsgIndex > -1) {
+                            const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
+                            if (existingSourcesIndex === -1) {
+                                newMessages.splice(aiMsgIndex, 0, sourcesMessage);
+                            } else {
+                                newMessages[existingSourcesIndex] = sourcesMessage;
+                            }
+                        }
+                        break;
+                    case 'usage':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg
+                        );
+                        break;
+                }
                 return { ...c, messages: newMessages };
             }));
         },
         (duration) => { // onFinish callback
-            setConversations(prev => prev.map(c => {
+             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
-                const newMessages = c.messages.map(msg =>
-                    msg.id === aiMessageId ? { ...msg, duration } : msg
-                );
+                const newMessages = c.messages.map(msg => {
+                    if (msg.id !== aiMessageId) return msg;
+                    
+                    const finalContent = msg.content as string || '';
+                    let finalType = msg.type;
+                    let finalMessageContent: MessageContent = finalContent;
+
+                    const codeMatch = finalContent.match(/```(python)\n([\s\S]*?)```/);
+
+                    if (codeMatch && !finalContent.match(/```(python-example)\n/)) {
+                        finalType = MessageType.AI_EXECUTABLE_CODE;
+                        finalMessageContent = { lang: 'python', code: codeMatch[2].trim() };
+                    }
+                    
+                    return { ...msg, type: finalType, content: finalMessageContent };
+                });
                 return { ...c, messages: newMessages };
             }));
             setIsLoading(false);
@@ -315,7 +343,7 @@ const App: React.FC = () => {
             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
                 const newMessages = c.messages.map(msg =>
-                    msg.id === aiMessageId ? { ...msg, text: `Sorry, an error occurred: ${errorText}` } : msg
+                    msg.id === aiMessageId ? { ...msg, type: MessageType.ERROR, content: `Sorry, an error occurred: ${errorText}` } : msg
                 );
                 return { ...c, messages: newMessages };
             }));
@@ -326,33 +354,41 @@ const App: React.FC = () => {
   
   const handleRegenerate = async (messageIdToRegenerate: string) => {
     if (!activeConversation || isLoading) return;
-
+  
     const messageIndex = activeConversation.messages.findIndex(msg => msg.id === messageIdToRegenerate);
-    if (messageIndex > 0 && activeConversation.messages[messageIndex].author === 'ai') {
-        const lastUserMessage = activeConversation.messages.slice(0, messageIndex).reverse().find(msg => msg.author === 'user');
+    
+    // Find the last user message before the AI message to be regenerated
+    if (messageIndex > 0) {
+        const historyUpToRegenPoint = activeConversation.messages.slice(0, messageIndex);
+        const lastUserMessage = [...historyUpToRegenPoint].reverse().find(m => m.type === MessageType.USER);
 
         if (lastUserMessage) {
             setIsLoading(true);
-            const historyForRegeneration = activeConversation.messages.slice(0, messageIndex - 1);
-            
+
+            // History for the API call is everything before the last user message
+            const historyForApi = activeConversation.messages.slice(0, activeConversation.messages.indexOf(lastUserMessage));
+
             const aiMessageId = `ai-${Date.now()}`;
             const placeholderAiMessage: Message = {
-              id: aiMessageId,
-              author: 'ai',
-              text: '',
+                id: aiMessageId,
+                type: MessageType.AI_RESPONSE,
+                content: '',
             };
-            
-            // Set state with history up to the point of regeneration, including the new placeholder
-            setConversations(prev => prev.map(c => 
-              c.id === activeConversationId ? { ...c, messages: [...historyForRegeneration, lastUserMessage, placeholderAiMessage] } : c
-            ));
+
+            // Update UI state to show history up to the last user message, then the new placeholder
+            const messagesForUi = [...historyUpToRegenPoint.filter(m => m.type !== MessageType.AI_RESPONSE && m.type !== MessageType.AI_SOURCES), placeholderAiMessage];
+            setConversations(prev =>
+                prev.map(c =>
+                    c.id === activeConversationId ? { ...c, messages: messagesForUi } : c
+                )
+            );
 
             const currentPersona = personas.find(p => p.id === activeConversation.personaId);
-            const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
+            const attachmentsForApi = lastUserMessage.files || [];
 
             await streamMessageToAI(
-                historyForRegeneration,
-                lastUserMessage.text,
+                [...historyForApi, lastUserMessage], // Send full history for context
+                lastUserMessage.content as string,
                 attachmentsForApi,
                 currentPersona?.instruction,
                 userLocation,
@@ -360,31 +396,44 @@ const App: React.FC = () => {
                 (update) => { // onUpdate
                     setConversations(prev => prev.map(c => {
                         if (c.id !== activeConversationId) return c;
-                        const newMessages = c.messages.map(msg => {
-                            if (msg.id !== aiMessageId) return msg;
-                            let updatedMsg = { ...msg };
-                            switch (update.type) {
-                                case 'chunk':
-                                    updatedMsg.text += update.payload;
-                                    break;
-                                case 'grounding':
-                                    updatedMsg.groundingChunks = update.payload;
-                                    break;
-                                case 'usage':
-                                    updatedMsg.usageMetadata = update.payload;
-                                    break;
-                            }
-                            return updatedMsg;
-                        });
+                        let newMessages = [...c.messages];
+                        switch (update.type) {
+                            case 'chunk':
+                                newMessages = newMessages.map(msg => msg.id === aiMessageId ? { ...msg, content: (msg.content as string) + update.payload } : msg);
+                                break;
+                            case 'grounding':
+                                const sourcesMessage: Message = { id: `sources-${aiMessageId}`, type: MessageType.AI_SOURCES, content: update.payload };
+                                const aiMsgIndex = newMessages.findIndex(m => m.id === aiMessageId);
+                                if (aiMsgIndex > -1 && !newMessages.some(m => m.id === sourcesMessage.id)) {
+                                    newMessages.splice(aiMsgIndex, 0, sourcesMessage);
+                                }
+                                break;
+                            case 'usage':
+                                newMessages = newMessages.map(msg => msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg);
+                                break;
+                        }
                         return { ...c, messages: newMessages };
                     }));
                 },
                 (duration) => { // onFinish
                     setConversations(prev => prev.map(c => {
                         if (c.id !== activeConversationId) return c;
-                        const newMessages = c.messages.map(msg =>
-                            msg.id === aiMessageId ? { ...msg, duration } : msg
-                        );
+                        const newMessages = c.messages.map(msg => {
+                             if (msg.id !== aiMessageId) return msg;
+                    
+                            const finalContent = msg.content as string || '';
+                            let finalType = msg.type;
+                            let finalMessageContent: MessageContent = finalContent;
+
+                            const codeMatch = finalContent.match(/```(python)\n([\s\S]*?)```/);
+
+                            if (codeMatch && !finalContent.match(/```(python-example)\n/)) {
+                                finalType = MessageType.AI_EXECUTABLE_CODE;
+                                finalMessageContent = { lang: 'python', code: codeMatch[2].trim() };
+                            }
+                            
+                            return { ...msg, type: finalType, content: finalMessageContent };
+                        });
                         return { ...c, messages: newMessages };
                     }));
                     setIsLoading(false);
@@ -392,9 +441,7 @@ const App: React.FC = () => {
                 (errorText) => { // onError
                     setConversations(prev => prev.map(c => {
                         if (c.id !== activeConversationId) return c;
-                        const newMessages = c.messages.map(msg =>
-                            msg.id === aiMessageId ? { ...msg, text: `Sorry, an error occurred: ${errorText}` } : msg
-                        );
+                        const newMessages = c.messages.map(msg => msg.id === aiMessageId ? { ...msg, type: MessageType.ERROR, content: `Sorry, an error occurred: ${errorText}` } : msg);
                         return { ...c, messages: newMessages };
                     }));
                     setIsLoading(false);
@@ -480,8 +527,8 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
             {activeConversation && activeConversation.messages.length > 0 ? (
               activeConversation.messages.map((msg, index) => {
-                const isLastAiMessage = index === activeConversation.messages.length - 1 && msg.author === 'ai';
-                const isCurrentlyLoading = isLoading && isLastAiMessage;
+                const isLastMessage = index === activeConversation.messages.length - 1;
+                const isCurrentlyLoading = isLoading && isLastMessage;
                 return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} onPreview={handlePreview} />;
               })
             ) : (

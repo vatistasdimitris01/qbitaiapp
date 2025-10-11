@@ -1,19 +1,16 @@
 
-import { Attachment, LocationInfo, Message } from "../types";
+import { FileAttachment, LocationInfo, Message, MessageContent, MessageType } from "../types";
 
 export interface StreamUpdate {
     type: 'chunk' | 'grounding' | 'usage' | 'end' | 'error';
     payload?: any;
 }
 
-// Helper function for delayed execution
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 // This function now opens a streaming connection to our secure serverless function
 export const streamMessageToAI = async (
     conversationHistory: Message[],
     message: string,
-    attachments: Omit<Attachment, 'preview' | 'name'>[] | undefined,
+    attachments: FileAttachment[] | undefined,
     personaInstruction: string | undefined,
     location: LocationInfo | null,
     language: string | undefined,
@@ -23,16 +20,32 @@ export const streamMessageToAI = async (
 ): Promise<void> => {
     const startTime = Date.now();
 
-    // Sanitize history to prevent "413 Content Too Large" errors.
-    const sanitizedHistory = conversationHistory.map(msg => {
-        if (!msg.attachments || msg.attachments.length === 0) {
-            return msg;
+    const getTextFromMessageContent = (content: MessageContent): string => {
+        if (typeof content === 'string') {
+            return content;
         }
-        const attachmentText = msg.attachments.map(a => `[User previously uploaded image: ${a.name}]`).join('\n');
-        const { attachments, ...restOfMsg } = msg;
+        // For other types, return a placeholder or string representation if needed for history
+        return '';
+    };
+
+    // Sanitize and convert history to the format the API expects
+    const sanitizedHistory = conversationHistory.map(msg => {
+        const text = getTextFromMessageContent(msg.content);
+        let attachmentText = '';
+        if (msg.files && msg.files.length > 0) {
+            attachmentText = msg.files.map(a => `[User previously uploaded image: ${a.name}]`).join('\n');
+        }
+        
         return {
-            ...restOfMsg,
-            text: `${msg.text}\n${attachmentText}`.trim(),
+            author: msg.type === MessageType.USER ? 'user' : 'ai',
+            text: `${text}\n${attachmentText}`.trim(),
+        };
+    });
+
+    const apiAttachments = attachments?.map(file => {
+        return {
+            mimeType: file.type,
+            data: file.dataUrl.split(',')[1],
         };
     });
 
@@ -43,7 +56,7 @@ export const streamMessageToAI = async (
             body: JSON.stringify({
                 history: sanitizedHistory,
                 message,
-                attachments,
+                attachments: apiAttachments,
                 personaInstruction,
                 location,
                 language

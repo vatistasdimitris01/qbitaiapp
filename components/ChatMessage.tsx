@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, ThumbsDownIcon, ThumbsUpIcon, UploadIcon, MoreHorizontalIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 
@@ -256,7 +255,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`group flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className="group flex flex-col w-full max-w-3xl">
                 {hasThinking && (
                     <div className="w-full mb-2">
                         <button
@@ -286,95 +285,106 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                         )}
                     </div>
                 )}
-                <div className="flex flex-col w-full">
-                    <div className={`
-                        ${isUser ? 'w-fit max-w-full' : 'w-full'}
-                        ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
-                        ${isUser ? 'bg-user-message text-foreground' : 'bg-ai-message'}
-                    `}>
-                        <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
-                            {hasAttachments && (
-                                <div className="flex flex-wrap justify-start gap-2 mb-2">
-                                    {message.files?.map((file, index) =>
-                                        isImageFile(file.type) ? (
-                                            <img
-                                                key={index}
-                                                src={file.dataUrl}
-                                                alt={file.name}
-                                                className="w-32 h-32 object-cover rounded-lg border border-default"
-                                            />
-                                        ) : (
-                                            <div
-                                                key={index}
-                                                className="w-32 h-32 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg"
-                                                title={file.name}
-                                            >
-                                                <FileTextIcon className="size-8 text-muted-foreground mb-1" />
-                                                <span className="text-xs text-muted-foreground break-all truncate">
-                                                    {file.name}
-                                                </span>
-                                            </div>
-                                        )
-                                    )}
-                                </div>
-                            )}
-
-                            {isUser ? (
+                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                    {isUser ? (
+                         <div className={`
+                            w-fit max-w-full
+                            ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
+                            bg-user-message text-foreground
+                        `}>
+                            <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
+                                {hasAttachments && (
+                                    <div className="flex flex-wrap justify-start gap-2 mb-2">
+                                        {message.files?.map((file, index) =>
+                                            isImageFile(file.type) ? (
+                                                <img
+                                                    key={index}
+                                                    src={file.dataUrl}
+                                                    alt={file.name}
+                                                    className="w-32 h-32 object-cover rounded-lg border border-default"
+                                                />
+                                            ) : (
+                                                <div
+                                                    key={index}
+                                                    className="w-32 h-32 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg"
+                                                    title={file.name}
+                                                >
+                                                    <FileTextIcon className="size-8 text-muted-foreground mb-1" />
+                                                    <span className="text-xs text-muted-foreground break-all truncate">
+                                                        {file.name}
+                                                    </span>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                )}
                                 <p className="whitespace-pre-wrap">{messageText}</p>
-                            ) : (
-                                <div ref={contentRef} className="prose prose-sm max-w-none w-full">
-                                    {contentParts.map((part, index) => {
-                                        if (part.type === 'text' && part.content) {
-                                            const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                                            return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                            </div>
+                        </div>
+                    ) : (
+                        <div ref={contentRef} className="prose prose-sm max-w-none w-full">
+                            {contentParts.map((part, index) => {
+                                if (part.type === 'text' && part.content) {
+                                    const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                    return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                }
+                                if (part.type === 'code' && part.code) {
+                                    const lang = part.lang?.toLowerCase() || 'plaintext';
+                                    if (lang === 'python') {
+                                        return (
+                                            <div key={index} className="not-prose my-4">
+                                                <CodeExecutor code={part.code} />
+                                            </div>
+                                        );
+                                    }
+                                    if (lang === 'mermaid') {
+                                        return <div key={index} className="mermaid">{part.code}</div>;
+                                    }
+                                    const safeLang = escapeHtml(lang);
+                                    const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
+                                    const escapedCode = escapeHtml(part.code);
+                                    let highlightedHtml = escapedCode;
+                                    try {
+                                        if ((window as any).hljs) {
+                                            highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
                                         }
-                                        if (part.type === 'code' && part.code) {
-                                            const lang = part.lang?.toLowerCase() || 'plaintext';
-                                            if (lang === 'python') {
-                                                return (
-                                                    <div key={index} className="not-prose my-4">
-                                                        <CodeExecutor code={part.code} />
-                                                    </div>
-                                                );
-                                            }
-                                            if (lang === 'mermaid') {
-                                                return <div key={index} className="mermaid">{part.code}</div>;
-                                            }
-                                            const safeLang = escapeHtml(lang);
-                                            const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
-                                            const escapedCode = escapeHtml(part.code);
-                                            let highlightedHtml = escapedCode;
-                                            try {
-                                                if ((window as any).hljs) {
-                                                    highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
-                                                }
-                                            } catch (e) { /* language not supported */ }
+                                    } catch (e) { /* language not supported */ }
 
-                                            return (
-                                                <pre key={index}>
-                                                    <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-                                                </pre>
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                    {showBreathingIndicator && (
-                                        <div className="pt-2">
-                                            <span className="typing-indicator breathing"></span>
-                                        </div>
-                                    )}
+                                    return (
+                                        <pre key={index}>
+                                            <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                                        </pre>
+                                    );
+                                }
+                                return null;
+                            })}
+                            {showBreathingIndicator && (
+                                <div className="pt-2">
+                                    <span className="typing-indicator breathing"></span>
                                 </div>
                             )}
                         </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-2 transition-opacity opacity-0 group-hover:opacity-100 self-start">
+                    )}
+                    <div className={`flex items-center gap-1 mt-2 transition-opacity opacity-0 group-hover:opacity-100`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
-                            {isCopied ? <span className="text-xs px-1">Copied!</span> : <CopyIcon className="size-4" />}
+                            <CopyIcon className="size-4" />
                         </IconButton>
                         {!isUser && (
                             <>
+                                <IconButton onClick={() => {}} aria-label="Good response">
+                                    <ThumbsUpIcon className="size-4" />
+                                </IconButton>
+                                <IconButton onClick={() => {}} aria-label="Bad response">
+                                    <ThumbsDownIcon className="size-4" />
+                                </IconButton>
                                 <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
                                     <RefreshCwIcon className="size-4" />
+                                </IconButton>
+                                <IconButton onClick={() => {}} aria-label="Share">
+                                    <UploadIcon className="size-4" />
+                                </IconButton>
+                                <IconButton onClick={() => {}} aria-label="More options">
+                                    <MoreHorizontalIcon className="size-4" />
                                 </IconButton>
                                 {pythonCodeBlocks.length > 0 && !isLoading && (
                                     <IconButton

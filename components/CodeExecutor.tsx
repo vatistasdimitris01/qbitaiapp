@@ -143,12 +143,12 @@ if hasattr(go, 'FigureWidget'):
     go.FigureWidget.show = custom_plotly_show
 `;
 
-        const fullCode = preamble + '\\n' + code;
+        const fullCode = preamble + '\n' + code;
 
         let stdout_stream = '';
         let stderr_stream = '';
-        pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\\n' });
-        pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\\n' });
+        pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\n' });
+        pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\n' });
         
         const result = await pyodide.runPythonAsync(fullCode);
         
@@ -156,7 +156,7 @@ if hasattr(go, 'FigureWidget'):
           stdout_stream += pyodide.repr(result);
         }
 
-        const lines = stdout_stream.split('\\n');
+        const lines = stdout_stream.split('\n');
         let regularOutput = '';
         
         for (const line of lines) {
@@ -170,10 +170,10 @@ if hasattr(go, 'FigureWidget'):
                 const [_, filename, mimetype, base64_data] = line.split(':');
                 if (filename && mimetype && base64_data) {
                     downloadFile(filename, mimetype, base64_data);
-                    regularOutput += `Downloading ${filename}...\\n`;
+                    regularOutput += `Downloading ${filename}...\n`;
                 }
             } else {
-                regularOutput += line + '\\n';
+                regularOutput += line + '\n';
             }
         }
         setOutput(regularOutput.trim());

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, PreviewContent } from '../types';
 import { 
@@ -51,22 +50,20 @@ const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) =>
 
 // Simple HTML escape function to prevent XSS
 const escapeHtml = (html: string) => {
-    return html
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    const text = document.createTextNode(html);
+    const p = document.createElement('p');
+    p.appendChild(text);
+    return p.innerHTML;
 };
+
+// FIX: Added a helper function to check if an attachment is an image based on its MIME type.
+const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onPreview }) => {
   const isUser = message.author === 'user';
   const [isThinkingOpen, setIsThinkingOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-  const codeBlocksRef = useRef<{ id: string, code: string, root?: any }[]>([]);
-
-  const isImageFile = (fileName: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.text).then(() => {
@@ -79,7 +76,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     if (isUser) return { parsedThinkingText: null, parsedResponseText: message.text, hasThinkingTag: false };
     const text = message.text || '';
     
-    // This regex handles complete, partial, and no thinking blocks for a smooth streaming experience.
     const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
     if (thinkingMatch) {
       return {
@@ -102,97 +98,76 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
   }, [message.text, message.thinkingText, isUser]);
 
   const isThinkingInProgress = useMemo(() => {
-    // Thinking is in progress if the tag exists but isn't closed yet.
     return hasThinkingTag && !message.text.includes('</thinking>');
   }, [hasThinkingTag, message.text]);
 
   useEffect(() => {
-    // Automatically open the thinking panel when thinking starts.
     if (isThinkingInProgress) {
       setIsThinkingOpen(true);
     }
   }, [isThinkingInProgress]);
-
-  const htmlContent = useMemo(() => {
-    if (isUser) return '';
-
-    // Reset code blocks for this render pass
-    codeBlocksRef.current.forEach(block => block.root?.unmount());
-    codeBlocksRef.current = [];
+  
+  const contentParts = useMemo(() => {
+    if (message.author === 'user') return [];
     
     const textToRender = parsedResponseText || '';
-    
-    const renderer = new marked.Renderer();
-    // FIX: The signature for marked's renderer.code has changed. It now expects an object as an argument.
-    renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
-      lang = lang || 'plaintext';
+    if (!textToRender) return [];
 
-      if (lang === 'python') {
-        const id = `code-executor-${message.id}-${codeBlocksRef.current.length}`;
-        codeBlocksRef.current.push({ id, code, root: null });
-        return `<div id="${id}" class="code-executor-placeholder my-4"></div>`;
+    const parts: { type: 'text' | 'code'; content?: string; lang?: string; code?: string }[] = [];
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = codeBlockRegex.exec(textToRender)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
       }
-
-      if (lang === 'mermaid') {
-        return `<div class="mermaid" aria-label="Mermaid diagram">${code}</div>`;
-      }
-      
-      const safeLang = escapeHtml(lang);
-      const escapedCode = escapeHtml(code);
-      return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
-    };
-    
-    const rawHtml = marked.parse(textToRender, { 
-      breaks: true, 
-      gfm: true,
-      renderer,
-    }) as string;
-
-    if (!message.groundingChunks || message.groundingChunks.length === 0) {
-      return rawHtml;
+      const lang = match[1] || 'plaintext';
+      const code = match[2].trim();
+      parts.push({ type: 'code', lang, code });
+      lastIndex = match.index + match[0].length;
     }
 
-    const processedHtml = rawHtml.replace(/<a href="(\d+)">([\s\S]*?)<\/a>/g, (match, href, text) => {
-        const citationIndex = parseInt(href, 10);
-        const source = message.groundingChunks?.[citationIndex - 1];
-        
-        if (source) {
-            const domain = new URL(source.web.uri).hostname;
-            const safeUri = escapeHtml(source.web.uri);
-            const safeTitle = escapeHtml(source.web.title);
-            const safeDomain = escapeHtml(domain);
-
-            return `<span class="group inline items-center gap-1.5 align-middle">` +
-                     `<span class="transition-colors group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 rounded">${text}</span>` +
-                     `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" title="${safeTitle}" ` +
-                        `class="inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:border-zinc-800 dark:focus:ring-zinc-300 border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80 rounded-full no-underline">` +
-                           `${safeDomain}` +
-                     `</a>` +
-                   `</span>`;
-        }
-        return text; 
-    });
+    if (lastIndex < textToRender.length) {
+      parts.push({ type: 'text', content: textToRender.substring(lastIndex) });
+    }
     
-    return processedHtml;
+    if (parts.length === 0) {
+      parts.push({ type: 'text', content: textToRender });
+    }
 
-  }, [isUser, parsedResponseText, message.groundingChunks, message.id]);
+    return parts;
+  }, [parsedResponseText, message.author]);
+
+  const markedRenderer = useMemo(() => {
+    const renderer = new marked.Renderer();
+    renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
+        lang = (lang || 'plaintext').toLowerCase();
+        if (lang === 'mermaid') {
+            return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
+        }
+        
+        const safeLang = escapeHtml(lang);
+        const escapedCode = escapeHtml(code);
+        try {
+            if ((window as any).hljs) {
+                const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
+                return `<pre><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
+            }
+        } catch(e) { /* language not supported */ }
+
+        return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
+    };
+    return renderer;
+  }, []);
 
   const thinkingHtml = useMemo(() => {
     if (!parsedThinkingText) return '';
-    return marked.parse(parsedThinkingText, { breaks: true, gfm: true }) as string;
-  }, [parsedThinkingText]);
+    return marked.parse(parsedThinkingText, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+  }, [parsedThinkingText, markedRenderer]);
 
   useEffect(() => {
-    if (contentRef.current && !isUser) {
-        // Render CodeExecutor components into placeholders
-        contentRef.current.querySelectorAll('.code-executor-placeholder').forEach(placeholder => {
-          const blockData = codeBlocksRef.current.find(b => b.id === placeholder.id);
-          if (blockData && !placeholder.hasChildNodes()) {
-             blockData.root = createRoot(placeholder);
-             blockData.root.render(<CodeExecutor code={blockData.code} onPreview={onPreview} />);
-          }
-        });
-
+    if (contentRef.current && message.author === 'ai') {
         try {
             if ((window as any).renderMathInElement && (window as any).katex) {
                 (window as any).renderMathInElement(contentRef.current, {
@@ -210,25 +185,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         }
 
         try {
-            if ((window as any).hljs) {
-              contentRef.current.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
-                  (window as any).hljs.highlightElement(block as HTMLElement);
-              });
-            }
-        } catch (error) {
-            console.error('highlight.js error:', error);
-        }
-
-        try {
             const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
             if (mermaidElements.length > 0 && (window as any).mermaid) {
                 mermaidElements.forEach((el, i) => {
                     const id = `mermaid-graph-${message.id}-${i}`;
                     const code = el.textContent || '';
-                    if (code && !el.hasChildNodes()) { // Render only if not already rendered
+                    if (code && !el.hasAttribute('data-processed')) { 
                         try {
                            (window as any).mermaid.render(id, code, (svgCode: string) => {
                                 el.innerHTML = svgCode;
+                                el.setAttribute('data-processed', 'true');
                            });
                         } catch (e) {
                            el.innerHTML = "Error rendering diagram.";
@@ -249,12 +215,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             console.error('Task list checkbox error:', error);
         }
     }
-  }, [htmlContent, isUser, message.id, onPreview]);
+  }, [contentParts, message.author, message.id]);
 
   const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || hasThinkingTag || parsedThinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
-  const showBreathingIndicator = !isUser && isLoading && !parsedResponseText;
+  const showBreathingIndicator = !isUser && isLoading && contentParts.length === 0;
 
   return (
     <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -293,7 +259,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         {hasAttachments && (
           <div className="flex flex-wrap justify-end gap-2 mb-2">
             {message.attachments?.map((file, index) =>
-              isImageFile(file.name) ? (
+              isImageFile(file.mimeType) ? (
                 <img
                   key={index}
                   src={file.preview}
@@ -331,17 +297,46 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             </>
         ) : (
             <>
-                <div className="w-full">
-                    <div
-                        ref={contentRef}
-                        className="prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: htmlContent }}
-                    />
-                     {showBreathingIndicator && (
-                        <div className="pt-2">
-                            <span className="typing-indicator breathing"></span>
-                        </div>
-                     )}
+                <div ref={contentRef} className="prose prose-sm max-w-none w-full">
+                  {contentParts.map((part, index) => {
+                      if (part.type === 'text' && part.content) {
+                          const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                          return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                      }
+                      if (part.type === 'code' && part.code) {
+                          const lang = part.lang?.toLowerCase() || 'plaintext';
+                          if (lang === 'python') {
+                              return (
+                                  <div key={index} className="not-prose my-4">
+                                      <CodeExecutor code={part.code} onPreview={onPreview} />
+                                  </div>
+                              );
+                          }
+                          if (lang === 'mermaid') {
+                              return <div key={index} className="mermaid">{part.code}</div>;
+                          }
+                          const safeLang = escapeHtml(lang);
+                          const escapedCode = escapeHtml(part.code);
+                          let highlightedHtml = escapedCode;
+                          try {
+                              if ((window as any).hljs) {
+                                  highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
+                              }
+                          } catch(e) { /* language not supported */ }
+              
+                          return (
+                              <pre key={index}>
+                                  <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                              </pre>
+                          );
+                      }
+                      return null;
+                  })}
+                  {showBreathingIndicator && (
+                      <div className="pt-2">
+                          <span className="typing-indicator breathing"></span>
+                      </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-2 transition-opacity opacity-0 group-hover:opacity-100">
                     <IconButton onClick={handleCopy} aria-label="Copy message">

@@ -4,7 +4,7 @@ import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon, CheckIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 
@@ -135,7 +135,10 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
                     <span className="text-sm text-muted-foreground">· {lang}</span>
                 </div>
                 <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
-                    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors">{isCopied ? 'Copied!' : 'Copy'}</button>
+                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                        <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                    </button>
                     <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors">Download</button>
                 </div>
             </header>
@@ -472,7 +475,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity ${isUser ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
-                            <CopyIcon className="size-4" />
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>
                         {!isUser && !isLoading && (
                             <>

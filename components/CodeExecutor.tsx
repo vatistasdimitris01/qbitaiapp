@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
+import { CheckIcon, CopyIcon } from './icons';
 
 declare global {
     interface Window {
@@ -15,7 +16,7 @@ const pythonWorkerSource = `
     async function loadPyodideAndPackages() {
         // @ts-ignore
         pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
-        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
+        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests', 'pyarrow']);
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
         await micropip.install(['plotly', 'fpdf2', 'seaborn']);
@@ -51,6 +52,7 @@ import io, base64, json, matplotlib
 import matplotlib.pyplot as plt
 from PIL import Image
 import plotly.graph_objects as go
+import plotly.express as px
 import numpy as np
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -549,7 +551,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     <span className="text-sm text-muted-foreground">· {lang}</span>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4">
-                    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">{isCopied ? 'Copied!' : 'Copy'}</button>
+                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
+                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                        <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                    </button>
                     <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Download</button>
                     {renderButtons()}
                 </div>

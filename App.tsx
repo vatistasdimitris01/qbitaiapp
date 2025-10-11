@@ -11,6 +11,7 @@ import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
+import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
 import { LayoutGridIcon } from './components/icons';
 
@@ -116,6 +117,15 @@ const App: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Pre-load Pyodide environment on app startup
+  useEffect(() => {
+    getPyodide().then(() => {
+        console.log('Pyodide environment pre-loaded and ready.');
+    }).catch(e => {
+        console.error('Failed to pre-load Pyodide environment:', e);
+    });
   }, []);
 
   // Load state from localStorage on initial render

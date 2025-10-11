@@ -15,7 +15,7 @@ interface ChatMessageProps {
 }
 
 // Language identifiers that should be rendered with the CodeExecutor component
-const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'html'];
+const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'html', 'react', 'jsx'];
 
 // File extensions for different languages for the download functionality
 const langExtensions: { [key: string]: string } = {
@@ -203,7 +203,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
             const lang = match[1] || 'plaintext';
             const title = match[2];
-            const code = match[3].trim();
+            const code = (match[3] || '').trim();
             parts.push({ type: 'code', lang, title, code });
 
             lastIndex = match.index + match[0].length;
@@ -336,7 +336,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
-    const showBreathingIndicator = !isUser && isLoading && contentParts.length === 0 && !parsedThinkingText;
+    
+    const hasVisibleContent = useMemo(() => {
+        return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim()) || (p.type === 'code' && p.code));
+    }, [contentParts]);
+    const showTypingIndicator = !isUser && isLoading;
+
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -431,9 +436,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 }
                                 return null;
                             })}
-                            {showBreathingIndicator && (
+                           {showTypingIndicator && (
                                 <div className="pt-2">
-                                    <span className="typing-indicator breathing"></span>
+                                    {hasVisibleContent
+                                        ? <span className="typing-indicator cursor"></span>
+                                        : <span className="typing-indicator breathing"></span>
+                                    }
                                 </div>
                             )}
                         </div>

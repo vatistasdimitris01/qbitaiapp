@@ -79,7 +79,7 @@ Based on the user's intent, you must decide if the code should run automatically
 
 **Python Environment:**
 - The Python environment is sandboxed using Pyodide.
-- Available Libraries: \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`, \`requests\`, \`seaborn\`, \`pyarrow\`.
+- Available Libraries: \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`, \`requests\`, \`seaborn\`.
 - **Internet Access**: The \`requests\` library is available and works by using the browser's underlying fetch API. You CAN use it to make requests to public APIs.
 - Visuals (Plots/Images): Use standard "show" methods (\`plt.show()\`, \`fig.show()\`, \`Image.show()\`). These are automatically handled to display images.
 - File Downloads: To generate a downloadable file, print a specially formatted string: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`.

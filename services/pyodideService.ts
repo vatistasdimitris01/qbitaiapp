@@ -20,7 +20,7 @@ export const getPyodide = () => {
                 const pyodide = await window.loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
                 });
-                await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests', 'pyarrow']);
+                await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
                 await pyodide.loadPackage('micropip');
                 const micropip = pyodide.pyimport('micropip');
                 await micropip.install(['plotly', 'fpdf2', 'seaborn']);

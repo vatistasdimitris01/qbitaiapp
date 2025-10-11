@@ -44,30 +44,57 @@ self.addEventListener('message', (event) => {
 
 // Use a "Network falling back to cache" strategy
 self.addEventListener('fetch', (event) => {
-  // We only want to apply this strategy to GET requests.
-  if (event.request.method !== 'GET') {
+  // For navigation requests, we need to add headers for cross-origin isolation.
+  // This is required for Pyodide (SharedArrayBuffer).
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const newHeaders = new Headers(response.headers);
+          newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+          newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+
+          // Cache the original response before modifying headers for the browser
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+              if(responseToCache.status === 200) {
+                cache.put(event.request, responseToCache);
+              }
+          });
+
+          return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: newHeaders,
+          });
+        })
+        .catch(() => caches.match(event.request)) // Fallback to cache if network fails
+    );
     return;
   }
-  
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // If the fetch is successful, we clone the response and cache it.
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          // We only cache successful responses
-          if(response.status === 200) {
-            cache.put(event.request, responseToCache);
-          }
-        });
-        return response;
-      })
-      .catch(() => {
-        // If the network request fails (e.g., offline),
-        // we try to serve the response from the cache.
-        return caches.match(event.request).then((response) => {
+
+  // For other GET requests, use the original network-first strategy.
+  if (event.request.method === 'GET') {
+      event.respondWith(
+        fetch(event.request)
+          .then((response) => {
+            // If the fetch is successful, we clone the response and cache it.
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              // We only cache successful responses
+              if(response.status === 200) {
+                cache.put(event.request, responseToCache);
+              }
+            });
             return response;
-        });
-      })
-  );
+          })
+          .catch(() => {
+            // If the network request fails (e.g., offline),
+            // we try to serve the response from the cache.
+            return caches.match(event.request).then((response) => {
+                return response;
+            });
+          })
+      );
+  }
 });

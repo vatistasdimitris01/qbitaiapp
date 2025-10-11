@@ -114,7 +114,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     if (!textToRender) return [];
 
     const parts: { type: 'text' | 'code'; content?: string; lang?: string; code?: string }[] = [];
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    const codeBlockRegex = /```(\w+(?:-\w+)?)\n([\s\S]*?)```/g;
     let lastIndex = 0;
     let match;
 
@@ -148,10 +148,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         }
         
         const safeLang = escapeHtml(lang);
+        const highlightLang = lang.startsWith('python') ? 'python' : lang;
         const escapedCode = escapeHtml(code);
         try {
             if ((window as any).hljs) {
-                const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
+                const highlighted = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
                 return `<pre><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
             }
         } catch(e) { /* language not supported */ }
@@ -316,11 +317,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                               return <div key={index} className="mermaid">{part.code}</div>;
                           }
                           const safeLang = escapeHtml(lang);
+                          const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
                           const escapedCode = escapeHtml(part.code);
                           let highlightedHtml = escapedCode;
                           try {
                               if ((window as any).hljs) {
-                                  highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
+                                  highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
                               }
                           } catch(e) { /* language not supported */ }
               

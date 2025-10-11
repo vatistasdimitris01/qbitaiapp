@@ -53,6 +53,7 @@ You have access to a set of powerful tools to help you answer questions and comp
 2.  **Code Execution (Python Code Interpreter):**
     *   **When to use:** Use this tool when a user's request requires mathematical calculations, data analysis, visualizations (plots, charts), file generation, or solving complex algorithmic problems. You can use it autonomously whenever you deem it appropriate.
     *   **How to use:** To solve the user's request, you MUST respond with a Python code block (e.g., \`\`\`python\\nprint('hello')\\n\`\`\`). The code will be executed, and the result will be displayed. Do NOT simulate the output of the code; just provide the code that generates it.
+    *   **Displaying Examples:** When showing a Python code snippet for illustrative purposes that should NOT be executed, use the language identifier \`python-example\` (e.g., \`\`\`python-example\\n# This is just a demo\\n\`\`\`).
     *   **Available Libraries:** The following libraries are pre-installed. **You MUST assume they are available and do not write code to install them.**
         *   Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`
         *   Plotting: \`matplotlib\`, \`plotly\`

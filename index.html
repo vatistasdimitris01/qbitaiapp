@@ -37,6 +37,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
 <!-- highlight.js for code highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- Mermaid for diagrams -->
@@ -48,6 +49,8 @@ window.mermaid = mermaid;
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
 <!-- Plotly for interactive charts -->
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+<!-- Babel for in-browser JSX/React transpilation -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -290,9 +293,20 @@ margin-left: 1px;
 .action-btn:hover { background-color: var(--bg-primary); color: var(--text-primary); }
 .code-container { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.3s ease-in-out; }
 .code-container.collapsed { grid-template-rows: 0fr; }
-.code-container > div { overflow: hidden; }
 .error-text { color: #ef4444; } /* red-500 */
 .dark .error-text { color: #f87171; } /* red-400 */
+
+/* Custom hljs theme override to match user request */
+.code-block-area pre { background-color: transparent !important; }
+.code-block-area .hljs { background: transparent !important; color: #111827; }
+.code-block-area .hljs-comment, .code-block-area .hljs-quote { color: #6b7280; } /* gray-500 */
+.code-block-area .hljs-string { color: #16a34a; } /* green-600 */
+.code-block-area .hljs-variable, .code-block-area .hljs-template-variable, .code-block-area .hljs-tag, .code-block-area .hljs-name, .code-block-area .hljs-selector-id, .code-block-area .hljs-selector-class, .code-block-area .hljs-regexp, .code-block-area .hljs-deletion, .code-block-area .hljs-number, .code-block-area .hljs-built_in, .code-block-area .hljs-builtin-name, .code-block-area .hljs-literal, .code-block-area .hljs-type, .code-block-area .hljs-params, .code-block-area .hljs-meta, .code-block-area .hljs-link, .code-block-area .hljs-attribute, .code-block-area .hljs-keyword, .code-block-area .hljs-selector-tag { color: #111827; }
+
+.dark .code-block-area .hljs { color: #f4f4f5; }
+.dark .code-block-area .hljs-comment, .dark .code-block-area .hljs-quote { color: #a1a1aa; } /* zinc-400 */
+.dark .code-block-area .hljs-string { color: #4ade80; } /* green-400 */
+.dark .code-block-area .hljs-variable, .dark .code-block-area .hljs-template-variable, .dark .code-block-area .hljs-tag, .dark .code-block-area .hljs-name, .dark .code-block-area .hljs-selector-id, .dark .code-block-area .hljs-selector-class, .dark .code-block-area .hljs-regexp, .dark .code-block-area .hljs-deletion, .dark .code-block-area .hljs-number, .dark .code-block-area .hljs-built_in, .dark .code-block-area .hljs-builtin-name, .dark .code-block-area .hljs-literal, .dark .code-block-area .hljs-type, .dark .code-block-area .hljs-params, .dark .code-block-area .hljs-meta, .dark .code-block-area .hljs-link, .dark .code-block-area .hljs-attribute, .dark .code-block-area .hljs-keyword, .dark .code-block-area .hljs-selector-tag { color: #f4f4f5; }
 
 @keyframes breath {
 0%, 100% { transform: scale(0.9); opacity: 0.7; }

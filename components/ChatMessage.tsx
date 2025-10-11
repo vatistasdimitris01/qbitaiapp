@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 
@@ -15,26 +14,22 @@ interface ChatMessageProps {
     onShowAnalysis: (code: string, lang: string) => void;
 }
 
+// Language identifiers that should be rendered with the CodeExecutor component
+const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'typescript', 'ts', 'html', 'react', 'jsx'];
+
+// File extensions for different languages for the download functionality
+const langExtensions: { [key: string]: string } = {
+    python: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts',
+    html: 'html', react: 'jsx', jsx: 'jsx', shell: 'sh', bash: 'sh',
+    java: 'java', csharp: 'cs', cpp: 'cpp', css: 'css', json: 'json',
+    markdown: 'md',
+};
+
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
         {children}
     </button>
 );
-
-const CodeCopyButton = ({ code }: { code: string }) => {
-    const [isCopied, setIsCopied] = useState(false);
-    const handleCopy = () => {
-        navigator.clipboard.writeText(code);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
-    return (
-        <button onClick={handleCopy} className="p-1 -mr-1 rounded text-muted-foreground hover:text-foreground" title={isCopied ? 'Copied!' : 'Copy code'}>
-            <CopyIcon className="size-4" />
-        </button>
-    );
-};
-
 
 const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) => {
     return (
@@ -82,6 +77,65 @@ const getTextFromMessage = (content: MessageContent): string => {
     }
     return ''; // Other content types are handled as structured data.
 }
+
+const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }> = ({ code, lang, title }) => {
+    const [highlightedCode, setHighlightedCode] = useState('');
+    const [isCopied, setIsCopied] = useState(false);
+    
+    useEffect(() => {
+        if ((window as any).hljs) {
+            const safeLang = escapeHtml(lang === 'python-example' ? 'python' : lang);
+            try {
+                const highlighted = (window as any).hljs.highlight(code, { language: safeLang, ignoreIllegals: true }).value;
+                setHighlightedCode(highlighted);
+            } catch (e) {
+                setHighlightedCode(escapeHtml(code)); // Fallback to plain text
+            }
+        } else {
+            setHighlightedCode(escapeHtml(code));
+        }
+    }, [code, lang]);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
+    };
+    
+    const handleDownload = () => {
+        const extension = langExtensions[lang.toLowerCase()] || 'txt';
+        const filename = `${title?.replace(/\s+/g, '_') || 'code'}.${extension}`;
+        const blob = new Blob([code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
+            <header className="flex items-center justify-between pb-4">
+                <div className="flex items-baseline space-x-2">
+                    <h3 className="font-semibold text-foreground text-base">{title || 'Code Example'}</h3>
+                    <span className="text-sm text-muted-foreground">· {lang}</span>
+                </div>
+                <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
+                    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors">{isCopied ? 'Copied!' : 'Copy'}</button>
+                    <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors">Download</button>
+                </div>
+            </header>
+            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
+                <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
+            </div>
+        </div>
+    );
+};
+
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis }) => {
     const isUser = message.type === MessageType.USER;
@@ -361,39 +415,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 }
                                 if (part.type === 'code' && part.code) {
                                     const lang = part.lang?.toLowerCase() || 'plaintext';
-                                    if (lang === 'python') {
+                                    if (EXECUTABLE_LANGS.includes(lang)) {
                                         return (
                                             <div key={index} className="not-prose my-4">
-                                                <CodeExecutor code={part.code} title={part.title} />
+                                                <CodeExecutor code={part.code} lang={lang} title={part.title} />
                                             </div>
                                         );
                                     }
-                                    if (lang === 'mermaid') {
+                                     if (lang === 'mermaid') {
                                         return <div key={index} className="mermaid">{part.code}</div>;
                                     }
-                                    const safeLang = escapeHtml(lang);
-                                    const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
-                                    const escapedCode = escapeHtml(part.code);
-                                    let highlightedHtml = escapedCode;
-                                    try {
-                                        if ((window as any).hljs) {
-                                            highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
-                                        }
-                                    } catch (e) { /* language not supported */ }
-
                                     return (
-                                        <div key={index} className="code-block-container not-prose my-4 bg-token-surface-secondary/50 border border-token rounded-lg overflow-hidden">
-                                            <div className="code-block-header flex items-center justify-between px-4 py-2 border-b border-token text-xs text-muted-foreground">
-                                                <span className="font-semibold text-foreground">{part.title || 'Code Block'}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="uppercase ">{lang}</span>
-                                                    <CodeCopyButton code={part.code} />
-                                                </div>
-                                            </div>
-                                            <pre className="p-4 overflow-x-auto text-sm bg-transparent">
-                                                <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-                                            </pre>
-                                        </div>
+                                       <StaticCodeBlock key={index} code={part.code} lang={lang} title={part.title} />
                                     );
                                 }
                                 return null;

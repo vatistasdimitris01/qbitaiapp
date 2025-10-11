@@ -151,9 +151,15 @@ res.setHeader('Content-Type', 'application/jsonl');
 res.setHeader('Cache-Control', 'no-cache');
 res.setHeader('Connection', 'keep-alive');
 
+let baseSystemInstruction = defaultSystemInstruction;
+
+if (location) {
+    baseSystemInstruction += `\n\n**User Location Context:**\nThe user is currently in ${location.city}, ${location.country}. You MUST only use this location information to provide more relevant results when you decide to use the Google Search tool. DO NOT mention the user's location in your response unless it is directly relevant to their query. Do not use this location for any other purpose.`;
+}
+
 let finalSystemInstruction = personaInstruction
-    ? `${defaultSystemInstruction}\\n\\n---\\n\\n**Persona Instructions:**\\n${personaInstruction}`
-    : defaultSystemInstruction;
+    ? `${baseSystemInstruction}\n\n---\n\n**Persona Instructions:**\n${personaInstruction}`
+    : baseSystemInstruction;
 
 const historyContents: Content[] = history.map(msg => ({
     role: msg.author === 'user' ? 'user' : 'model',
@@ -161,11 +167,8 @@ const historyContents: Content[] = history.map(msg => ({
 }));
 
 const currentUserParts: Part[] = [];
-if (location) {
-    currentUserParts.push({ text: `Context: User is in ${location.city}, ${location.country}.\\n\\nUser message: ${message}` });
-} else {
-    currentUserParts.push({ text: message });
-}
+currentUserParts.push({ text: message });
+
 if (attachments) {
     for (const file of attachments) {
         currentUserParts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });

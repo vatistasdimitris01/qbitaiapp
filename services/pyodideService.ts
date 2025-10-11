@@ -32,7 +32,8 @@ export const getPyodide = () => {
                     'beautifulsoup4', 
                     'scipy', 
                     'opencv-python',
-                    'scikit-image' // Added
+                    'scikit-image', // Added
+                    'duckdb' // Added
                 ]);
                 
                 await pyodide.loadPackage('micropip');
@@ -49,7 +50,8 @@ export const getPyodide = () => {
                     'reportlab', // Added for .pdf
                     'tqdm', // Added for progress bars
                     'pyyaml', // Added for YAML
-                    'nltk' // Added for NLP
+                    'nltk', // Added for NLP
+                    'vaex' // Added
                 ]);
                 
                 resolve(pyodide);

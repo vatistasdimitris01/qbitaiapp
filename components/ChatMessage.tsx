@@ -184,42 +184,47 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
-
         const textToRender = parsedResponseText || '';
         if (!textToRender) return [];
-
-        const parts: { type: 'text' | 'code'; content?: string; lang?: string; title?: string; code?: string }[] = [];
-        const codeBlockRegex = /```(\w+)?(?:[ ]?title="([^"]+)")?\n([\s\S]*?)```/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = codeBlockRegex.exec(textToRender)) !== null) {
-            if (match.index > lastIndex) {
-                const textPart = textToRender.substring(lastIndex, match.index).trim();
-                if (textPart) {
-                    parts.push({ type: 'text', content: textPart });
+    
+        type ContentPart = {
+            type: 'text' | 'code';
+            content?: string;
+            lang?: string;
+            title?: string;
+            code?: string;
+            autorun?: boolean;
+        };
+        const parts: ContentPart[] = [];
+        const sections = textToRender.split('```');
+    
+        sections.forEach((section, index) => {
+            if (index % 2 === 0) {
+                // This is a text part
+                if (section) parts.push({ type: 'text', content: section });
+            } else {
+                // This is a code part (info string + code)
+                const firstNewlineIndex = section.indexOf('\n');
+                if (firstNewlineIndex === -1) {
+                    // Incomplete info string or no code yet, treat as text for now
+                    parts.push({ type: 'text', content: '```' + section });
+                    return;
                 }
+                const infoString = section.substring(0, firstNewlineIndex).trim();
+                const codeContent = section.substring(firstNewlineIndex + 1);
+    
+                const infoMatch = infoString.match(/(\w+)?(?:[ ]?(autorun))?(?:[ ]?title="([^"]+)")?/);
+                
+                parts.push({
+                    type: 'code',
+                    lang: infoMatch?.[1] || 'plaintext',
+                    autorun: !!infoMatch?.[2],
+                    title: infoMatch?.[3],
+                    code: codeContent,
+                });
             }
-
-            const lang = match[1] || 'plaintext';
-            const title = match[2];
-            const code = (match[3] || '').trim();
-            parts.push({ type: 'code', lang, title, code });
-
-            lastIndex = match.index + match[0].length;
-        }
-
-        if (lastIndex < textToRender.length) {
-            const remainingText = textToRender.substring(lastIndex).trim();
-            if (remainingText) {
-                parts.push({ type: 'text', content: remainingText });
-            }
-        }
-
-        if (parts.length === 0 && textToRender) {
-            parts.push({ type: 'text', content: textToRender });
-        }
-
+        });
+    
         return parts;
     }, [parsedResponseText, message.type]);
 
@@ -423,7 +428,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     if (EXECUTABLE_LANGS.includes(lang)) {
                                         return (
                                             <div key={index} className="not-prose my-4">
-                                                <CodeExecutor code={part.code} lang={lang} title={part.title} />
+                                                <CodeExecutor code={part.code} lang={lang} title={part.title} autorun={part.autorun} />
                                             </div>
                                         );
                                     }

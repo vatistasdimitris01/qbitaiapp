@@ -118,6 +118,7 @@ interface CodeExecutorProps {
     code: string;
     lang: string;
     title?: string;
+    autorun?: boolean;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -128,7 +129,7 @@ const langExtensions: { [key: string]: string } = {
     python: 'py', javascript: 'js', js: 'js', html: 'html'
 };
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -140,7 +141,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [isShowingOutput, setIsShowingOutput] = useState(false);
+    const [isShowingOutput, setIsShowingOutput] = useState(!!autorun);
+    const [hasAutoRun, setHasAutoRun] = useState(false);
 
     useEffect(() => {
         // Cleanup worker and URL on component unmount
@@ -203,47 +205,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
         URL.revokeObjectURL(url);
     };
 
-    const handleRunCode = async () => {
-        setOutput('');
-        setError('');
-        setIsShowingOutput(false);
-        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
-            URL.revokeObjectURL(htmlPreviewUrl);
-            setHtmlPreviewUrl(null);
-        }
-
-        switch (lang.toLowerCase()) {
-            case 'python':
-                await runPython();
-                break;
-            case 'javascript':
-            case 'js':
-                runJavaScript();
-                break;
-            case 'html':
-                runHtml();
-                break;
-            case 'react':
-            case 'jsx':
-                runReact();
-                break;
-            default:
-                setError(`Language "${lang}" is not executable.`);
-                setStatus('error');
-        }
-    };
-
-    const handleStopCode = () => {
-        if (workerRef.current) {
-            workerRef.current.terminate();
-            workerRef.current = null;
-        }
-        setStatus('idle');
-        setError('');
-        setOutput('');
-        setIsShowingOutput(false);
-    };
-    
     const runPython = async () => {
         setStatus('loading-env');
     
@@ -403,6 +364,55 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                 setIsShowingOutput(true);
             }
         }
+    };
+
+    const handleRunCode = async () => {
+        setOutput('');
+        setError('');
+        setIsShowingOutput(false);
+        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
+            URL.revokeObjectURL(htmlPreviewUrl);
+            setHtmlPreviewUrl(null);
+        }
+
+        switch (lang.toLowerCase()) {
+            case 'python':
+                await runPython();
+                break;
+            case 'javascript':
+            case 'js':
+                runJavaScript();
+                break;
+            case 'html':
+                runHtml();
+                break;
+            case 'react':
+            case 'jsx':
+                runReact();
+                break;
+            default:
+                setError(`Language "${lang}" is not executable.`);
+                setStatus('error');
+        }
+    };
+
+    useEffect(() => {
+        if (autorun && !hasAutoRun && status === 'idle') {
+            setHasAutoRun(true); // Set immediately to prevent reruns
+            handleRunCode();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autorun, hasAutoRun, status, code, lang]);
+
+    const handleStopCode = () => {
+        if (workerRef.current) {
+            workerRef.current.terminate();
+            workerRef.current = null;
+        }
+        setStatus('idle');
+        setError('');
+        setOutput('');
+        setIsShowingOutput(false);
     };
 
     const isToggleableView = ['python', 'javascript', 'js', 'react', 'jsx'].includes(lang.toLowerCase());

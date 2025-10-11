@@ -1,4 +1,5 @@
 
+
 let pyodidePromise: Promise<any> | null = null;
 
 declare global {
@@ -43,7 +44,6 @@ export const getPyodide = () => {
                     'plotly', 
                     'fpdf2',
                     'seaborn', // Added
-                    'polars', // Added
                     'openpyxl', // Added for .xlsx
                     'python-docx', // Added for .docx
                     'python-pptx', // Added for .pptx

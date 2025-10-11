@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -17,7 +18,7 @@ const pythonWorkerSource = `
         await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
-        await micropip.install(['plotly', 'fpdf2']);
+        await micropip.install(['plotly', 'fpdf2', 'pyarrow']);
         self.postMessage({ type: 'status', status: 'ready' });
     }
     const pyodideReadyPromise = loadPyodideAndPackages();

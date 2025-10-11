@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
@@ -82,7 +83,7 @@ filename = "amenities.csv"
 mimetype = "text/csv"
 print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_string}")
 \`\`\`
-Available Libraries: You can use \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`. The environment has NO internet access.
+Available Libraries: You can use \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`, \`pyarrow\`. The environment has NO internet access.
 
 2. JavaScript / TypeScript Interpreter:
 When to use: For simple browser-based logic, DOM manipulation examples, or quick calculations. Use the \`javascript\` or \`js\` identifier.

@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, PreviewContent, MessageContent } from './types';
+// FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
-import ResultPreviewModal from './components/ResultPreviewModal';
+import CodeAnalysisModal from './components/CodeAnalysisModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { translations } from './translations';
@@ -43,7 +44,7 @@ const App: React.FC = () => {
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   
-  const [previewContent, setPreviewContent] = useState<PreviewContent | null>(null);
+  const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
 
   const mainContentRef = useRef<HTMLElement>(null);
   const { t, setLang, lang } = useTranslations(language);
@@ -418,8 +419,8 @@ const App: React.FC = () => {
       }
   };
   
-  const handlePreview = (content: PreviewContent) => {
-    setPreviewContent(content);
+  const handleShowAnalysis = (code: string, lang: string) => {
+    setAnalysisModalContent({ code, lang });
   };
 
   return (
@@ -489,7 +490,7 @@ const App: React.FC = () => {
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;
                 const isCurrentlyLoading = isLoading && isLastMessage;
-                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} onPreview={handlePreview} />;
+                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} onShowAnalysis={handleShowAnalysis} />;
               })
             ) : (
                <div className="text-center text-muted pt-16">
@@ -519,10 +520,11 @@ const App: React.FC = () => {
         activeConversationId={activeConversationId}
         t={t}
       />
-      {previewContent && (
-        <ResultPreviewModal
-            content={previewContent}
-            onClose={() => setPreviewContent(null)}
+      {analysisModalContent && (
+        <CodeAnalysisModal
+            code={analysisModalContent.code}
+            lang={analysisModalContent.lang}
+            onClose={() => setAnalysisModalContent(null)}
         />
       )}
     </div>

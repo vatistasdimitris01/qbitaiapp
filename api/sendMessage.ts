@@ -55,6 +55,7 @@ How to use: When you use search, your response will be grounded in the search re
 
 Generating Code:
 IMPORTANT: You are forbidden from performing any calculations or data analysis yourself. You MUST ALWAYS output a Python code block for every calculation, data analysis, or visualization task, no matter how simple it seems. Failure to follow this rule will result in an error.
+Your generated Python code must be self-contained and not use any multi-line strings or docstrings (\`"""\` or \`'''\`). Use single-line \`#\` comments for explanations.
 
 To make code executable, use the correct language identifier: \`python\`, \`javascript\` (or \`js\`), \`html\`, \`react\` (or \`jsx\`).
 To show a code snippet for illustrative purposes that should NOT be executed, use a different identifier like \`bash\`, \`json\`, etc.

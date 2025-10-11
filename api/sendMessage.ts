@@ -78,7 +78,7 @@ You must decide whether to have the code run automatically for the user.
 
 **Python Environment:**
 - The Python environment is sandboxed using Pyodide.
-- Available Libraries: \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`, \`pyarrow\`. The environment has NO internet access.
+- Available Libraries: \`pandas\`, \`numpy\`, \`scipy\`, \`matplotlib\`, \`plotly\`, \`scikit-learn\`, \`pillow\`, \`opencv-python\`, \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`. The environment has NO internet access.
 - Visuals (Plots/Images): Use standard "show" methods (\`plt.show()\`, \`fig.show()\`, \`Image.show()\`). These are automatically handled to display images.
 - File Downloads: To generate a downloadable file, print a specially formatted string: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`.
 

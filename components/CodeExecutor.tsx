@@ -15,10 +15,10 @@ const pythonWorkerSource = `
     async function loadPyodideAndPackages() {
         // @ts-ignore
         pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
-        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
+        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
-        await micropip.install(['plotly', 'fpdf2']);
+        await micropip.install(['plotly', 'fpdf2', 'seaborn']);
         self.postMessage({ type: 'status', status: 'ready' });
     }
     const pyodideReadyPromise = loadPyodideAndPackages();

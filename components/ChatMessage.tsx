@@ -298,23 +298,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             </>
         ) : (
             <>
-                <div ref={contentRef} className="w-full">
+                <div ref={contentRef} className="prose prose-sm max-w-none w-full">
                   {contentParts.map((part, index) => {
                       if (part.type === 'text' && part.content) {
                           const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                          return <div key={index} className="bg-ai-message p-4 rounded-xl mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
+                          return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                       }
                       if (part.type === 'code' && part.code) {
                           const lang = part.lang?.toLowerCase() || 'plaintext';
                           if (lang === 'python') {
                               return (
-                                  <div key={index} className="not-prose my-2">
+                                  <div key={index} className="not-prose my-4">
                                       <CodeExecutor code={part.code} onPreview={onPreview} />
                                   </div>
                               );
                           }
                           if (lang === 'mermaid') {
-                              return <div key={index} className="mermaid p-4 bg-ai-message rounded-xl mb-2">{part.code}</div>;
+                              return <div key={index} className="mermaid">{part.code}</div>;
                           }
                           const safeLang = escapeHtml(lang);
                           const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
@@ -327,17 +327,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                           } catch(e) { /* language not supported */ }
               
                           return (
-                              <div key={index} className="prose prose-sm max-w-none mb-2">
-                                  <pre>
-                                      <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-                                  </pre>
-                              </div>
+                              <pre key={index}>
+                                  <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                              </pre>
                           );
                       }
                       return null;
                   })}
                   {showBreathingIndicator && (
-                      <div className="bg-ai-message p-4 rounded-xl inline-block">
+                      <div className="pt-2">
                           <span className="typing-indicator breathing"></span>
                       </div>
                   )}

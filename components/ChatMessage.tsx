@@ -97,6 +97,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     return { parsedThinkingText: message.thinkingText || null, parsedResponseText: text, hasThinkingTag: false };
   }, [message.text, message.thinkingText, isUser]);
 
+  const isThinkingInProgress = useMemo(() => {
+    // Thinking is in progress if the tag exists but isn't closed yet.
+    return hasThinkingTag && !message.text.includes('</thinking>');
+  }, [hasThinkingTag, message.text]);
+
+  useEffect(() => {
+    // Automatically open the thinking panel when thinking starts.
+    if (isThinkingInProgress) {
+      setIsThinkingOpen(true);
+    }
+  }, [isThinkingInProgress]);
+
 
   const htmlContent = useMemo(() => {
     if (isUser) return '';

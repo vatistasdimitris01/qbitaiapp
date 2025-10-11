@@ -44,9 +44,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
     const [plotlySpec, setPlotlySpec] = useState<string | null>(null);
 
     useEffect(() => {
+        let isCancelled = false;
         const runCode = async () => {
             try {
                 const pyodide = await getPyodide();
+                if (isCancelled) return;
+
                 setStatus('executing');
 
                 const preamble = `
@@ -107,6 +110,7 @@ if hasattr(go, 'FigureWidget'):
                 pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\n' });
 
                 const result = await pyodide.runPythonAsync(fullCode);
+                if (isCancelled) return;
 
                 if (result !== undefined) {
                     stdout_stream += pyodide.repr(result);
@@ -139,12 +143,14 @@ if hasattr(go, 'FigureWidget'):
                 if (stderr_stream) setError(stderr_stream.trim());
                 setStatus('success');
             } catch (err: any) {
+                if (isCancelled) return;
                 console.error("Pyodide execution failed:", err);
                 setError(`Execution failed: ${err.message || "An unknown error occurred."}`);
                 setStatus('error');
             }
         };
         runCode();
+        return () => { isCancelled = true; };
     }, [code]);
 
     useEffect(() => {
@@ -163,22 +169,22 @@ if hasattr(go, 'FigureWidget'):
 
     if (status === 'loading-env' || status === 'executing') {
         return (
-            <div className="flex items-center text-sm text-muted-foreground bg-token-surface-secondary p-3 rounded-lg">
+            <div className="flex items-center text-sm text-muted-foreground bg-token-surface-secondary/50 p-3 rounded-lg">
                 <LoadingSpinner />
-                <span>{status === 'loading-env' ? 'Initializing Environment...' : 'Analyzing...'}</span>
+                <span>Executing...</span>
             </div>
         );
     }
-
+    
     return (
         <div className="space-y-2">
             {imageBase64 && (
-                <div className="p-2 bg-white rounded-md border border-default flex justify-center my-2 max-h-[500px] overflow-auto">
+                <div className="p-4 bg-white rounded-xl border border-default flex justify-center max-h-[500px] overflow-auto">
                     <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot or image" className="max-w-full h-auto" />
                 </div>
             )}
             {plotlySpec && (
-                <div ref={plotlyRef} className="p-2 bg-white rounded-md my-2 border border-default"></div>
+                <div ref={plotlyRef} className="p-2 bg-white rounded-xl border border-default"></div>
             )}
             {output && <pre className="text-sm text-foreground whitespace-pre-wrap bg-token-surface-secondary p-3 rounded-md">{output}</pre>}
             {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}

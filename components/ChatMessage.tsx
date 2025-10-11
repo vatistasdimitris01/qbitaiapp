@@ -74,6 +74,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const [isCopied, setIsCopied] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
+    const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
+    const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50 && !message.files?.length;
+
+
     const handleCopy = () => {
         const textToCopy = getTextFromMessage(message.content);
         if (textToCopy) {
@@ -85,7 +89,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     };
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
-        const messageText = getTextFromMessage(message.content);
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
 
         const text = messageText || '';
@@ -109,12 +112,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         }
 
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
-    }, [message.content, isUser]);
+    }, [messageText, isUser]);
 
     const isThinkingInProgress = useMemo(() => {
-        const messageText = getTextFromMessage(message.content);
         return hasThinkingTag && !messageText.includes('</thinking>');
-    }, [hasThinkingTag, message.content]);
+    }, [hasThinkingTag, messageText]);
 
     useEffect(() => {
         if (isThinkingInProgress) {
@@ -285,8 +287,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                     </div>
                 )}
                 <div className="flex flex-col w-full">
-                    <div className={`w-full rounded-lg ${isUser ? 'bg-user-message text-foreground' : 'bg-ai-message'}`}>
-                        <div className={`px-4 py-3 ${isUser ? '' : ' '}`}>
+                    <div className={`
+                        ${isUser ? 'w-fit max-w-full' : 'w-full'}
+                        ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
+                        ${isUser ? 'bg-user-message text-foreground' : 'bg-ai-message'}
+                    `}>
+                        <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
                             {hasAttachments && (
                                 <div className="flex flex-wrap justify-start gap-2 mb-2">
                                     {message.files?.map((file, index) =>
@@ -314,7 +320,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
 
                             {isUser ? (
-                                <p className="whitespace-pre-wrap">{getTextFromMessage(message.content)}</p>
+                                <p className="whitespace-pre-wrap">{messageText}</p>
                             ) : (
                                 <div ref={contentRef} className="prose prose-sm max-w-none w-full">
                                     {contentParts.map((part, index) => {

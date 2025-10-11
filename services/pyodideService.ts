@@ -1,4 +1,5 @@
 
+
 let pyodidePromise: Promise<any> | null = null;
 
 declare global {
@@ -32,7 +33,7 @@ export const getPyodide = () => {
                     'beautifulsoup4', 
                     'scipy', 
                     'opencv-python',
-                    'scikit-image', // Added
+                    'scikit-image' // Added
                 ]);
                 
                 await pyodide.loadPackage('micropip');
@@ -43,14 +44,14 @@ export const getPyodide = () => {
                     'plotly', 
                     'fpdf2',
                     'seaborn', // Added
+                    'polars', // Added
                     'openpyxl', // Added for .xlsx
                     'python-docx', // Added for .docx
                     'python-pptx', // Added for .pptx
                     'reportlab', // Added for .pdf
                     'tqdm', // Added for progress bars
                     'pyyaml', // Added for YAML
-                    'nltk', // Added for NLP
-                    'vaex' // Added
+                    'nltk' // Added for NLP
                 ]);
                 
                 resolve(pyodide);

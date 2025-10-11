@@ -124,15 +124,8 @@ setIsThinkingOpen(true);
 
 const contentParts = useMemo(() => {
     if (message.type === MessageType.USER) return [];
-    
-    let textToRender = '';
-    if (message.type === MessageType.AI_RESPONSE) {
-      textToRender = parsedResponseText || getTextFromMessage(message.content) || '';
-    } else if (message.type === MessageType.AI_CODE || message.type === MessageType.AI_EXECUTABLE_CODE) {
-      const { lang, code } = message.content as CodeBlockContent;
-      return [{ type: 'code', lang, code }];
-    }
-    
+
+    const textToRender = parsedResponseText || '';
     if (!textToRender) return [];
 
     const parts: { type: 'text' | 'code'; content?: string; lang?: string; code?: string }[] = [];
@@ -167,7 +160,7 @@ const contentParts = useMemo(() => {
     }
 
     return parts;
-}, [parsedResponseText, message.type, message.content]);
+}, [parsedResponseText]);
 
 const markedRenderer = useMemo(() => {
 const renderer = new marked.Renderer();
@@ -335,7 +328,7 @@ dangerouslySetInnerHTML={{ __html: thinkingHtml }}
               }
               if (part.type === 'code' && part.code) {
                   const lang = part.lang?.toLowerCase() || 'plaintext';
-                  if (message.type === MessageType.AI_EXECUTABLE_CODE) {
+                  if (lang === 'python') {
                       return (
                           <div key={index} className="not-prose my-4">
                               <CodeExecutor code={part.code} onPreview={onPreview} />

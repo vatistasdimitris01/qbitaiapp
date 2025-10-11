@@ -317,26 +317,6 @@ const App: React.FC = () => {
             }));
         },
         (duration) => { // onFinish callback
-             setConversations(prev => prev.map(c => {
-                if (c.id !== activeConversationId) return c;
-                const newMessages = c.messages.map(msg => {
-                    if (msg.id !== aiMessageId) return msg;
-                    
-                    const finalContent = msg.content as string || '';
-                    let finalType = msg.type;
-                    let finalMessageContent: MessageContent = finalContent;
-
-                    const codeMatch = finalContent.match(/```(python)\n([\s\S]*?)```/);
-
-                    if (codeMatch && !finalContent.match(/```(python-example)\n/)) {
-                        finalType = MessageType.AI_EXECUTABLE_CODE;
-                        finalMessageContent = { lang: 'python', code: codeMatch[2].trim() };
-                    }
-                    
-                    return { ...msg, type: finalType, content: finalMessageContent };
-                });
-                return { ...c, messages: newMessages };
-            }));
             setIsLoading(false);
         },
         (errorText) => { // onError callback
@@ -416,26 +396,6 @@ const App: React.FC = () => {
                     }));
                 },
                 (duration) => { // onFinish
-                    setConversations(prev => prev.map(c => {
-                        if (c.id !== activeConversationId) return c;
-                        const newMessages = c.messages.map(msg => {
-                             if (msg.id !== aiMessageId) return msg;
-                    
-                            const finalContent = msg.content as string || '';
-                            let finalType = msg.type;
-                            let finalMessageContent: MessageContent = finalContent;
-
-                            const codeMatch = finalContent.match(/```(python)\n([\s\S]*?)```/);
-
-                            if (codeMatch && !finalContent.match(/```(python-example)\n/)) {
-                                finalType = MessageType.AI_EXECUTABLE_CODE;
-                                finalMessageContent = { lang: 'python', code: codeMatch[2].trim() };
-                            }
-                            
-                            return { ...msg, type: finalType, content: finalMessageContent };
-                        });
-                        return { ...c, messages: newMessages };
-                    }));
                     setIsLoading(false);
                 },
                 (errorText) => { // onError

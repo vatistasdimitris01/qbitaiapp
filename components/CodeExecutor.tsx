@@ -114,11 +114,19 @@ const downloadFile = (filename: string, mimetype: string, base64: string) => {
     URL.revokeObjectURL(url);
 };
 
+type ExecutionResult = {
+  output: string | null;
+  error: string;
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+};
+
 interface CodeExecutorProps {
     code: string;
     lang: string;
     title?: string;
     autorun?: boolean;
+    persistedResult?: ExecutionResult;
+    onExecutionComplete: (result: ExecutionResult) => void;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -129,11 +137,12 @@ const langExtensions: { [key: string]: string } = {
     python: 'py', javascript: 'js', js: 'js', html: 'html'
 };
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
     const workerRef = useRef<Worker | null>(null);
+    const initialRunRef = useRef(true);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
@@ -141,8 +150,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [isShowingOutput, setIsShowingOutput] = useState(!!autorun);
-    const [hasAutoRun, setHasAutoRun] = useState(false);
+    const [view, setView] = useState<'code' | 'output'>('code');
+    const [hasRunOnce, setHasRunOnce] = useState(false);
 
     useEffect(() => {
         // Cleanup worker and URL on component unmount
@@ -182,7 +191,35 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 setError("Failed to render interactive chart.");
             }
         }
-    }, [output, lang, isShowingOutput]);
+    }, [output, lang, view]);
+    
+    // Effect for initial run (autorun or restoring from persisted state)
+    useEffect(() => {
+        if (initialRunRef.current) {
+            initialRunRef.current = false; // Prevent re-running on subsequent renders
+            if (persistedResult) {
+                const { output: savedOutput, error: savedError, type } = persistedResult;
+                if (savedError) {
+                    setError(savedError);
+                    setStatus('error');
+                } else if (savedOutput !== null) {
+                    if (type === 'image-base64') {
+                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                    } else if (type === 'plotly-json') {
+                        setOutput(savedOutput);
+                    } else { // 'string'
+                        setOutput(savedOutput);
+                    }
+                    setStatus('success');
+                }
+                setView('output');
+                setHasRunOnce(true);
+            } else if (autorun) {
+                handleRunCode();
+            }
+        }
+    }, [persistedResult, autorun, code, lang]);
+
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code).then(() => {
@@ -207,6 +244,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
     const runPython = async () => {
         setStatus('loading-env');
+        setHasRunOnce(true);
     
         if (workerRef.current) {
             workerRef.current.terminate();
@@ -219,6 +257,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     
         let stdoutBuffer = '';
         let stderrBuffer = '';
+        let finalResult: ExecutionResult | null = null;
     
         const cleanup = () => {
             if (workerRef.current) {
@@ -249,8 +288,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 case 'plot':
                     if (plotType === 'plotly') {
                         setOutput(data);
+                         finalResult = { output: data, error: '', type: 'plotly-json' };
                     } else { // matplotlib or pil
                         setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                        finalResult = { output: data, error: '', type: 'image-base64' };
                     }
                     break;
                 case 'download':
@@ -264,28 +305,37 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     break;
                 case 'success':
                     setStatus('success');
-                    setIsShowingOutput(true);
+                    setView('output');
+                    if (finalResult) {
+                        onExecutionComplete(finalResult);
+                    } else if (stdoutBuffer.trim()) {
+                        onExecutionComplete({ output: stdoutBuffer.trim(), error: '', type: 'string' });
+                    }
                     cleanup();
                     break;
                 case 'error':
                     setError(msgError);
                     setStatus('error');
-                    setIsShowingOutput(true);
+                    setView('output');
+                    onExecutionComplete({ output: null, error: msgError, type: 'error' });
                     cleanup();
                     break;
             }
         };
     
         worker.onerror = (err) => {
-            setError(`Worker error: ${err.message}`);
+            const errorMsg = `Worker error: ${err.message}`;
+            setError(errorMsg);
             setStatus('error');
-            setIsShowingOutput(true);
+            setView('output');
+            onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             cleanup();
         };
     };
 
     const runJavaScript = () => {
         setStatus('executing');
+        setHasRunOnce(true);
         let consoleOutput = '';
         const oldConsoleLog = console.log;
         console.log = (...args) => {
@@ -297,13 +347,17 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             if (result !== undefined) {
                 finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
             }
-            setOutput(finalOutput.trim());
+            const trimmedOutput = finalOutput.trim();
+            setOutput(trimmedOutput);
             setStatus('success');
-            setIsShowingOutput(true);
+            setView('output');
+            onExecutionComplete({ output: trimmedOutput, error: '', type: 'string' });
         } catch (err: any) {
-            setError(err.toString());
+            const errorMsg = err.toString();
+            setError(errorMsg);
             setStatus('error');
-            setIsShowingOutput(true);
+            setView('output');
+            onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         } finally {
             console.log = oldConsoleLog;
         }
@@ -311,6 +365,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
     const runHtml = () => {
         setStatus('executing');
+        setHasRunOnce(true);
         try {
             const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -318,7 +373,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
             const newWindow = window.open(url, '_blank');
             if (newWindow) {
-                setOutput(true);
+                setOutput('Preview opened in a new tab.');
                 setStatus('success');
             } else {
                 setError('Could not open a new tab. Please disable your popup blocker for this site.');
@@ -330,10 +385,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             setError(`Execution failed: ${err.message || String(err)}`);
             setStatus('error');
         }
+        setView('output');
     };
 
     const runReact = () => {
         setStatus('executing');
+        setHasRunOnce(true);
         if (reactMountRef.current) {
             try {
                 if (reactRootRef.current) {
@@ -354,22 +411,20 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     reactRootRef.current.render(<ComponentToRender />);
                     setOutput(<div ref={reactMountRef}></div>);
                     setStatus('success');
-                    setIsShowingOutput(true);
                 } else {
                     throw new Error("No 'Component' variable was exported from the code.");
                 }
             } catch (err: any) {
                 setError(err.toString());
                 setStatus('error');
-                setIsShowingOutput(true);
             }
         }
+        setView('output');
     };
 
     const handleRunCode = async () => {
         setOutput('');
         setError('');
-        setIsShowingOutput(false);
         if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
             URL.revokeObjectURL(htmlPreviewUrl);
             setHtmlPreviewUrl(null);
@@ -396,14 +451,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         }
     };
 
-    useEffect(() => {
-        if (autorun && !hasAutoRun && status === 'idle') {
-            setHasAutoRun(true); // Set immediately to prevent reruns
-            handleRunCode();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autorun, hasAutoRun, status, code, lang]);
-
     const handleStopCode = () => {
         if (workerRef.current) {
             workerRef.current.terminate();
@@ -412,11 +459,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         setStatus('idle');
         setError('');
         setOutput('');
-        setIsShowingOutput(false);
+        setView('code');
     };
-
-    const isToggleableView = ['python', 'javascript', 'js', 'react', 'jsx'].includes(lang.toLowerCase());
-
+    
     const OutputDisplay = () => (
         <div className="pt-4">
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
@@ -424,10 +469,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             {output && !error && (
                 (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
                      <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
-                ) : lang === 'react' || lang === 'jsx' ? (
+                ) : (lang === 'react' || lang === 'jsx') ? (
                     <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
                 ) : typeof output === 'string' ? (
-                    <pre className="text-sm text-foreground whitespace-pre-wrap bg-transparent">{output}</pre>
+                    <div className="text-sm text-foreground whitespace-pre-wrap">{output}</div>
                 ) : (
                     <div>{output}</div>
                 )
@@ -448,6 +493,37 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             )}
         </>
     );
+    
+    const renderButtons = () => {
+        const isRunnable = ['python', 'javascript', 'js', 'react', 'jsx', 'html'].includes(lang.toLowerCase());
+        if (!isRunnable) return null;
+        
+        if (status === 'executing' || status === 'loading-env') {
+            return (
+                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full flex items-center transition-colors text-sm font-medium">
+                    <div className="w-2.5 h-2.5 bg-white rounded-sm mr-2"></div> Stop
+                </button>
+            );
+        }
+        if (!hasRunOnce) {
+            return (
+                 <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                    Run code
+                </button>
+            );
+        }
+        // hasRunOnce is true from here
+        return (
+            <div className="flex items-center space-x-2 sm:space-x-4">
+                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary px-4 py-2 rounded-full text-sm font-medium hover:bg-border">
+                    {view === 'code' ? 'Show Output' : 'Show Code'}
+                </button>
+                <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                    Run Again
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
@@ -456,55 +532,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     <h3 className="font-semibold text-foreground text-base">{title || 'Code Executor'}</h3>
                     <span className="text-sm text-muted-foreground">· {lang}</span>
                 </div>
-                <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
-                    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors">{isCopied ? 'Copied!' : 'Copy'}</button>
-                    <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors">Download</button>
-                    {isToggleableView ? (
-                         isShowingOutput ? (
-                            <button onClick={() => setIsShowingOutput(false)} className="bg-token-surface-secondary text-token-primary px-4 py-2 rounded-full">
-                                Show Code
-                            </button>
-                        ) : status === 'executing' || status === 'loading-env' ? (
-                            <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full flex items-center transition-colors">
-                                <div className="w-2.5 h-2.5 bg-white rounded-sm mr-2"></div> Stop
-                            </button>
-                        ) : (
-                            <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full">
-                                Run code
-                            </button>
-                        )
-                    ) : (
-                        <button onClick={handleRunCode} disabled={status === 'executing'} className="bg-black text-white px-4 py-2 rounded-full disabled:opacity-50">
-                            Run code
-                        </button>
-                    )}
+                <div className="flex items-center space-x-2 sm:space-x-4">
+                    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">{isCopied ? 'Copied!' : 'Copy'}</button>
+                    <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Download</button>
+                    {renderButtons()}
                 </div>
             </header>
-
-            {isToggleableView ? (
-                isShowingOutput ? <OutputDisplay /> : <CodeDisplay />
-            ) : (
-                <>
-                    <CodeDisplay />
-                    {((output && !error) || error) && (
-                        <div className="mt-4 pt-4">
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
-                            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
-                            {output && !error && (status === 'success' && lang === 'html' && htmlPreviewUrl) && (
-                                <div>
-                                    <p className="text-sm text-foreground mb-2">HTML preview opened in a new tab.</p>
-                                    <button
-                                        onClick={() => htmlPreviewUrl && window.open(htmlPreviewUrl, '_blank')}
-                                        className="text-sm font-medium bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800 px-4 py-2 rounded-md transition-colors"
-                                    >
-                                        Re-open Preview
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </>
-            )}
+            
+            {view === 'code' ? <CodeDisplay /> : <OutputDisplay />}
         </div>
     );
 };

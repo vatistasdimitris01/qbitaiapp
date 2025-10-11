@@ -7,11 +7,19 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 
+type ExecutionResult = {
+  output: string | null;
+  error: string;
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+};
+
 interface ChatMessageProps {
     message: Message;
     onRegenerate: (messageId: string) => void;
     isLoading: boolean;
     onShowAnalysis: (code: string, lang: string) => void;
+    executionResults: Record<string, ExecutionResult>;
+    onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
 }
 
 // Language identifiers that should be rendered with the CodeExecutor component
@@ -137,7 +145,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 };
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis, executionResults, onStoreExecutionResult }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -426,9 +434,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 if (part.type === 'code' && part.code) {
                                     const lang = part.lang?.toLowerCase() || 'plaintext';
                                     if (EXECUTABLE_LANGS.includes(lang)) {
+                                        const key = `${message.id}_${index}`;
                                         return (
                                             <div key={index} className="not-prose my-4">
-                                                <CodeExecutor code={part.code} lang={lang} title={part.title} autorun={part.autorun} />
+                                                <CodeExecutor
+                                                    code={part.code}
+                                                    lang={lang}
+                                                    title={part.title}
+                                                    autorun={part.autorun}
+                                                    persistedResult={executionResults[key]}
+                                                    onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
+                                                />
                                             </div>
                                         );
                                     }

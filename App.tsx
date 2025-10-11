@@ -25,6 +25,14 @@ const initialPersonas: Persona[] = [
   { id: 'persona-teach', name: 'Teacher', instruction: 'You are a friendly and patient teacher. Explain concepts clearly and simply, as if you are talking to a student. Use analogies and examples to make topics understandable.' },
 ];
 
+// Define a type for serializable execution results
+type ExecutionResult = {
+  output: string | null;
+  error: string;
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+};
+
+
 const App: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -44,6 +52,8 @@ const App: React.FC = () => {
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
+  const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
+
 
   const mainContentRef = useRef<HTMLElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -114,6 +124,8 @@ const App: React.FC = () => {
     const savedPersonas = localStorage.getItem('personas');
     const savedTheme = localStorage.getItem('theme');
     const savedLang = localStorage.getItem('language');
+    const savedResults = localStorage.getItem('executionResults');
+
 
     const loadedConvos = savedConvos ? JSON.parse(savedConvos) : [];
     setConversations(loadedConvos);
@@ -126,6 +138,7 @@ const App: React.FC = () => {
     
     if (savedTheme) setTheme(savedTheme);
     if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
+    if (savedResults) setExecutionResults(JSON.parse(savedResults));
     
 
     if (savedActiveId && loadedConvos.some((c: Conversation) => c.id === savedActiveId)) {
@@ -165,6 +178,10 @@ const App: React.FC = () => {
     localStorage.setItem('language', language);
     setLang(language);
   }, [language, setLang]);
+
+  useEffect(() => {
+    localStorage.setItem('executionResults', JSON.stringify(executionResults));
+  }, [executionResults]);
 
 
   const activeConversation = useMemo(() => {
@@ -460,6 +477,11 @@ const App: React.FC = () => {
   const handleShowAnalysis = (code: string, lang: string) => {
     setAnalysisModalContent({ code, lang });
   };
+  
+  const handleStoreExecutionResult = (messageId: string, partIndex: number, result: ExecutionResult) => {
+      const key = `${messageId}_${partIndex}`;
+      setExecutionResults(prev => ({ ...prev, [key]: result }));
+  };
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
@@ -528,7 +550,15 @@ const App: React.FC = () => {
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;
                 const isCurrentlyLoading = isLoading && isLastMessage;
-                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} onShowAnalysis={handleShowAnalysis} />;
+                return <ChatMessage
+                            key={msg.id}
+                            message={msg}
+                            onRegenerate={handleRegenerate}
+                            isLoading={isCurrentlyLoading}
+                            onShowAnalysis={handleShowAnalysis}
+                            executionResults={executionResults}
+                            onStoreExecutionResult={handleStoreExecutionResult}
+                        />;
               })
             ) : (
                <div className="text-center text-muted pt-16">

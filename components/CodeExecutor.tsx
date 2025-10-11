@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { PlayIcon, ChevronDownIcon, CopyIcon, Maximize2Icon } from './icons';
 import ResultPreviewModal from './ResultPreviewModal';
@@ -108,7 +107,7 @@ const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
             setStatus('loading');
             (window as any).loadPyodide({
                 indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/"
-            }).then(async (pyodide) => {
+            }).then(async (pyodide: any) => {
                 pyodideRef.current = pyodide;
                 await pyodide.loadPackage(['numpy', 'pandas', 'matplotlib', 'scikit-learn', 'pillow']);
                 await pyodide.runPythonAsync(pythonPreamble);
@@ -116,6 +115,7 @@ const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
             }).catch((e: Error) => {
                 setError(`Failed to load Python environment: ${e.message}`);
                 setStatus('error');
+                setIsCodeVisible(true);
             });
             return;
         }
@@ -143,6 +143,7 @@ const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
         if (capturedError) {
             setError(capturedError);
             setStatus('error');
+            setIsCodeVisible(true);
         } else {
             const finalOutput: string[] = [];
             capturedOutput.forEach(line => {
@@ -176,9 +177,14 @@ const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
     } catch (e: any) {
         setError(e.message);
         setStatus('error');
+        setIsCodeVisible(true);
     }
   };
   
+  useEffect(() => {
+    executeCode();
+  }, [code]);
+
   useEffect(() => {
     if (plotlySpec && plotlyContainerRef.current) {
       (window as any).Plotly.newPlot(plotlyContainerRef.current, plotlySpec.data, plotlySpec.layout);

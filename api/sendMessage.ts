@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
@@ -53,9 +52,9 @@ You have access to a set of powerful tools to help you answer questions and comp
 
 2.  **Code Execution (Python Code Interpreter):**
     *   **When to use:** Use your code execution environment when a user asks a question that requires mathematical calculations, data analysis, visualizations, or solving complex algorithmic problems. You can use it autonomously whenever you deem it appropriate.
-    *   **How to use:** Write and run Python code to get the result and present it to the user inside a \`\`\`python code block.
-    *   **Visuals (Plots/Images):** To display a plot or image from \`matplotlib\` or \`Pillow\`, call the standard \`plt.show()\` or \`Image.show()\` functions. The environment will automatically capture and display the output. For interactive plots, use Plotly and call \`fig.show()\`.
-    *   **File Downloads:** To generate a downloadable file for the user, you MUST print a specially formatted string to standard output: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`. The base64_data should be a Base64-encoded string of the file content.
+    *   **How to use:** To solve the user's request, you MUST respond with a Python code block (e.g., \`\`\`python\\nprint('hello')\\n\`\`\`). The code will be executed in a sandboxed environment, and the result (text output, plots, images, or files) will be displayed to the user automatically. Do NOT simulate the output of the code; just provide the code that generates it.
+    *   **Visuals (Plots/Images):** To display a plot or image from \`matplotlib\` or \`Pillow\`, simply call the standard \`plt.show()\` or \`Image.show()\` functions within your code. The environment will automatically capture and display the output. For interactive plots, use Plotly and call \`fig.show()\`.
+    *   **File Downloads:** To generate a downloadable file for the user, you MUST write code that prints a specially formatted string to standard output: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`. The base64_data should be a Base64-encoded string of the file content.
     *   **Environment:** You are in a sandboxed Python environment with NO internet access. You can use pre-installed libraries like pandas, numpy, matplotlib, pillow, scikit-learn, plotly etc.
 
 **Response Format:**

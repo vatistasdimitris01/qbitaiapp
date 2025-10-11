@@ -122,8 +122,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const textToRender = parsedResponseText || '';
     
     const renderer = new marked.Renderer();
-    // FIX: The signature for marked's renderer.code has changed. It now expects three arguments: code, language, and an 'escaped' boolean.
-    renderer.code = (code: string, lang: string | undefined, escaped: boolean): string => {
+    // FIX: The signature for marked's renderer.code has changed. It now expects an object as an argument.
+    renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
       lang = lang || 'plaintext';
 
       if (lang === 'python') {

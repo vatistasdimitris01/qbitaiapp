@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -141,6 +140,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
+    const [isShowingOutput, setIsShowingOutput] = useState(false);
 
     useEffect(() => {
         // Cleanup worker and URL on component unmount
@@ -180,7 +180,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                 setError("Failed to render interactive chart.");
             }
         }
-    }, [output, lang]);
+    }, [output, lang, isShowingOutput]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code).then(() => {
@@ -206,6 +206,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const handleRunCode = async () => {
         setOutput('');
         setError('');
+        setIsShowingOutput(false);
         if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
             URL.revokeObjectURL(htmlPreviewUrl);
             setHtmlPreviewUrl(null);
@@ -230,6 +231,17 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                 setError(`Language "${lang}" is not executable.`);
                 setStatus('error');
         }
+    };
+
+    const handleStopCode = () => {
+        if (workerRef.current) {
+            workerRef.current.terminate();
+            workerRef.current = null;
+        }
+        setStatus('idle');
+        setError('');
+        setOutput('');
+        setIsShowingOutput(false);
     };
     
     const runPython = async () => {
@@ -291,11 +303,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                     break;
                 case 'success':
                     setStatus('success');
+                    setIsShowingOutput(true);
                     cleanup();
                     break;
                 case 'error':
                     setError(msgError);
                     setStatus('error');
+                    setIsShowingOutput(true);
                     cleanup();
                     break;
             }
@@ -304,6 +318,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
         worker.onerror = (err) => {
             setError(`Worker error: ${err.message}`);
             setStatus('error');
+            setIsShowingOutput(true);
             cleanup();
         };
     };
@@ -323,9 +338,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
             }
             setOutput(finalOutput.trim());
             setStatus('success');
+            setIsShowingOutput(true);
         } catch (err: any) {
             setError(err.toString());
             setStatus('error');
+            setIsShowingOutput(true);
         } finally {
             console.log = oldConsoleLog;
         }
@@ -340,12 +357,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
 
             const newWindow = window.open(url, '_blank');
             if (newWindow) {
-                setOutput(true); // Set a truthy value to trigger conditional render
+                setOutput(true);
                 setStatus('success');
             } else {
                 setError('Could not open a new tab. Please disable your popup blocker for this site.');
                 setStatus('error');
-                URL.revokeObjectURL(url); // Clean up on failure
+                URL.revokeObjectURL(url);
                 setHtmlPreviewUrl(null);
             }
         } catch (err: any) {
@@ -376,17 +393,51 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                     reactRootRef.current.render(<ComponentToRender />);
                     setOutput(<div ref={reactMountRef}></div>);
                     setStatus('success');
+                    setIsShowingOutput(true);
                 } else {
                     throw new Error("No 'Component' variable was exported from the code.");
                 }
             } catch (err: any) {
                 setError(err.toString());
                 setStatus('error');
+                setIsShowingOutput(true);
             }
         }
     };
 
-    const hasOutput = output || error;
+    const isToggleableView = ['python', 'javascript', 'js', 'react', 'jsx'].includes(lang.toLowerCase());
+
+    const OutputDisplay = () => (
+        <div className="mt-0 pt-4 border-t border-default">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
+            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
+            {output && !error && (
+                (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
+                     <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
+                ) : lang === 'react' || lang === 'jsx' ? (
+                    <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
+                ) : typeof output === 'string' ? (
+                    <pre className="text-sm text-foreground whitespace-pre-wrap">{output}</pre>
+                ) : (
+                    <div>{output}</div>
+                )
+            )}
+        </div>
+    );
+    
+    const CodeDisplay = () => (
+        <>
+            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
+                <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
+            </div>
+            {(status === 'executing' || status === 'loading-env') && (
+                 <div className="flex items-center text-sm text-muted-foreground mt-4">
+                    <LoadingSpinner />
+                    <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
+                </div>
+            )}
+        </>
+    );
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
@@ -398,49 +449,51 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                 <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
                     <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors">{isCopied ? 'Copied!' : 'Copy'}</button>
                     <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors">Download</button>
-                    <button onClick={handleRunCode} disabled={status === 'executing' || status === 'loading-env'} className="bg-black text-white px-4 py-2 rounded-full disabled:opacity-50">
-                        Run code
-                    </button>
+                    {isToggleableView ? (
+                         isShowingOutput ? (
+                            <button onClick={() => setIsShowingOutput(false)} className="bg-token-surface-secondary text-token-primary px-4 py-2 rounded-full">
+                                Show Code
+                            </button>
+                        ) : status === 'executing' || status === 'loading-env' ? (
+                            <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full flex items-center transition-colors">
+                                <div className="w-2.5 h-2.5 bg-white rounded-sm mr-2"></div> Stop
+                            </button>
+                        ) : (
+                            <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full">
+                                Run code
+                            </button>
+                        )
+                    ) : (
+                        <button onClick={handleRunCode} disabled={status === 'executing'} className="bg-black text-white px-4 py-2 rounded-full disabled:opacity-50">
+                            Run code
+                        </button>
+                    )}
                 </div>
             </header>
 
-            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
-                <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
-            </div>
-            
-            {(status === 'executing' || status === 'loading-env') && (
-                 <div className="flex items-center text-sm text-muted-foreground p-4">
-                    <LoadingSpinner />
-                    <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
-                </div>
-            )}
-
-            {hasOutput && (
-                <div className="mt-4 pt-4 border-t border-default">
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
-                    {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
-                    {output && !error && (
-                        (status === 'success' && lang === 'html' && htmlPreviewUrl) ? (
-                            <div>
-                                <p className="text-sm text-foreground mb-2">HTML preview opened in a new tab.</p>
-                                <button
-                                    onClick={() => htmlPreviewUrl && window.open(htmlPreviewUrl, '_blank')}
-                                    className="text-sm font-medium bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800 px-4 py-2 rounded-md transition-colors"
-                                >
-                                    Re-open Preview
-                                </button>
-                            </div>
-                        ) : lang === 'python' && typeof output === 'string' && output.startsWith('{') ? (
-                             <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
-                        ) : lang === 'react' || lang === 'jsx' ? (
-                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
-                        ) : typeof output === 'string' ? (
-                            <pre className="text-sm text-foreground whitespace-pre-wrap">{output}</pre>
-                        ) : (
-                            <div>{output}</div>
-                        )
+            {isToggleableView ? (
+                isShowingOutput ? <OutputDisplay /> : <CodeDisplay />
+            ) : (
+                <>
+                    <CodeDisplay />
+                    {((output && !error) || error) && (
+                        <div className="mt-4 pt-4 border-t border-default">
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
+                            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
+                            {output && !error && (status === 'success' && lang === 'html' && htmlPreviewUrl) && (
+                                <div>
+                                    <p className="text-sm text-foreground mb-2">HTML preview opened in a new tab.</p>
+                                    <button
+                                        onClick={() => htmlPreviewUrl && window.open(htmlPreviewUrl, '_blank')}
+                                        className="text-sm font-medium bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800 px-4 py-2 rounded-md transition-colors"
+                                    >
+                                        Re-open Preview
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
-                </div>
+                </>
             )}
         </div>
     );

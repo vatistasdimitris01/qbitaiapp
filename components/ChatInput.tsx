@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
 import { FileAttachment } from '../types';
@@ -7,6 +6,7 @@ interface ChatInputProps {
     onSendMessage: (message: string, attachments: FileAttachment[]) => void;
     isLoading: boolean;
     t: (key: string) => string;
+    onAbortGeneration: () => void;
 }
 
 const fileToDataURL = (file: File): Promise<string> => {
@@ -18,7 +18,7 @@ const fileToDataURL = (file: File): Promise<string> => {
     });
 };
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
     const [text, setText] = useState('');
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -140,15 +140,29 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                             <PaperclipIcon className="text-muted" />
                         </button>
                         <div className="ml-auto relative">
-                            <button
-                                type="submit"
-                                aria-label="Submit"
-                                className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
-                                style={{ transform: 'translateY(-2px)' }}
-                                disabled={(!text.trim() && attachments.length === 0) || isLoading}
-                            >
-                                <ArrowUpIcon />
-                            </button>
+                            {isLoading ? (
+                                <button
+                                    type="button"
+                                    onClick={onAbortGeneration}
+                                    aria-label="Stop generation"
+                                    className="inline-flex items-center justify-center rounded-xl h-12 w-12 sm:h-11 sm:w-11 bg-white dark:bg-card border border-default shadow-md"
+                                    style={{ transform: 'translateY(-2px)' }}
+                                >
+                                    <div className="flex items-center justify-center h-7 w-7 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
+                                        <div className="h-3 w-3 bg-black dark:bg-white rounded-sm"></div>
+                                    </div>
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    aria-label="Submit"
+                                    className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    style={{ transform: 'translateY(-2px)' }}
+                                    disabled={(!text.trim() && attachments.length === 0)}
+                                >
+                                    <ArrowUpIcon />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

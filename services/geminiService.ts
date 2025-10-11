@@ -1,4 +1,3 @@
-
 import { FileAttachment, LocationInfo, Message, MessageContent, MessageType } from "../types";
 
 export interface StreamUpdate {
@@ -14,6 +13,7 @@ export const streamMessageToAI = async (
     personaInstruction: string | undefined,
     location: LocationInfo | null,
     language: string | undefined,
+    signal: AbortSignal, // Added to allow aborting the request
     onUpdate: (update: StreamUpdate) => void,
     onFinish: (duration: number) => void,
     onError: (error: string) => void
@@ -60,7 +60,8 @@ export const streamMessageToAI = async (
                 personaInstruction,
                 location,
                 language
-            })
+            }),
+            signal // Pass the signal to the fetch call
         });
 
         if (!response.ok) {
@@ -119,8 +120,13 @@ export const streamMessageToAI = async (
         }
 
     } catch (error) {
-        console.error("Error streaming message to AI:", error);
-        onError(error instanceof Error ? error.message : String(error));
+        if (error instanceof Error && error.name === 'AbortError') {
+             console.log("Stream aborted by user.");
+             // Don't call onError for user-initiated aborts
+        } else {
+            console.error("Error streaming message to AI:", error);
+            onError(error instanceof Error ? error.message : String(error));
+        }
     } finally {
         const duration = Date.now() - startTime;
         onFinish(duration);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo } from './types';
@@ -47,6 +46,7 @@ const App: React.FC = () => {
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
 
   const mainContentRef = useRef<HTMLElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { t, setLang, lang } = useTranslations(language);
   
   const handleUpdate = () => {
@@ -233,6 +233,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAbortGeneration = () => {
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
+
   const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
     if (!activeConversationId || !activeConversation) return;
     const trimmedText = text.trim();
@@ -271,6 +279,9 @@ const App: React.FC = () => {
     ));
     setIsLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const currentPersona = personas.find(p => p.id === activeConversation.personaId);
     
     await streamMessageToAI(
@@ -280,6 +291,7 @@ const App: React.FC = () => {
         currentPersona?.instruction,
         userLocation,
         lang,
+        controller.signal,
         (update) => { // onUpdate callback
             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
@@ -319,6 +331,7 @@ const App: React.FC = () => {
         },
         (duration) => { // onFinish callback
             setIsLoading(false);
+            abortControllerRef.current = null;
         },
         (errorText) => { // onError callback
             setConversations(prev => prev.map(c => {
@@ -329,6 +342,7 @@ const App: React.FC = () => {
                 return { ...c, messages: newMessages };
             }));
             setIsLoading(false);
+            abortControllerRef.current = null;
         }
     );
   };
@@ -347,6 +361,9 @@ const App: React.FC = () => {
     const lastUserMessage = historyUpToRegenPoint[lastUserMessageIndex];
     
     setIsLoading(true);
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const historyForApi = activeConversation.messages.slice(0, lastUserMessageIndex + 1);
 
@@ -374,6 +391,7 @@ const App: React.FC = () => {
         currentPersona?.instruction,
         userLocation,
         lang,
+        controller.signal,
         (update) => {
             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
@@ -414,6 +432,7 @@ const App: React.FC = () => {
         },
         (duration) => {
             setIsLoading(false);
+            abortControllerRef.current = null;
         },
         (errorText) => {
             setConversations(prev => prev.map(c => {
@@ -426,6 +445,7 @@ const App: React.FC = () => {
                 return { ...c, messages: newMessages };
             }));
             setIsLoading(false);
+            abortControllerRef.current = null;
         }
     );
   };
@@ -520,7 +540,7 @@ const App: React.FC = () => {
         
         <div className="mt-auto pt-4">
           <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-              <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} />
+              <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
           </footer>
         </div>
       </div>

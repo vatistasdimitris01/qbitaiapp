@@ -418,7 +418,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const isToggleableView = ['python', 'javascript', 'js', 'react', 'jsx'].includes(lang.toLowerCase());
 
     const OutputDisplay = () => (
-        <div className="mt-0 pt-4 border-t border-default">
+        <div className="pt-4">
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
             {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
             {output && !error && (
@@ -427,7 +427,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 ) : lang === 'react' || lang === 'jsx' ? (
                     <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
                 ) : typeof output === 'string' ? (
-                    <pre className="text-sm text-foreground whitespace-pre-wrap">{output}</pre>
+                    <pre className="text-sm text-foreground whitespace-pre-wrap bg-transparent">{output}</pre>
                 ) : (
                     <div>{output}</div>
                 )
@@ -451,7 +451,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex items-center justify-between pb-4">
+            <header className="flex items-center justify-between">
                 <div className="flex items-baseline space-x-2">
                     <h3 className="font-semibold text-foreground text-base">{title || 'Code Executor'}</h3>
                     <span className="text-sm text-muted-foreground">· {lang}</span>
@@ -487,7 +487,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 <>
                     <CodeDisplay />
                     {((output && !error) || error) && (
-                        <div className="mt-4 pt-4 border-t border-default">
+                        <div className="mt-4 pt-4">
                             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
                             {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
                             {output && !error && (status === 'success' && lang === 'html' && htmlPreviewUrl) && (

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { getPyodide } from '../services/pyodideService';
 
 declare global {
     interface Window {
@@ -8,8 +7,90 @@ declare global {
     }
 }
 
+const pythonWorkerSource = `
+    importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
+    let pyodide = null;
+    
+    async function loadPyodideAndPackages() {
+        // @ts-ignore
+        pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
+        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        await micropip.install(['plotly', 'fpdf2']);
+        self.postMessage({ type: 'status', status: 'ready' });
+    }
+    const pyodideReadyPromise = loadPyodideAndPackages();
+
+    self.onmessage = async (event) => {
+        await pyodideReadyPromise;
+        const { code } = event.data;
+
+        try {
+            pyodide.setStdout({ batched: (str) => {
+                const lines = str.split('\\n');
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:') || line.startsWith('__QBIT_PLOT_PIL__:')) {
+                        self.postMessage({ type: 'plot', plotType: 'image', data: line.split(':')[1] });
+                    } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
+                        self.postMessage({ type: 'plot', plotType: 'plotly', data: line.substring(line.indexOf(':') + 1) });
+                    } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
+                        const [_, filename, mimetype, data] = line.split(':');
+                        self.postMessage({ type: 'download', filename, mimetype, data });
+                    } else {
+                        self.postMessage({ type: 'stdout', data: line });
+                    }
+                }
+            }});
+            pyodide.setStderr({ batched: (str) => self.postMessage({ type: 'stderr', error: str }) });
+
+            const preamble = \`
+import io, base64, json, matplotlib
+import matplotlib.pyplot as plt
+from PIL import Image
+import plotly.graph_objects as go
+import numpy as np
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer): return int(obj)
+        if isinstance(obj, np.floating): return float(obj)
+        if isinstance(obj, np.ndarray): return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
+matplotlib.use('agg')
+def custom_plt_show():
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    b64_str = base64.b64encode(buf.read()).decode('utf-8')
+    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
+    plt.clf()
+plt.show = custom_plt_show
+def custom_pil_show(self):
+    buf = io.BytesIO()
+    self.save(buf, format='PNG')
+    buf.seek(0)
+    b64_str = base64.b64encode(buf.read()).decode('utf-8')
+    print(f"__QBIT_PLOT_PIL__:{b64_str}")
+Image.Image.show = custom_pil_show
+def custom_plotly_show(self, *args, **kwargs):
+    fig_dict = self.to_dict()
+    json_str = json.dumps(fig_dict, cls=NumpyEncoder)
+    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
+go.Figure.show = custom_plotly_show
+if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
+\`;
+            
+            await pyodide.runPythonAsync(preamble + '\\n' + code);
+            self.postMessage({ type: 'success' });
+        } catch (error) {
+            self.postMessage({ type: 'error', error: error.message });
+        }
+    };
+`;
+
 const LoadingSpinner = () => (
-    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -44,20 +125,30 @@ type OutputContent = string | React.ReactNode;
 
 // File extensions for different languages for the download functionality
 const langExtensions: { [key: string]: string } = {
-    python: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts',
-    html: 'html', react: 'jsx', jsx: 'jsx'
+    python: 'py', javascript: 'js', js: 'js', html: 'html'
 };
 
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
+    const workerRef = useRef<Worker | null>(null);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
     const [error, setError] = useState<string>('');
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+
+    useEffect(() => {
+        // Cleanup worker on component unmount
+        return () => {
+            if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -117,15 +208,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                 break;
             case 'javascript':
             case 'js':
-            case 'typescript':
-            case 'ts':
                 runJavaScript();
                 break;
             case 'html':
                 runHtml();
                 break;
-            case 'react':
-            case 'jsx':
+            case 'react': // This case will no longer be hit based on ChatMessage changes
+            case 'jsx':   // but is kept for potential future use.
                 runReact();
                 break;
             default:
@@ -136,81 +225,74 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     
     const runPython = async () => {
         setStatus('loading-env');
-        try {
-            const pyodide = await getPyodide();
-            setStatus('executing');
-
-            const preamble = `
-import io, base64, json, matplotlib
-import matplotlib.pyplot as plt
-from PIL import Image
-import plotly.graph_objects as go
-import numpy as np
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer): return int(obj)
-        if isinstance(obj, np.floating): return float(obj)
-        if isinstance(obj, np.ndarray): return obj.tolist()
-        return super(NumpyEncoder, self).default(obj)
-
-matplotlib.use('agg')
-def custom_plt_show():
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
-    plt.clf()
-plt.show = custom_plt_show
-
-def custom_pil_show(self):
-    buf = io.BytesIO()
-    self.save(buf, format='PNG')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_PIL__:{b64_str}")
-Image.Image.show = custom_pil_show
-
-def custom_plotly_show(self, *args, **kwargs):
-    fig_dict = self.to_dict()
-    json_str = json.dumps(fig_dict, cls=NumpyEncoder)
-    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
-go.Figure.show = custom_plotly_show
-if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
-`;
-            const fullCode = preamble + '\n' + code;
-            let stdout_stream = '';
-            pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\n' });
-            pyodide.setStderr({ batched: (str: string) => setError(prev => prev + str + '\n') });
-            
-            await pyodide.runPythonAsync(fullCode);
-
-            const lines = stdout_stream.split('\n');
-            let regularOutput = '', imageBase64 = '', plotlySpec = '';
-
-            for (const line of lines) {
-                if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:') || line.startsWith('__QBIT_PLOT_PIL__:')) {
-                    imageBase64 = line.split(':')[1];
-                } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
-                    plotlySpec = line.substring(line.indexOf(':') + 1);
-                } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
-                    const [_, filename, mimetype, base64_data] = line.split(':');
-                    downloadFile(filename, mimetype, base64_data);
-                    regularOutput += `Downloading ${filename}...\n`;
-                } else {
-                    regularOutput += line + '\n';
-                }
-            }
-            if (imageBase64) setOutput(<img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot" className="max-w-full h-auto bg-card p-2 rounded-lg" />);
-            else if (plotlySpec) setOutput(plotlySpec); // Will be caught by useEffect
-            else setOutput(regularOutput.trim());
-
-            setStatus('success');
-        } catch (err: any) {
-            setError(`Execution failed: ${err.message || String(err)}`);
-            setStatus('error');
+    
+        if (workerRef.current) {
+            workerRef.current.terminate();
         }
+    
+        const workerBlob = new Blob([pythonWorkerSource], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+        const worker = new Worker(workerUrl);
+        workerRef.current = worker;
+    
+        let stdoutBuffer = '';
+        let stderrBuffer = '';
+    
+        const cleanup = () => {
+            if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+            }
+            URL.revokeObjectURL(workerUrl);
+        };
+    
+        worker.onmessage = (event) => {
+            const { type, status: msgStatus, data, plotType, error: msgError, filename, mimetype } = event.data;
+    
+            switch (type) {
+                case 'status':
+                    if (msgStatus === 'ready') {
+                        setStatus('executing');
+                        worker.postMessage({ code });
+                    }
+                    break;
+                case 'stdout':
+                    stdoutBuffer += data + '\n';
+                    setOutput(stdoutBuffer.trim());
+                    break;
+                case 'stderr':
+                    stderrBuffer += msgError + '\n';
+                    setError(stderrBuffer.trim());
+                    break;
+                case 'plot':
+                    if (plotType === 'plotly') {
+                        setOutput(data);
+                    } else { // matplotlib or pil
+                        setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                    }
+                    break;
+                case 'download':
+                    downloadFile(filename, mimetype, data);
+                    stdoutBuffer += `Downloading ${filename}...\n`;
+                    setOutput(stdoutBuffer.trim());
+                    break;
+                case 'success':
+                    setStatus('success');
+                    cleanup();
+                    break;
+                case 'error':
+                    setError(msgError);
+                    setStatus('error');
+                    cleanup();
+                    break;
+            }
+        };
+    
+        worker.onerror = (err) => {
+            setError(`Worker error: ${err.message}`);
+            setStatus('error');
+            cleanup();
+        };
     };
 
     const runJavaScript = () => {
@@ -239,37 +321,37 @@ if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
     const runHtml = () => {
         setStatus('executing');
         try {
-            const newWindow = window.open('', '_blank');
+            const previewTitle = `Qbit AI - ${title || 'HTML Preview'}`;
+            const fullHtml = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${previewTitle}</title>
+                    <style>
+                        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
+                        header { background-color: #ffffff; padding: 12px 20px; border-bottom: 1px solid #dee2e6; font-size: 14px; color: #212529; font-weight: 500; flex-shrink: 0; }
+                        iframe { flex-grow: 1; border: none; }
+                    </style>
+                </head>
+                <body>
+                    <header>${previewTitle}</header>
+                    <iframe srcdoc="${code.replace(/"/g, '&quot;')}"></iframe>
+                </body>
+                </html>
+            `;
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const newWindow = window.open(url, '_blank');
             if (newWindow) {
-                const fullHtml = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>HTML Preview</title>
-                        <style>
-                            body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; }
-                            .container { width: 100%; height: 100vh; display: flex; flex-direction: column; }
-                            header { background-color: #ffffff; padding: 12px 20px; border-bottom: 1px solid #dee2e6; font-size: 14px; color: #212529; font-weight: 500; }
-                            iframe { flex-grow: 1; border: none; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <header>Qbit AI - HTML Preview</header>
-                            <iframe srcdoc="${code.replace(/"/g, '&quot;')}"></iframe>
-                        </div>
-                    </body>
-                    </html>
-                `;
-                newWindow.document.write(fullHtml);
-                newWindow.document.close();
                 setOutput('HTML preview opened in a new tab.');
                 setStatus('success');
+                // The object URL will be revoked when the browser context is destroyed (e.g., tab is closed).
             } else {
                 setError('Could not open a new tab. Please disable your popup blocker for this site.');
                 setStatus('error');
+                URL.revokeObjectURL(url);
             }
         } catch (err: any) {
             setError(`Execution failed: ${err.message || String(err)}`);
@@ -344,11 +426,11 @@ if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
                     {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
                     {output && !error && (
                         lang === 'python' && typeof output === 'string' && output.startsWith('{') ? (
-                             <div ref={plotlyRef} className="p-2 bg-card rounded-xl border border-default"></div>
+                             <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
                         ) : lang === 'react' || lang === 'jsx' ? (
-                            <div ref={reactMountRef}>{output}</div>
+                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
                         ) : typeof output === 'string' ? (
-                            <pre className="text-sm text-foreground whitespace-pre-wrap p-3 rounded-md">{output}</pre>
+                            <pre className="text-sm text-foreground whitespace-pre-wrap">{output}</pre>
                         ) : (
                             <div>{output}</div>
                         )

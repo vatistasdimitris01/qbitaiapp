@@ -15,7 +15,7 @@ interface ChatMessageProps {
 }
 
 // Language identifiers that should be rendered with the CodeExecutor component
-const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'typescript', 'ts', 'html', 'react', 'jsx'];
+const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'html'];
 
 // File extensions for different languages for the download functionality
 const langExtensions: { [key: string]: string } = {

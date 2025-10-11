@@ -9,7 +9,7 @@ declare global {
 }
 
 const LoadingSpinner = () => (
-    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -202,7 +202,7 @@ if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
                     regularOutput += line + '\n';
                 }
             }
-            if (imageBase64) setOutput(<img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot" className="max-w-full h-auto bg-white p-2 rounded-lg" />);
+            if (imageBase64) setOutput(<img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot" className="max-w-full h-auto bg-card p-2 rounded-lg" />);
             else if (plotlySpec) setOutput(plotlySpec); // Will be caught by useEffect
             else setOutput(regularOutput.trim());
 
@@ -238,8 +238,43 @@ if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
 
     const runHtml = () => {
         setStatus('executing');
-        setOutput(<iframe srcDoc={code} title="HTML Output" className="w-full h-64 border-0 rounded-lg" sandbox="allow-scripts allow-same-origin" />);
-        setStatus('success');
+        try {
+            const newWindow = window.open('', '_blank');
+            if (newWindow) {
+                const fullHtml = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>HTML Preview</title>
+                        <style>
+                            body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; }
+                            .container { width: 100%; height: 100vh; display: flex; flex-direction: column; }
+                            header { background-color: #ffffff; padding: 12px 20px; border-bottom: 1px solid #dee2e6; font-size: 14px; color: #212529; font-weight: 500; }
+                            iframe { flex-grow: 1; border: none; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <header>Qbit AI - HTML Preview</header>
+                            <iframe srcdoc="${code.replace(/"/g, '&quot;')}"></iframe>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                newWindow.document.write(fullHtml);
+                newWindow.document.close();
+                setOutput('HTML preview opened in a new tab.');
+                setStatus('success');
+            } else {
+                setError('Could not open a new tab. Please disable your popup blocker for this site.');
+                setStatus('error');
+            }
+        } catch (err: any) {
+            setError(`Execution failed: ${err.message || String(err)}`);
+            setStatus('error');
+        }
     };
 
     const runReact = () => {
@@ -309,11 +344,11 @@ if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
                     {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
                     {output && !error && (
                         lang === 'python' && typeof output === 'string' && output.startsWith('{') ? (
-                             <div ref={plotlyRef} className="p-2 bg-white rounded-xl border border-default"></div>
+                             <div ref={plotlyRef} className="p-2 bg-card rounded-xl border border-default"></div>
                         ) : lang === 'react' || lang === 'jsx' ? (
                             <div ref={reactMountRef}>{output}</div>
                         ) : typeof output === 'string' ? (
-                            <pre className="text-sm text-foreground whitespace-pre-wrap bg-background dark:bg-black/50 p-3 rounded-md">{output}</pre>
+                            <pre className="text-sm text-foreground whitespace-pre-wrap p-3 rounded-md">{output}</pre>
                         ) : (
                             <div>{output}</div>
                         )

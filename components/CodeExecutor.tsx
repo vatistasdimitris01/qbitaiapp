@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -127,6 +128,7 @@ interface CodeExecutorProps {
     autorun?: boolean;
     persistedResult?: ExecutionResult;
     onExecutionComplete: (result: ExecutionResult) => void;
+    onFixRequest?: (error: string) => void;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -137,7 +139,7 @@ const langExtensions: { [key: string]: string } = {
     python: 'py', javascript: 'js', js: 'js', html: 'html'
 };
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -150,8 +152,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [view, setView] = useState<'code' | 'output'>('code');
-    const [hasRunOnce, setHasRunOnce] = useState(false);
+    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error) ? 'output' : 'code');
+    const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
 
     useEffect(() => {
         // Cleanup worker and URL on component unmount
@@ -310,6 +312,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         onExecutionComplete(finalResult);
                     } else if (stdoutBuffer.trim()) {
                         onExecutionComplete({ output: stdoutBuffer.trim(), error: '', type: 'string' });
+                    } else if (stderrBuffer.trim()) { // Handle cases where stderr is used for warnings but code succeeds
+                        onExecutionComplete({ output: null, error: stderrBuffer.trim(), type: 'error' });
                     }
                     cleanup();
                     break;
@@ -465,7 +469,19 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const OutputDisplay = () => (
         <div className="pt-4">
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
-            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
+            {error && (
+                <div className="space-y-2">
+                    <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
+                    {onFixRequest && (
+                        <button 
+                            onClick={() => onFixRequest(error)}
+                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            Fix it
+                        </button>
+                    )}
+                </div>
+            )}
             {output && !error && (
                 (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
                      <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>

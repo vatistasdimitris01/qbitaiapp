@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
@@ -20,6 +21,7 @@ interface ChatMessageProps {
     onShowAnalysis: (code: string, lang: string) => void;
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
+    onFixRequest: (code: string, lang: string, error: string) => void;
 }
 
 // Language identifiers that should be rendered with the CodeExecutor component
@@ -145,7 +147,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 };
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis, executionResults, onStoreExecutionResult }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -444,6 +446,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                                     autorun={part.autorun}
                                                     persistedResult={executionResults[key]}
                                                     onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
+                                                    onFixRequest={(execError) => onFixRequest(part.code!, lang, execError)}
                                                 />
                                             </div>
                                         );

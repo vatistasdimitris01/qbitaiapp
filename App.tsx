@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo } from './types';
@@ -483,6 +484,22 @@ const App: React.FC = () => {
       setExecutionResults(prev => ({ ...prev, [key]: result }));
   };
 
+  const handleFixCodeRequest = (code: string, lang: string, error: string) => {
+    const message = `The following code block produced an error. Please analyze the code and the error message, identify the issue, and provide a corrected version of the code block.
+
+Original Code (\`${lang}\`):
+\`\`\`${lang}
+${code}
+\`\`\`
+
+Error Message:
+\`\`\`
+${error}
+\`\`\`
+`;
+    handleSendMessage(message);
+  };
+
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
       {showUpdateBanner && (
@@ -558,6 +575,7 @@ const App: React.FC = () => {
                             onShowAnalysis={handleShowAnalysis}
                             executionResults={executionResults}
                             onStoreExecutionResult={handleStoreExecutionResult}
+                            onFixRequest={handleFixCodeRequest}
                         />;
               })
             ) : (

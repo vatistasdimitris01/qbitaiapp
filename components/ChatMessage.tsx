@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, ThumbsDownIcon, ThumbsUpIcon, UploadIcon, MoreHorizontalIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 
@@ -75,17 +76,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
     const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50 && !message.files?.length;
-
-
-    const handleCopy = () => {
-        const textToCopy = getTextFromMessage(message.content);
-        if (textToCopy) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 2000);
-            });
-        }
-    };
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
@@ -161,7 +151,33 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         }
 
         return parts;
-    }, [parsedResponseText]);
+    }, [parsedResponseText, message.type]);
+
+
+    const handleCopy = () => {
+        if (isUser) {
+            const textToCopy = getTextFromMessage(message.content);
+            if (textToCopy) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                });
+            }
+            return;
+        }
+
+        const textToCopy = contentParts
+            .filter(part => part.type === 'text' && part.content)
+            .map(part => part.content)
+            .join('\n\n');
+
+        if (textToCopy) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            });
+        }
+    };
 
     const pythonCodeBlocks = useMemo(() => {
         return contentParts
@@ -365,28 +381,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
                         </div>
                     )}
-                    <div className={`flex items-center gap-1 mt-2 transition-opacity opacity-0 group-hover:opacity-100`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity ${isUser ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                             <CopyIcon className="size-4" />
                         </IconButton>
-                        {!isUser && (
+                        {!isUser && !isLoading && (
                             <>
-                                <IconButton onClick={() => {}} aria-label="Good response">
-                                    <ThumbsUpIcon className="size-4" />
-                                </IconButton>
-                                <IconButton onClick={() => {}} aria-label="Bad response">
-                                    <ThumbsDownIcon className="size-4" />
-                                </IconButton>
                                 <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
                                     <RefreshCwIcon className="size-4" />
                                 </IconButton>
-                                <IconButton onClick={() => {}} aria-label="Share">
-                                    <UploadIcon className="size-4" />
-                                </IconButton>
-                                <IconButton onClick={() => {}} aria-label="More options">
-                                    <MoreHorizontalIcon className="size-4" />
-                                </IconButton>
-                                {pythonCodeBlocks.length > 0 && !isLoading && (
+                                {pythonCodeBlocks.length > 0 && (
                                     <IconButton
                                         onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
                                         aria-label="View Code"

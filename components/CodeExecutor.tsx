@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -139,16 +140,20 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const [error, setError] = useState<string>('');
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+    const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        // Cleanup worker on component unmount
+        // Cleanup worker and URL on component unmount
         return () => {
             if (workerRef.current) {
                 workerRef.current.terminate();
                 workerRef.current = null;
             }
+            if (htmlPreviewUrl) {
+                URL.revokeObjectURL(htmlPreviewUrl);
+            }
         };
-    }, []);
+    }, [htmlPreviewUrl]);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -201,6 +206,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const handleRunCode = async () => {
         setOutput('');
         setError('');
+        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
+            URL.revokeObjectURL(htmlPreviewUrl);
+            setHtmlPreviewUrl(null);
+        }
 
         switch (lang.toLowerCase()) {
             case 'python':
@@ -213,8 +222,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
             case 'html':
                 runHtml();
                 break;
-            case 'react': // This case will no longer be hit based on ChatMessage changes
-            case 'jsx':   // but is kept for potential future use.
+            case 'react':
+            case 'jsx':
                 runReact();
                 break;
             default:
@@ -272,9 +281,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                     }
                     break;
                 case 'download':
-                    downloadFile(filename, mimetype, data);
-                    stdoutBuffer += `Downloading ${filename}...\n`;
-                    setOutput(stdoutBuffer.trim());
+                    if (mimetype.startsWith('image/')) {
+                        setOutput(<img src={`data:${mimetype};base64,${data}`} alt={filename} className="max-w-full h-auto bg-white rounded-lg" />);
+                    } else {
+                        downloadFile(filename, mimetype, data);
+                        stdoutBuffer += `Downloading ${filename}...\n`;
+                        setOutput(stdoutBuffer.trim());
+                    }
                     break;
                 case 'success':
                     setStatus('success');
@@ -321,37 +334,19 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
     const runHtml = () => {
         setStatus('executing');
         try {
-            const previewTitle = `Qbit AI - ${title || 'HTML Preview'}`;
-            const fullHtml = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${previewTitle}</title>
-                    <style>
-                        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
-                        header { background-color: #ffffff; padding: 12px 20px; border-bottom: 1px solid #dee2e6; font-size: 14px; color: #212529; font-weight: 500; flex-shrink: 0; }
-                        iframe { flex-grow: 1; border: none; }
-                    </style>
-                </head>
-                <body>
-                    <header>${previewTitle}</header>
-                    <iframe srcdoc="${code.replace(/"/g, '&quot;')}"></iframe>
-                </body>
-                </html>
-            `;
-            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
+            setHtmlPreviewUrl(url);
+
             const newWindow = window.open(url, '_blank');
             if (newWindow) {
-                setOutput('HTML preview opened in a new tab.');
+                setOutput(true); // Set a truthy value to trigger conditional render
                 setStatus('success');
-                // The object URL will be revoked when the browser context is destroyed (e.g., tab is closed).
             } else {
                 setError('Could not open a new tab. Please disable your popup blocker for this site.');
                 setStatus('error');
-                URL.revokeObjectURL(url);
+                URL.revokeObjectURL(url); // Clean up on failure
+                setHtmlPreviewUrl(null);
             }
         } catch (err: any) {
             setError(`Execution failed: ${err.message || String(err)}`);
@@ -425,7 +420,17 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title })
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
                     {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
                     {output && !error && (
-                        lang === 'python' && typeof output === 'string' && output.startsWith('{') ? (
+                        (status === 'success' && lang === 'html' && htmlPreviewUrl) ? (
+                            <div>
+                                <p className="text-sm text-foreground mb-2">HTML preview opened in a new tab.</p>
+                                <button
+                                    onClick={() => htmlPreviewUrl && window.open(htmlPreviewUrl, '_blank')}
+                                    className="text-sm font-medium bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800 px-4 py-2 rounded-md transition-colors"
+                                >
+                                    Re-open Preview
+                                </button>
+                            </div>
+                        ) : lang === 'python' && typeof output === 'string' && output.startsWith('{') ? (
                              <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
                         ) : lang === 'react' || lang === 'jsx' ? (
                             <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>

@@ -95,7 +95,7 @@ const tools: Tool[] = [
 ];
 
 const writeStream = (res: VercelResponse, data: object) => {
-res.write(JSON.stringify(data) + '\\n');
+res.write(JSON.stringify(data) + '\n');
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

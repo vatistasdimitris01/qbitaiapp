@@ -32,7 +32,7 @@ export const getPyodide = () => {
                     'beautifulsoup4', 
                     'scipy', 
                     'opencv-python',
-                    'scikit-image'
+                    'scikit-image' // Added
                 ]);
                 
                 await pyodide.loadPackage('micropip');
@@ -42,20 +42,15 @@ export const getPyodide = () => {
                 await micropip.install([
                     'plotly', 
                     'fpdf2',
-                    'seaborn',
-                    'polars',
-                    'openpyxl',
-                    'python-docx',
-                    'python-pptx',
-                    'reportlab',
-                    'tqdm',
-                    'pyyaml',
-                    'nltk',
-                    'bokeh',
-                    'altair',
-                    'statsmodels',
-                    'imageio',
-                    'textblob'
+                    'seaborn', // Added
+                    'polars', // Added
+                    'openpyxl', // Added for .xlsx
+                    'python-docx', // Added for .docx
+                    'python-pptx', // Added for .pptx
+                    'reportlab', // Added for .pdf
+                    'tqdm', // Added for progress bars
+                    'pyyaml', // Added for YAML
+                    'nltk' // Added for NLP
                 ]);
                 
                 resolve(pyodide);

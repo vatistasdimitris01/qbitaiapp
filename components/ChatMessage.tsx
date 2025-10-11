@@ -353,11 +353,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             const lang = part.lang?.toLowerCase() || 'plaintext';
                             if (lang === 'python') {
                                 return (
-                                    <CodeExecutor 
-                                        key={index}
-                                        code={part.code} 
-                                        onShowAnalysis={() => onShowAnalysis(part.code!, 'python')}
-                                    />
+                                    <div key={index} className="not-prose my-4">
+                                        <CodeExecutor code={part.code} />
+                                    </div>
                                 );
                             }
                             if (lang === 'mermaid') {
@@ -394,9 +392,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             <CopyIcon className="size-4" />
                         </IconButton>
                         {!isLoading && (
-                            <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
-                                <RefreshCwIcon className="size-4" />
-                            </IconButton>
+                            <>
+                                <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
+                                    <RefreshCwIcon className="size-4" />
+                                </IconButton>
+                                {pythonCodeBlocks.length > 0 && (
+                                    <IconButton
+                                        onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
+                                        aria-label="View Code"
+                                    >
+                                        <CodeXmlIcon className="size-5" />
+                                    </IconButton>
+                                )}
+                            </>
                         )}
                     </div>
                 )}

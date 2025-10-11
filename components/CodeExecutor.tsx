@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { getPyodide } from '../services/pyodideService';
-import { CodeXmlIcon, FileTextIcon } from './icons';
+import { DownloadIcon } from './icons';
 
 const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -26,6 +27,9 @@ const getMimeType = (filename: string): string => {
         'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'zip': 'application/zip',
         'md': 'text/markdown',
+        'odt': 'application/vnd.oasis.opendocument.text',
+        'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+        'odp': 'application/vnd.oasis.opendocument.presentation',
     };
     return mimeTypes[extension] || 'application/octet-stream';
 };
@@ -46,7 +50,6 @@ const handleDownload = (name: string, content: Uint8Array) => {
 
 interface CodeExecutorProps {
     code: string;
-    onShowAnalysis: (code: string, lang: string) => void;
 }
 
 type ExecutionStatus = 'loading-env' | 'executing' | 'success' | 'error';
@@ -55,7 +58,7 @@ interface GeneratedFile {
     content: Uint8Array;
 }
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, onShowAnalysis }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const [status, setStatus] = useState<ExecutionStatus>('loading-env');
     const [output, setOutput] = useState<string>('');
@@ -134,6 +137,7 @@ if hasattr(go, 'FigureWidget'):
                 const result = await pyodide.runPythonAsync(fullCode);
                 if (isCancelled) return;
                 
+                // After execution, check for new files
                 const filesAfter = pyodide.FS.readdir('/home/pyodide');
                 const newFileNames = filesAfter.filter((f: string) => !filesBefore.has(f));
 
@@ -196,7 +200,7 @@ if hasattr(go, 'FigureWidget'):
 
     if (status === 'loading-env' || status === 'executing') {
         return (
-            <div className="flex items-center text-sm text-muted-foreground bg-token-surface-secondary/50 p-3 rounded-lg my-4">
+            <div className="flex items-center text-sm text-muted-foreground bg-token-surface-secondary/50 p-3 rounded-lg">
                 <LoadingSpinner />
                 <span>Executing...</span>
             </div>
@@ -204,44 +208,35 @@ if hasattr(go, 'FigureWidget'):
     }
     
     return (
-        // Each output type is rendered directly without a shared container
-        // to allow them to flow naturally within the chat message.
-        <>
+        <div className="space-y-2">
             {imageBase64 && (
-                <div className="p-4 my-4 bg-white rounded-xl border border-default flex justify-center max-h-[500px] overflow-auto">
+                <div className="p-4 bg-white rounded-xl border border-default flex justify-center max-h-[500px] overflow-auto">
                     <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot or image" className="max-w-full h-auto" />
                 </div>
             )}
             {plotlySpec && (
-                <div ref={plotlyRef} className="p-2 my-4 bg-white rounded-xl border border-default"></div>
+                <div ref={plotlyRef} className="p-2 bg-white rounded-xl border border-default"></div>
             )}
-            {output && <pre className="text-sm my-4 text-foreground whitespace-pre-wrap bg-token-surface-secondary p-3 rounded-md">{output}</pre>}
-            {error && <pre className="text-sm my-4 text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
+            {output && <pre className="text-sm text-foreground whitespace-pre-wrap bg-token-surface-secondary p-3 rounded-md">{output}</pre>}
+            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
             {files.length > 0 && (
-                <div className="space-y-2 my-4">
-                    {files.map(file => (
-                        <div key={file.name} className="flex items-center gap-4">
+                <div className="mt-2 p-3 bg-token-surface-secondary/50 rounded-lg border border-default">
+                    <h4 className="text-sm font-semibold mb-2 text-foreground">Downloads</h4>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {files.map(file => (
                             <button
+                                key={file.name}
                                 onClick={() => handleDownload(file.name, file.content)}
-                                className="inline-flex items-center gap-3 text-sm group"
+                                className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                                 title={`Download ${file.name}`}
                             >
-                                <FileTextIcon className="size-6 text-muted-foreground flex-shrink-0" />
-                                <span className="text-blue-600 dark:text-blue-400 group-hover:underline font-medium">
-                                    {`Download ${file.name}`}
-                                </span>
+                                <DownloadIcon className="size-4 flex-shrink-0" />
+                                <span className="truncate">{file.name}</span>
                             </button>
-                            <button
-                                onClick={() => onShowAnalysis(code, 'python')}
-                                className="px-2 py-1 rounded-full bg-token-surface-secondary/80 hover:bg-border text-muted-foreground"
-                                aria-label="View generating code"
-                            >
-                                <CodeXmlIcon className="size-4" />
-                            </button>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };

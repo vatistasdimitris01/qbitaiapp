@@ -1,44 +1,33 @@
 import { Attachment, LocationInfo, Message } from "../types";
 
-export interface AIResponse {
-    text: string;
-    groundingChunks?: any[];
-    downloadableFiles?: { name: string; content: string }[]; // content instead of url
-    thinkingText?: string;
-    duration?: number;
-    usageMetadata?: {
-        promptTokenCount: number;
-        candidatesTokenCount: number;
-        totalTokenCount: number;
-    };
+export interface StreamUpdate {
+    type: 'chunk' | 'files' | 'usage' | 'end' | 'error';
+    payload?: any;
 }
 
 // Helper function for delayed execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// This function now sends the request to our secure serverless function
-export const sendMessageToAI = async (
+// This function now opens a streaming connection to our secure serverless function
+export const streamMessageToAI = async (
     conversationHistory: Message[],
     message: string,
-    attachments?: Omit<Attachment, 'preview' | 'name'>[],
-    personaInstruction?: string,
-    location?: LocationInfo | null,
-    language?: string
-): Promise<AIResponse> => {
-    const MAX_RETRIES = 3;
-    const INITIAL_BACKOFF_MS = 1000;
+    attachments: Omit<Attachment, 'preview' | 'name'>[] | undefined,
+    personaInstruction: string | undefined,
+    location: LocationInfo | null,
+    language: string | undefined,
+    onUpdate: (update: StreamUpdate) => void,
+    onFinish: (duration: number) => void,
+    onError: (error: string) => void
+): Promise<void> => {
+    const startTime = Date.now();
 
     // Sanitize history to prevent "413 Content Too Large" errors.
-    // We remove the large base64 data from past attachments and replace it with a text placeholder for context.
     const sanitizedHistory = conversationHistory.map(msg => {
         if (!msg.attachments || msg.attachments.length === 0) {
-            return msg; // Return message as is if no attachments
+            return msg;
         }
-        
-        // Create a text placeholder for each attachment
         const attachmentText = msg.attachments.map(a => `[User previously uploaded image: ${a.name}]`).join('\n');
-        
-        // Create a new message object without the heavy 'attachments' array
         const { attachments, ...restOfMsg } = msg;
         return {
             ...restOfMsg,
@@ -46,54 +35,78 @@ export const sendMessageToAI = async (
         };
     });
 
+    try {
+        const response = await fetch('/api/sendMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                history: sanitizedHistory,
+                message,
+                attachments,
+                personaInstruction,
+                location,
+                language
+            })
+        });
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            const response = await fetch('/api/sendMessage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    history: sanitizedHistory, // Send the light-weight, sanitized history
-                    message,                   // Send the current message text
-                    attachments,               // Send the full data for *new* attachments
-                    personaInstruction,
-                    location,
-                    language
-                })
-            });
-
-            // If the model is overloaded (503), wait and retry, unless it's the last attempt.
-            if (response.status === 503 && attempt < MAX_RETRIES - 1) {
-                const backoffTime = INITIAL_BACKOFF_MS * Math.pow(2, attempt) + Math.random() * 1000;
-                console.log(`Model overloaded. Retrying in ${backoffTime.toFixed(0)}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await delay(backoffTime);
-                continue; // Go to the next attempt
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Could not parse error response' }));
-                const errorMessage = errorData.error?.message || errorData.error || `API request failed with status ${response.status}`;
-                throw new Error(errorMessage);
-            }
-
-            const data: AIResponse = await response.json();
-            return data; // Success
-
-        } catch (error) {
-            console.error(`Error sending message to AI (Attempt ${attempt + 1}/${MAX_RETRIES}):`, error);
-            if (attempt === MAX_RETRIES - 1) {
-                // This was the last attempt, return a user-facing error.
-                const finalErrorMessage = error instanceof Error ? error.message : String(error);
-                return { text: `Sorry, the request failed after multiple retries. Please try again later. (Error: ${finalErrorMessage})` };
-            }
-            // Add delay before the next retry for any type of error
-            const backoffTime = INITIAL_BACKOFF_MS * Math.pow(2, attempt) + Math.random() * 1000;
-            await delay(backoffTime);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Could not parse error response' }));
+            throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
         }
-    }
 
-    // Fallback error, should only be reached in an unexpected scenario.
-    return { text: "An unexpected error occurred after multiple retries. Please try again." };
+        if (!response.body) {
+            throw new Error("Response body is empty.");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processStream = async () => {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep the last partial line in buffer
+
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    try {
+                        const update: StreamUpdate = JSON.parse(line);
+                        if (update.type === 'end') {
+                            return; // Graceful end of stream
+                        }
+                        onUpdate(update);
+                    } catch (e) {
+                        console.error("Failed to parse stream line:", line, e);
+                    }
+                }
+            }
+        };
+
+        await processStream();
+
+        // Process any remaining data in buffer
+        if (buffer.trim() !== '') {
+            try {
+                const update: StreamUpdate = JSON.parse(buffer);
+                onUpdate(update);
+            } catch (e) {
+                console.error("Failed to parse final stream buffer:", buffer, e);
+            }
+        }
+
+    } catch (error) {
+        console.error("Error streaming message to AI:", error);
+        onError(error instanceof Error ? error.message : String(error));
+    } finally {
+        const duration = Date.now() - startTime;
+        onFinish(duration);
+    }
 };
 
 

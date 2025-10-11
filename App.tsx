@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
 import { useTranslations } from './hooks/useTranslations';
-import { sendMessageToAI } from './services/geminiService';
+import { streamMessageToAI } from './services/geminiService';
 import { translations } from './translations';
 import { LayoutGridIcon } from './components/icons';
 
@@ -187,7 +187,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // A small delay helps ensure content is rendered before scrolling.
     setTimeout(scrollToBottom, 100);
-  }, [activeConversation?.messages, isLoading]);
+  }, [activeConversation?.messages?.slice(-1)[0]?.text, isLoading]);
 
   const handleNewChat = () => {
     const newConversation: Conversation = {
@@ -246,61 +246,83 @@ const App: React.FC = () => {
     const isFirstMessage = activeConversation.messages.length === 0;
     const conversationHistoryForState = [...activeConversation.messages, userMessage];
 
+    const aiMessageId = `ai-${Date.now()}`;
+    const placeholderAiMessage: Message = {
+      id: aiMessageId,
+      author: 'ai',
+      text: '',
+    };
+
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
             ? {
                 ...c,
-                messages: conversationHistoryForState,
+                messages: [...conversationHistoryForState, placeholderAiMessage],
                 ...(isFirstMessage && messageText && { title: messageText.substring(0, 50) })
               }
             : c
     ));
     setIsLoading(true);
 
-    try {
-      const currentPersona = personas.find(p => p.id === activeConversation.personaId);
-      const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
-      
-      // Pass the history *before* the new message to the API service.
-      const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(activeConversation.messages, messageText, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
-      
-      let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
-      if (downloadableFiles && downloadableFiles.length > 0) {
-        downloadableFilesForState = downloadableFiles.map(file => {
-          // The content is now pre-encoded in base64 from the server
-          const mimeType = 'application/octet-stream';
-          const url = `data:${mimeType};base64,${file.content}`;
-          return { name: file.name, url };
-        });
-      }
+    const currentPersona = personas.find(p => p.id === activeConversation.personaId);
+    const attachmentsForApi = attachments.map(({ data, mimeType }) => ({ data, mimeType }));
 
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        author: 'ai',
-        text: aiResponseText,
-        groundingChunks,
-        downloadableFiles: downloadableFilesForState,
-        thinkingText,
-        duration,
-        usageMetadata,
-      };
+    await streamMessageToAI(
+        activeConversation.messages, // History before the user's new message
+        messageText,
+        attachmentsForApi,
+        currentPersona?.instruction,
+        userLocation,
+        lang,
+        (update) => { // onUpdate callback
+            setConversations(prev => prev.map(c => {
+                if (c.id !== activeConversationId) return c;
 
-      setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...conversationHistoryForState, aiMessage] } : c
-      ));
+                const newMessages = c.messages.map(msg => {
+                    if (msg.id !== aiMessageId) return msg;
 
-    } catch (error) {
-       const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        author: 'ai',
-        text: 'Sorry, I ran into a problem. Please try again.',
-      };
-      setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...conversationHistoryForState, errorMessage] } : c
-      ));
-    } finally {
-      setIsLoading(false);
-    }
+                    let updatedMsg = { ...msg };
+                    switch (update.type) {
+                        case 'chunk':
+                            updatedMsg.text += update.payload;
+                            break;
+                        case 'files':
+                            const filesPayload = update.payload as { name: string; content: string }[];
+                            updatedMsg.downloadableFiles = filesPayload.map(file => ({
+                                name: file.name,
+                                url: `data:application/octet-stream;base64,${file.content}`
+                            }));
+                            break;
+                        case 'usage':
+                            updatedMsg.usageMetadata = update.payload;
+                            break;
+                    }
+                    return updatedMsg;
+                });
+                return { ...c, messages: newMessages };
+            }));
+        },
+        (duration) => { // onFinish callback
+            setConversations(prev => prev.map(c => {
+                if (c.id !== activeConversationId) return c;
+                const newMessages = c.messages.map(msg =>
+                    msg.id === aiMessageId ? { ...msg, duration } : msg
+                );
+                return { ...c, messages: newMessages };
+            }));
+            setIsLoading(false);
+        },
+        (errorText) => { // onError callback
+            setConversations(prev => prev.map(c => {
+                if (c.id !== activeConversationId) return c;
+                const newMessages = c.messages.map(msg =>
+                    msg.id === aiMessageId ? { ...msg, text: `Sorry, an error occurred: ${errorText}` } : msg
+                );
+                return { ...c, messages: newMessages };
+            }));
+            setIsLoading(false);
+        }
+    );
   };
   
   const handleRegenerate = async (messageIdToRegenerate: string) => {
@@ -308,51 +330,82 @@ const App: React.FC = () => {
 
     const messageIndex = activeConversation.messages.findIndex(msg => msg.id === messageIdToRegenerate);
     if (messageIndex > 0 && activeConversation.messages[messageIndex].author === 'ai') {
-      const lastUserMessage = activeConversation.messages.slice(0, messageIndex).reverse().find(msg => msg.author === 'user');
-      
-      if (lastUserMessage) {
-        setIsLoading(true);
-        const updatedMessages = activeConversation.messages.slice(0, messageIndex);
-        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: updatedMessages } : c));
-        
-        try {
-          const currentPersona = personas.find(p => p.id === activeConversation.personaId);
-          const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
-          // The history here is already correct (updatedMessages)
-          const { text: aiResponseText, groundingChunks, downloadableFiles, thinkingText, duration, usageMetadata } = await sendMessageToAI(updatedMessages, lastUserMessage.text, attachmentsForApi, currentPersona?.instruction, userLocation, lang);
-          
-          let downloadableFilesForState: Message['downloadableFiles'] | undefined = undefined;
-           if (downloadableFiles && downloadableFiles.length > 0) {
-            downloadableFilesForState = downloadableFiles.map(file => {
-              // The content is now pre-encoded in base64 from the server
-              const mimeType = 'application/octet-stream';
-              const url = `data:${mimeType};base64,${file.content}`;
-              return { name: file.name, url };
-            });
-          }
-          
-          const aiMessage: Message = {
-            id: `ai-${Date.now()}`,
-            author: 'ai',
-            text: aiResponseText,
-            groundingChunks,
-            downloadableFiles: downloadableFilesForState,
-            thinkingText,
-            duration,
-            usageMetadata,
-          };
-          setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...updatedMessages, aiMessage] } : c));
-        } catch (error) {
-          const errorMessage: Message = {
-            id: `error-${Date.now()}`,
-            author: 'ai',
-            text: 'Sorry, I ran into a problem. Please try again.',
-          };
-          setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...updatedMessages, errorMessage] } : c));
-        } finally {
-          setIsLoading(false);
+        const lastUserMessage = activeConversation.messages.slice(0, messageIndex).reverse().find(msg => msg.author === 'user');
+
+        if (lastUserMessage) {
+            setIsLoading(true);
+            const historyForRegeneration = activeConversation.messages.slice(0, messageIndex - 1);
+            
+            const aiMessageId = `ai-${Date.now()}`;
+            const placeholderAiMessage: Message = {
+              id: aiMessageId,
+              author: 'ai',
+              text: '',
+            };
+            
+            // Set state with history up to the point of regeneration, including the new placeholder
+            setConversations(prev => prev.map(c => 
+              c.id === activeConversationId ? { ...c, messages: [...historyForRegeneration, lastUserMessage, placeholderAiMessage] } : c
+            ));
+
+            const currentPersona = personas.find(p => p.id === activeConversation.personaId);
+            const attachmentsForApi = lastUserMessage.attachments?.map(({ data, mimeType }) => ({ data, mimeType }));
+
+            await streamMessageToAI(
+                historyForRegeneration,
+                lastUserMessage.text,
+                attachmentsForApi,
+                currentPersona?.instruction,
+                userLocation,
+                lang,
+                (update) => { // onUpdate
+                    setConversations(prev => prev.map(c => {
+                        if (c.id !== activeConversationId) return c;
+                        const newMessages = c.messages.map(msg => {
+                            if (msg.id !== aiMessageId) return msg;
+                            let updatedMsg = { ...msg };
+                            switch (update.type) {
+                                case 'chunk':
+                                    updatedMsg.text += update.payload;
+                                    break;
+                                case 'files':
+                                    const filesPayload = update.payload as { name: string; content: string }[];
+                                    updatedMsg.downloadableFiles = filesPayload.map(file => ({
+                                        name: file.name,
+                                        url: `data:application/octet-stream;base64,${file.content}`
+                                    }));
+                                    break;
+                                case 'usage':
+                                    updatedMsg.usageMetadata = update.payload;
+                                    break;
+                            }
+                            return updatedMsg;
+                        });
+                        return { ...c, messages: newMessages };
+                    }));
+                },
+                (duration) => { // onFinish
+                    setConversations(prev => prev.map(c => {
+                        if (c.id !== activeConversationId) return c;
+                        const newMessages = c.messages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, duration } : msg
+                        );
+                        return { ...c, messages: newMessages };
+                    }));
+                    setIsLoading(false);
+                },
+                (errorText) => { // onError
+                    setConversations(prev => prev.map(c => {
+                        if (c.id !== activeConversationId) return c;
+                        const newMessages = c.messages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, text: `Sorry, an error occurred: ${errorText}` } : msg
+                        );
+                        return { ...c, messages: newMessages };
+                    }));
+                    setIsLoading(false);
+                }
+            );
         }
-      }
     }
   };
   
@@ -433,7 +486,7 @@ const App: React.FC = () => {
                  {t('startConversation')}
                </div>
             )}
-            {isLoading && (
+            {isLoading && activeConversation?.messages.slice(-1)[0]?.author === 'ai' && activeConversation?.messages.slice(-1)[0]?.text === '' && (
               <div className="flex my-6 justify-start">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>

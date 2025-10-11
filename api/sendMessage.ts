@@ -1,18 +1,16 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { performance } from 'perf_hooks';
-// FIX: Import Buffer to provide type definitions for the Node.js Buffer object.
 import { Buffer } from 'buffer';
-import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
-import type { GroundingChunk } from '../types';
+import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse, Chat } from "@google/genai";
 
-// Vercel Function config to increase payload size limit
+// Vercel Function config
 export const config = {
   api: {
     bodyParser: {
       sizeLimit: '4mb',
     },
   },
+  maxDuration: 60, // Allow function to run for up to 60 seconds for streaming
 };
 
 // Simplified types for the API request body
@@ -23,7 +21,7 @@ interface ApiAttachment {
 interface ApiMessage {
   author: 'user' | 'ai';
   text: string;
-  attachments?: ApiAttachment[]; // Note: attachments on history messages will be undefined due to client-side sanitization
+  attachments?: ApiAttachment[];
 }
 interface LocationInfo {
     city: string;
@@ -113,37 +111,11 @@ const tools: Tool[] = [
     },
 ];
 
-interface AIResponse {
-    text: string;
-    groundingChunks?: GroundingChunk[];
-    downloadableFiles?: { name: string; content: string }[];
-    thinkingText?: string;
-    duration?: number;
-    usageMetadata?: {
-        promptTokenCount: number;
-        candidatesTokenCount: number;
-        totalTokenCount: number;
-    };
-}
-
-const parseResponse = (response: GenerateContentResponse): Omit<AIResponse, 'downloadableFiles' | 'groundingChunks' | 'duration' | 'usageMetadata'> => {
-    let rawText = response.text ?? "";
-    let thinkingText: string | undefined = undefined;
-
-    const thinkingMatch = rawText.match(/<thinking>([\s\S]*?)<\/thinking>/);
-    if (thinkingMatch && thinkingMatch[1]) {
-        thinkingText = thinkingMatch[1].trim();
-        rawText = rawText.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
-    }
-    
-    return {
-        text: rawText,
-        thinkingText,
-    };
+const writeStream = (res: VercelResponse, data: object) => {
+    res.write(JSON.stringify(data) + '\n');
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const startTime = performance.now();
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -152,91 +124,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { history, message, attachments, personaInstruction, location, language } = req.body as {
+        const { history, message, attachments, personaInstruction, location } = req.body as {
             history: ApiMessage[],
             message: string,
             attachments?: ApiAttachment[],
             personaInstruction?: string,
-            location?: LocationInfo | null,
-            language?: string
+            location?: LocationInfo | null
         };
+
+        res.setHeader('Content-Type', 'application/jsonl');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
 
         let finalSystemInstruction = personaInstruction
             ? `${defaultSystemInstruction}\n\n---\n\n**Persona Instructions:**\n${personaInstruction}`
             : defaultSystemInstruction;
 
-        const contents: Content[] = [];
-        
-        // 1. Process the sanitized conversation history from the client
-        for (const msg of history) {
-            // Attachments from history are already stripped by the client,
-            // the text contains placeholders like "[User previously uploaded...]"
-            contents.push({
-                role: msg.author === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.text }],
-            });
-        }
-        
-        // 2. Add the current user message with its full attachments
+        const historyContents: Content[] = history.map(msg => ({
+            role: msg.author === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.text }],
+        }));
+
         const currentUserParts: Part[] = [];
-        
-        // Add location context along with the user's message text
         if (location) {
             currentUserParts.push({ text: `Context: User is in ${location.city}, ${location.country}.\n\nUser message: ${message}` });
         } else {
             currentUserParts.push({ text: message });
         }
-
         if (attachments) {
             for (const file of attachments) {
                 currentUserParts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
             }
         }
-        contents.push({ role: 'user', parts: currentUserParts });
-        
+
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const chat: Chat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            history: historyContents,
+            config: { tools, systemInstruction: finalSystemInstruction },
+        });
+
+        let stream = await chat.sendMessageStream({ parts: currentUserParts });
         let downloadableFiles: { name: string, content: string }[] | undefined;
-        let finalResponse: GenerateContentResponse | undefined;
+        let finalUsageMetadata;
 
-        for (let i = 0; i < 5; i++) {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents,
-                config: {
-                    tools,
-                    systemInstruction: finalSystemInstruction,
-                },
-            });
-
-            finalResponse = response;
-            const functionCalls = response.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall) || [];
-
-            if (functionCalls.length === 0) {
-                break; // No more function calls, we have the final response.
+        const MAX_TOOL_ROUNDS = 5;
+        for (let i = 0; i < MAX_TOOL_ROUNDS; i++) {
+            let functionCalls: any[] = [];
+            
+            for await (const chunk of stream) {
+                const text = chunk.text;
+                if (text) {
+                    writeStream(res, { type: 'chunk', payload: text });
+                }
+                if (chunk.candidates?.[0]?.content?.parts) {
+                    for(const part of chunk.candidates[0].content.parts) {
+                        if (part.functionCall) {
+                            functionCalls.push(part.functionCall);
+                        }
+                    }
+                }
+                if (chunk.usageMetadata) {
+                    finalUsageMetadata = chunk.usageMetadata;
+                }
             }
 
-            contents.push(response.candidates![0].content);
-            const call = functionCalls[0].functionCall!;
-            let toolResponsePart: Part | null = null;
-            
-            if (call.name === 'create_files' && call.args) {
-                const { files } = call.args as { files: { filename: string, content: string }[] };
-                const createdFilenames = files.map(f => f.filename);
-                toolResponsePart = {
-                    functionResponse: {
-                        name: 'create_files',
-                        response: { files_created: createdFilenames.map(filename => ({ filename, status: "SUCCESS" })) }
-                    }
-                };
-                downloadableFiles = files.map(f => ({
-                    name: f.filename,
-                    content: Buffer.from(f.content).toString('base64')
-                }));
-            } else if (call.name === 'web_search' && call.args) {
-                 const { query } = call.args as { query: string };
-                if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
-                    toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "The web_search tool is not configured on the server." } } };
-                } else {
+            if (functionCalls.length > 0) {
+                const call = functionCalls[0];
+                let toolResponsePart: Part | null = null;
+
+                if (call.name === 'create_files' && call.args) {
+                    const { files } = call.args as { files: { filename: string, content: string }[] };
+                    toolResponsePart = { functionResponse: { name: 'create_files', response: { files_created: files.map(f => f.filename) } } };
+                    downloadableFiles = files.map(f => ({ name: f.filename, content: Buffer.from(f.content).toString('base64') }));
+                } else if (call.name === 'web_search' && call.args) {
+                    const { query } = call.args as { query: string };
                     const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
                     try {
                         const searchRes = await fetch(searchUrl);
@@ -245,40 +207,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
                     } catch (searchError: any) {
-                        console.error("Error during Google Custom Search:", searchError);
                         toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "There was an error performing the web search." } } };
                     }
                 }
-            }
-            
-            if (toolResponsePart) {
-                contents.push({ role: 'tool', parts: [toolResponsePart] });
+
+                if (toolResponsePart) {
+                    stream = await chat.sendMessageStream({ parts: [toolResponsePart] });
+                } else {
+                    break;
+                }
             } else {
-                break;
+                break; // End of conversation turn
             }
         }
-        
-        if (!finalResponse) {
-            throw new Error("Failed to get a final response from the AI model.");
-        }
 
-        const parsed = parseResponse(finalResponse);
-        const usageMetadata = finalResponse.usageMetadata;
-        const endTime = performance.now();
-        const duration = endTime - startTime;
-
-        if (downloadableFiles && downloadableFiles.length > 0) {
+        if (downloadableFiles) {
             const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
             const confirmationText = downloadableFiles.length > 1
                 ? `I've created the files ${fileNames} for you. You can download them below.`
                 : `I've created the file ${fileNames} for you. You can download it below.`;
-            parsed.text = confirmationText;
+            writeStream(res, { type: 'chunk', payload: confirmationText });
+            writeStream(res, { type: 'files', payload: downloadableFiles });
+        }
+        if (finalUsageMetadata) {
+            writeStream(res, { type: 'usage', payload: finalUsageMetadata });
         }
 
-        return res.status(200).json({ ...parsed, downloadableFiles, duration, usageMetadata });
+        writeStream(res, { type: 'end' });
+        res.end();
 
     } catch (error: any) {
         console.error("Error in sendMessage API:", error);
-        res.status(500).json({ error: error.message || 'An internal server error occurred.' });
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message || 'An internal server error occurred.' });
+        } else {
+            writeStream(res, { type: 'error', payload: error.message || 'An internal server error occurred.' });
+            res.end();
+        }
     }
 }

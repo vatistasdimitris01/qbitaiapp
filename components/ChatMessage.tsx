@@ -71,6 +71,33 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     });
   };
   
+  const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
+    if (isUser) return { parsedThinkingText: null, parsedResponseText: message.text, hasThinkingTag: false };
+    const text = message.text || '';
+    
+    // This regex handles complete, partial, and no thinking blocks for a smooth streaming experience.
+    const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
+    if (thinkingMatch) {
+      return {
+        parsedThinkingText: thinkingMatch[1].trim(),
+        parsedResponseText: text.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim(),
+        hasThinkingTag: true
+      };
+    }
+    
+    const partialThinkingMatch = text.match(/<thinking>([\s\S]*)/);
+    if (partialThinkingMatch) {
+      return {
+        parsedThinkingText: partialThinkingMatch[1],
+        parsedResponseText: '',
+        hasThinkingTag: true
+      };
+    }
+    
+    return { parsedThinkingText: message.thinkingText || null, parsedResponseText: text, hasThinkingTag: false };
+  }, [message.text, message.thinkingText, isUser]);
+
+
   const htmlContent = useMemo(() => {
     if (isUser) return '';
 
@@ -88,7 +115,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     };
     
     // NO custom link renderer is used. This fixes the crash.
-    const rawHtml = marked.parse(message.text, { 
+    const rawHtml = marked.parse(parsedResponseText, { 
       breaks: true, 
       gfm: true,
       renderer,
@@ -125,12 +152,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
 
     return processedHtml;
 
-  }, [message.text, message.groundingChunks, isUser]);
+  }, [parsedResponseText, message.groundingChunks, isUser]);
 
   const thinkingHtml = useMemo(() => {
-    if (!message.thinkingText) return '';
-    return marked.parse(message.thinkingText, { breaks: true, gfm: true }) as string;
-  }, [message.thinkingText]);
+    if (!parsedThinkingText) return '';
+    return marked.parse(parsedThinkingText, { breaks: true, gfm: true }) as string;
+  }, [parsedThinkingText]);
 
   useEffect(() => {
     if (contentRef.current && !isUser) {
@@ -192,7 +219,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
     }
   }, [htmlContent, isUser, message.id]);
 
-  const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || message.thinkingText);
+  const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || hasThinkingTag || parsedThinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
   const hasDownloads = !isUser && message.downloadableFiles && message.downloadableFiles.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
@@ -218,7 +245,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
                         {message.groundingChunks && message.groundingChunks.length > 0 && (
                             <GroundingDisplay chunks={message.groundingChunks} />
                         )}
-                        {message.thinkingText && (
+                        {parsedThinkingText && (
                             <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
                                 <div
                                     className="prose prose-sm max-w-none text-muted-foreground"
@@ -278,6 +305,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
                         className="prose prose-sm max-w-none"
                         dangerouslySetInnerHTML={{ __html: htmlContent }}
                     />
+                     {message.text === '' && (
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                        </div>
+                     )}
                     {hasDownloads && (
                         <div className="mt-4 border-t border-default pt-3 space-y-2">
                             {message.downloadableFiles?.map((file, index) =>

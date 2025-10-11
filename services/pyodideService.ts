@@ -1,5 +1,4 @@
 
-
 let pyodidePromise: Promise<any> | null = null;
 
 declare global {

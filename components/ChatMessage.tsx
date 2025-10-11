@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
@@ -70,7 +71,7 @@ const getTextFromMessage = (content: MessageContent): string => {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
-    const [isResponseCopied, setIsResponseCopied] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
@@ -78,43 +79,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
-    
+
         const text = messageText || '';
-        const thinkingOpenIndex = text.indexOf('<thinking>');
-    
-        // Default: all text is response if no thinking tag
-        if (thinkingOpenIndex === -1) {
-            return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
-        }
-    
-        const thinkingCloseIndex = text.lastIndexOf('</thinking>');
-        
-        // Pre-thinking text is anything before the opening tag
-        const preThinkingText = text.substring(0, thinkingOpenIndex).trim();
-    
-        if (thinkingCloseIndex > thinkingOpenIndex) {
-            // Complete thinking block found
-            let thinkingContent = text.substring(thinkingOpenIndex + 10, thinkingCloseIndex).trim();
-            if (preThinkingText) {
-                thinkingContent = preThinkingText + '\n\n' + thinkingContent;
-            }
+
+        const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        if (thinkingMatch) {
             return {
-                parsedThinkingText: thinkingContent,
-                parsedResponseText: text.substring(thinkingCloseIndex + 11).trim(),
+                parsedThinkingText: thinkingMatch[1].trim(),
+                parsedResponseText: text.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim(),
                 hasThinkingTag: true
             };
-        } else {
-            // In-progress thinking block
-            let thinkingContent = text.substring(thinkingOpenIndex + 10);
-            if (preThinkingText) {
-                thinkingContent = preThinkingText + '\n\n' + thinkingContent;
-            }
+        }
+
+        const partialThinkingMatch = text.match(/<thinking>([\s\S]*)/);
+        if (partialThinkingMatch) {
             return {
-                parsedThinkingText: thinkingContent,
+                parsedThinkingText: partialThinkingMatch[1],
                 parsedResponseText: '',
                 hasThinkingTag: true
             };
         }
+
+        return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
     const isThinkingInProgress = useMemo(() => {
@@ -167,26 +153,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         return parts;
     }, [parsedResponseText, message.type]);
 
-    const handleCopyResponse = () => {
-        let textToCopy: string;
-        
+
+    const handleCopy = () => {
         if (isUser) {
-            textToCopy = getTextFromMessage(message.content);
-        } else {
-            textToCopy = contentParts
-                .filter(part => part.type === 'text' && part.content)
-                .map(part => part.content)
-                .join('\n\n');
+            const textToCopy = getTextFromMessage(message.content);
+            if (textToCopy) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                });
+            }
+            return;
         }
+
+        const textToCopy = contentParts
+            .filter(part => part.type === 'text' && part.content)
+            .map(part => part.content)
+            .join('\n\n');
 
         if (textToCopy) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                setIsResponseCopied(true);
-                setTimeout(() => setIsResponseCopied(false), 2000);
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
             });
         }
     };
-
 
     const pythonCodeBlocks = useMemo(() => {
         return contentParts
@@ -274,49 +265,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         }
     }, [contentParts, message.type, message.id]);
 
-    const hasThinking = !isUser && (message.type === MessageType.AI_SOURCES || (hasThinkingTag && parsedThinkingText));
+    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
-    const showBreathingIndicator = !isUser && isLoading && contentParts.length === 0 && !parsedResponseText && !parsedThinkingText;
+    const showBreathingIndicator = !isUser && isLoading && contentParts.length === 0 && !parsedThinkingText;
 
-    if (isUser) {
-        return (
-            <div className="flex w-full my-4 justify-end">
-                <div className="group flex flex-col w-full max-w-3xl items-end">
-                    <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'} bg-user-message text-foreground`}>
-                        <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
-                            {hasAttachments && (
-                                <div className="flex flex-wrap justify-start gap-2 mb-2">
-                                    {message.files?.map((file, index) =>
-                                        isImageFile(file.type) ? (
-                                            <img key={index} src={file.dataUrl} alt={file.name} className="w-32 h-32 object-cover rounded-lg border border-default" />
-                                        ) : (
-                                            <div key={index} className="w-32 h-32 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}>
-                                                <FileTextIcon className="size-8 text-muted-foreground mb-1" />
-                                                <span className="text-xs text-muted-foreground break-all truncate">{file.name}</span>
-                                            </div>
-                                        )
-                                    )}
-                                </div>
-                            )}
-                            <p className="whitespace-pre-wrap">{messageText}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-2 transition-opacity opacity-0 group-hover:opacity-100">
-                        <IconButton onClick={handleCopyResponse} aria-label="Copy message">
-                            <CopyIcon className="size-4" />
-                        </IconButton>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    
-    // AI Message
     return (
-        <div className="flex w-full my-4 justify-start">
+        <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className="group flex flex-col w-full max-w-3xl">
                 {hasThinking && (
-                    <div className="w-full mb-4">
+                    <div className="w-full mb-2">
                         <button
                             type="button"
                             onClick={() => setIsThinkingOpen(!isThinkingOpen)}
@@ -333,65 +290,102 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     <GroundingDisplay chunks={message.content as GroundingChunk[]} />
                                 )}
                                 {parsedThinkingText && (
-                                    <div
-                                        className="prose prose-sm max-w-none text-muted-foreground"
-                                        dangerouslySetInnerHTML={{ __html: thinkingHtml }}
-                                    />
+                                    <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
+                                        <div
+                                            className="prose prose-sm max-w-none text-muted-foreground"
+                                            dangerouslySetInnerHTML={{ __html: thinkingHtml }}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         )}
                     </div>
                 )}
-
-                <div ref={contentRef} className="prose prose-sm max-w-none w-full">
-                    {contentParts.map((part, index) => {
-                        if (part.type === 'text' && part.content) {
-                            const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                            return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
-                        }
-                        if (part.type === 'code' && part.code) {
-                            const lang = part.lang?.toLowerCase() || 'plaintext';
-                            if (lang === 'python') {
-                                return (
-                                    <div key={index} className="not-prose my-4">
-                                        <CodeExecutor code={part.code} />
+                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                    {isUser ? (
+                         <div className={`
+                            w-fit max-w-full
+                            ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
+                            bg-user-message text-foreground
+                        `}>
+                            <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
+                                {hasAttachments && (
+                                    <div className="flex flex-wrap justify-start gap-2 mb-2">
+                                        {message.files?.map((file, index) =>
+                                            isImageFile(file.type) ? (
+                                                <img
+                                                    key={index}
+                                                    src={file.dataUrl}
+                                                    alt={file.name}
+                                                    className="w-32 h-32 object-cover rounded-lg border border-default"
+                                                />
+                                            ) : (
+                                                <div
+                                                    key={index}
+                                                    className="w-32 h-32 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg"
+                                                    title={file.name}
+                                                >
+                                                    <FileTextIcon className="size-8 text-muted-foreground mb-1" />
+                                                    <span className="text-xs text-muted-foreground break-all truncate">
+                                                        {file.name}
+                                                    </span>
+                                                </div>
+                                            )
+                                        )}
                                     </div>
-                                );
-                            }
-                            if (lang === 'mermaid') {
-                                return <div key={index} className="mermaid">{part.code}</div>;
-                            }
-                            const safeLang = escapeHtml(lang);
-                            const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
-                            const escapedCode = escapeHtml(part.code);
-                            let highlightedHtml = escapedCode;
-                            try {
-                                if ((window as any).hljs) {
-                                    highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
+                                )}
+                                <p className="whitespace-pre-wrap">{messageText}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div ref={contentRef} className="prose prose-sm max-w-none w-full">
+                            {contentParts.map((part, index) => {
+                                if (part.type === 'text' && part.content) {
+                                    const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                    return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                 }
-                            } catch (e) { /* language not supported */ }
+                                if (part.type === 'code' && part.code) {
+                                    const lang = part.lang?.toLowerCase() || 'plaintext';
+                                    if (lang === 'python') {
+                                        return (
+                                            <div key={index} className="not-prose my-4">
+                                                <CodeExecutor code={part.code} />
+                                            </div>
+                                        );
+                                    }
+                                    if (lang === 'mermaid') {
+                                        return <div key={index} className="mermaid">{part.code}</div>;
+                                    }
+                                    const safeLang = escapeHtml(lang);
+                                    const highlightLang = safeLang === 'python-example' ? 'python' : safeLang;
+                                    const escapedCode = escapeHtml(part.code);
+                                    let highlightedHtml = escapedCode;
+                                    try {
+                                        if ((window as any).hljs) {
+                                            highlightedHtml = (window as any).hljs.highlight(escapedCode, { language: highlightLang, ignoreIllegals: true }).value;
+                                        }
+                                    } catch (e) { /* language not supported */ }
 
-                            return (
-                                <pre key={index}>
-                                    <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-                                </pre>
-                            );
-                        }
-                        return null;
-                    })}
-                    {showBreathingIndicator && (
-                        <div className="pt-2">
-                            <span className="typing-indicator breathing"></span>
+                                    return (
+                                        <pre key={index}>
+                                            <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                                        </pre>
+                                    );
+                                }
+                                return null;
+                            })}
+                            {showBreathingIndicator && (
+                                <div className="pt-2">
+                                    <span className="typing-indicator breathing"></span>
+                                </div>
+                            )}
                         </div>
                     )}
-                </div>
-
-                {(parsedResponseText || pythonCodeBlocks.length > 0 || message.type === MessageType.ERROR) && (
-                    <div className="flex items-center gap-1 mt-2">
-                        <IconButton onClick={handleCopyResponse} aria-label="Copy response">
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity ${isUser ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
+                        <IconButton onClick={handleCopy} aria-label="Copy message">
                             <CopyIcon className="size-4" />
                         </IconButton>
-                        {!isLoading && (
+                        {!isUser && !isLoading && (
                             <>
                                 <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
                                     <RefreshCwIcon className="size-4" />
@@ -407,7 +401,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             </>
                         )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );

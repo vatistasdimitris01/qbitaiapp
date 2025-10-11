@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getPyodide } from '../services/pyodideService';
-import { DownloadIcon } from './icons';
 
 const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -10,37 +9,19 @@ const LoadingSpinner = () => (
     </svg>
 );
 
-const getMimeType = (filename: string): string => {
-    const extension = filename.split('.').pop()?.toLowerCase() || '';
-    const mimeTypes: { [key: string]: string } = {
-        'csv': 'text/csv',
-        'json': 'application/json',
-        'txt': 'text/plain',
-        'html': 'text/html',
-        'pdf': 'application/pdf',
-        'png': 'image/png',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'gif': 'image/gif',
-        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'zip': 'application/zip',
-        'md': 'text/markdown',
-        'odt': 'application/vnd.oasis.opendocument.text',
-        'ods': 'application/vnd.oasis.opendocument.spreadsheet',
-        'odp': 'application/vnd.oasis.opendocument.presentation',
-    };
-    return mimeTypes[extension] || 'application/octet-stream';
-};
-
-const handleDownload = (name: string, content: Uint8Array) => {
-    const mimeType = getMimeType(name);
-    const blob = new Blob([content], { type: mimeType });
+// Helper to trigger download
+const downloadFile = (filename: string, mimetype: string, base64: string) => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimetype });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = name;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -53,10 +34,6 @@ interface CodeExecutorProps {
 }
 
 type ExecutionStatus = 'loading-env' | 'executing' | 'success' | 'error';
-interface GeneratedFile {
-    name: string;
-    content: Uint8Array;
-}
 
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
@@ -65,7 +42,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
     const [error, setError] = useState<string>('');
     const [imageBase64, setImageBase64] = useState<string | null>(null);
     const [plotlySpec, setPlotlySpec] = useState<string | null>(null);
-    const [files, setFiles] = useState<GeneratedFile[]>([]);
 
     useEffect(() => {
         let isCancelled = false;
@@ -125,6 +101,7 @@ go.Figure.show = custom_plotly_show
 if hasattr(go, 'FigureWidget'):
     go.FigureWidget.show = custom_plotly_show
 `;
+
                 const fullCode = preamble + '\n' + code;
 
                 let stdout_stream = '';
@@ -132,22 +109,8 @@ if hasattr(go, 'FigureWidget'):
                 pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\n' });
                 pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\n' });
 
-                const filesBefore = new Set(pyodide.FS.readdir('/home/pyodide'));
-
                 const result = await pyodide.runPythonAsync(fullCode);
                 if (isCancelled) return;
-                
-                // After execution, check for new files
-                const filesAfter = pyodide.FS.readdir('/home/pyodide');
-                const newFileNames = filesAfter.filter((f: string) => !filesBefore.has(f));
-
-                if (newFileNames.length > 0) {
-                    const fileData = newFileNames.map((name: string) => ({
-                        name,
-                        content: pyodide.FS.readFile(`/home/pyodide/${name}`)
-                    }));
-                    setFiles(fileData);
-                }
 
                 if (result !== undefined) {
                     stdout_stream += pyodide.repr(result);
@@ -166,6 +129,12 @@ if hasattr(go, 'FigureWidget'):
                         setImageBase64(line.replace('__QBIT_PLOT_PIL__:', ''));
                     } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
                         setPlotlySpec(line.replace('__QBIT_PLOT_PLOTLY__:', ''));
+                    } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
+                        const [_, filename, mimetype, base64_data] = line.split(':');
+                        if (filename && mimetype && base64_data) {
+                            downloadFile(filename, mimetype, base64_data);
+                            regularOutput += `Downloading ${filename}...\n`;
+                        }
                     } else {
                         regularOutput += line + '\n';
                     }
@@ -219,24 +188,6 @@ if hasattr(go, 'FigureWidget'):
             )}
             {output && <pre className="text-sm text-foreground whitespace-pre-wrap bg-token-surface-secondary p-3 rounded-md">{output}</pre>}
             {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
-            {files.length > 0 && (
-                <div className="mt-2 p-3 bg-token-surface-secondary/50 rounded-lg border border-default">
-                    <h4 className="text-sm font-semibold mb-2 text-foreground">Downloads</h4>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        {files.map(file => (
-                            <button
-                                key={file.name}
-                                onClick={() => handleDownload(file.name, file.content)}
-                                className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                                title={`Download ${file.name}`}
-                            >
-                                <DownloadIcon className="size-4 flex-shrink-0" />
-                                <span className="truncate">{file.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
@@ -33,7 +32,7 @@ const getCreatorAge = (): number => {
 const birthday = new Date('2009-04-09T00:00:00Z');
 const today = new Date();
 let age = today.getUTCFullYear() - birthday.getUTCFullYear();
-const m = today.getUTCFullYear() - birthday.getUTCFullYear();
+const m = today.getUTCMonth() - birthday.getUTCMonth();
 if (m < 0 || (m === 0 && today.getUTCDate() < birthday.getUTCDate())) {
 age--;
 }
@@ -56,18 +55,15 @@ How to use: When you use search, your response will be grounded in the search re
 Code Execution (Python Code Interpreter):
 When to use: Use this tool whenever a user's request requires mathematical calculations, data analysis, visualizations (plots, charts), file generation, or solving complex algorithmic problems. You should decide to use it autonomously when appropriate, without needing to be asked.
 How to use: To solve the user's request, you MUST respond with a Python code block (e.g., \`\`\`python\\nprint('hello')\\n\`\`\`). The code will be executed automatically, and the result will be displayed. Do NOT simulate the output of the code; just provide the code that generates it.
-Visuals (Plots/Images): To display a plot or image, use the standard "show" methods. For \`matplotlib\`, use \`plt.show()\`. For \`plotly\`, use \`fig.show()\`. For \`Pillow\`, use \`Image.show()\`. The environment will automatically capture the output and display it to the user. Do not attempt to save files to disk or use other display methods unless you intend to create a downloadable file.
-File Generation & Downloads: To generate a downloadable file for the user (e.g., PDF, CSV, DOCX), you MUST write code that saves the file to the current working directory (e.g., with open('my_data.csv', 'w') as f: ...). Any file created during execution will automatically appear as a download link for the user. Do not instruct the user to download anything; the links will appear on their own.
+Visuals (Plots/Images): To display a plot or image, use the standard "show" methods. For \`matplotlib\`, use \`plt.show()\`. For \`plotly\`, use \`fig.show()\`. For \`Pillow\`, use \`Image.show()\`. The environment will automatically capture the output and display it to the user. Do not attempt to save files to disk or use other display methods.
+File Downloads: To generate a downloadable file for the user (e.g., PDF, CSV), you MUST write code that prints a specially formatted string to standard output: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`.
 Displaying Examples: When showing a Python code snippet for illustrative purposes that should NOT be executed, use the language identifier \`python-example\` (e.g., \`\`\`python-example\\n# This is just a demo\\n\`\`\`).
 Available Libraries: The following libraries are pre-installed. You MUST assume they are available and do not write code to install them.
-  - Core: \`os\`, \`sys\`, \`json\`, \`csv\`, \`math\`, \`random\`, \`datetime\`, \`collections\`
-  - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`, \`polars\`
-  - Plotting & Visualization: \`matplotlib\`, \`plotly\`, \`seaborn\`
+  - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`
+  - Plotting: \`matplotlib\`, \`plotly\`
   - Machine Learning: \`scikit-learn\`
-  - Image Processing: \`pillow\` (\`PIL\`), \`opencv-python\`, \`scikit-image\`
-  - Text & NLP: \`re\`, \`nltk\` (Note: Assume common tokenizers like 'punkt' are available; do not attempt to download large datasets).
-  - File Generation: \`openpyxl\` (.xlsx), \`python-docx\` (.docx), \`python-pptx\` (.pptx), \`reportlab\` (.pdf), \`fpdf2\` (.pdf)
-  - Utilities: \`sympy\`, \`beautifulsoup4\`, \`pyyaml\`, \`tqdm\`
+  - Image Processing: \`pillow\` (\`PIL\`), \`opencv-python\`
+  - Utilities: \`sympy\`, \`beautifulsoup4\`, \`fpdf2\`
 Environment: You are in a sandboxed Python environment with NO internet access. You cannot make network requests.
 
 Explaining Your Capabilities:

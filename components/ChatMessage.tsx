@@ -67,6 +67,13 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
+const toTitleCase = (str: string) => {
+    return str.replace(
+        /\w\S*/g,
+        (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+    );
+};
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -352,9 +359,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                         if (part.type === 'code' && part.code) {
                             const lang = part.lang?.toLowerCase() || 'plaintext';
                             if (lang === 'python') {
+                                let title = 'Python Code';
+                                const firstLine = part.code.split('\n')[0];
+                                if (firstLine.startsWith('#')) {
+                                    const potentialTitle = firstLine.substring(1).split(':')[0].trim();
+                                    if (potentialTitle) {
+                                        title = toTitleCase(potentialTitle);
+                                    }
+                                }
                                 return (
                                     <div key={index} className="not-prose my-4">
-                                        <CodeExecutor code={part.code} />
+                                        <CodeExecutor code={part.code} title={title} lang={lang} />
                                     </div>
                                 );
                             }

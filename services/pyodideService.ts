@@ -33,7 +33,6 @@ export const getPyodide = () => {
                     'scipy', 
                     'opencv-python',
                     'scikit-image', // Added
-                    'duckdb' // Moved back to loadPackage
                 ]);
                 
                 await pyodide.loadPackage('micropip');

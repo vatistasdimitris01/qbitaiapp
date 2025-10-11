@@ -61,7 +61,7 @@ File Generation & Downloads: To generate a downloadable file for the user (e.g.,
 Displaying Examples: When showing a Python code snippet for illustrative purposes that should NOT be executed, use the language identifier \`python-example\` (e.g., \`\`\`python-example\\n# This is just a demo\\n\`\`\`).
 Available Libraries: The following libraries are pre-installed. You MUST assume they are available and do not write code to install them.
   - Core: \`os\`, \`sys\`, \`json\`, \`csv\`, \`math\`, \`random\`, \`datetime\`, \`collections\`
-  - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`, \`duckdb\` (for SQL-style queries), \`vaex\` (for out-of-core DataFrames)
+  - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`, \`vaex\` (for out-of-core DataFrames)
   - Plotting & Visualization: \`matplotlib\`, \`plotly\`, \`seaborn\`
   - Machine Learning: \`scikit-learn\`
   - Image Processing: \`pillow\` (\`PIL\`), \`opencv-python\`, \`scikit-image\`

@@ -1,16 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
-import type { Message, GroundingChunk } from '../types';
+import type { Message, GroundingChunk, PreviewContent } from '../types';
 import { 
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon
 } from './icons';
-import CodeExecutor from './CodeExecutor';
+import { CodeExecutor } from './CodeExecutor';
 
 interface ChatMessageProps {
   message: Message;
   onRegenerate: (messageId: string) => void;
   isLoading: boolean;
+  onPreview: (content: PreviewContent) => void;
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
@@ -58,7 +59,7 @@ const escapeHtml = (html: string) => {
         .replace(/'/g, '&#039;');
 };
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onPreview }) => {
   const isUser = message.author === 'user';
   const [isThinkingOpen, setIsThinkingOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -188,7 +189,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
           const blockData = codeBlocksRef.current.find(b => b.id === placeholder.id);
           if (blockData && !placeholder.hasChildNodes()) {
              blockData.root = createRoot(placeholder);
-             blockData.root.render(<CodeExecutor code={blockData.code} />);
+             blockData.root.render(<CodeExecutor code={blockData.code} onPreview={onPreview} />);
           }
         });
 
@@ -248,7 +249,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             console.error('Task list checkbox error:', error);
         }
     }
-  }, [htmlContent, isUser, message.id]);
+  }, [htmlContent, isUser, message.id, onPreview]);
 
   const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || hasThinkingTag || parsedThinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;

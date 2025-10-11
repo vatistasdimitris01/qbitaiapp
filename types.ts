@@ -42,9 +42,11 @@ export interface LocationInfo {
 }
 
 export interface Conversation {
-  id: string;
+  id:string;
   title: string;
   messages: Message[];
   personaId?: string;
   createdAt: string;
 }
+
+export type PreviewContent = { type: 'image'; data: string } | { type: 'plotly'; data: string };

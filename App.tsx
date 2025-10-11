@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { Message, Attachment, Conversation, Persona, LocationInfo } from './types';
+import type { Message, Attachment, Conversation, Persona, LocationInfo, PreviewContent } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
+import ResultPreviewModal from './components/ResultPreviewModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { translations } from './translations';
@@ -39,6 +40,8 @@ const App: React.FC = () => {
 
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+  
+  const [previewContent, setPreviewContent] = useState<PreviewContent | null>(null);
 
   const mainContentRef = useRef<HTMLElement>(null);
   const { t, setLang, lang } = useTranslations(language);
@@ -407,6 +410,10 @@ const App: React.FC = () => {
           setLanguage(detectedLang);
       }
   };
+  
+  const handlePreview = (content: PreviewContent) => {
+    setPreviewContent(content);
+  };
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
@@ -475,7 +482,7 @@ const App: React.FC = () => {
               activeConversation.messages.map((msg, index) => {
                 const isLastAiMessage = index === activeConversation.messages.length - 1 && msg.author === 'ai';
                 const isCurrentlyLoading = isLoading && isLastAiMessage;
-                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} />;
+                return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} isLoading={isCurrentlyLoading} onPreview={handlePreview} />;
               })
             ) : (
                <div className="text-center text-muted pt-16">
@@ -505,6 +512,12 @@ const App: React.FC = () => {
         activeConversationId={activeConversationId}
         t={t}
       />
+      {previewContent && (
+        <ResultPreviewModal
+            content={previewContent}
+            onClose={() => setPreviewContent(null)}
+        />
+      )}
     </div>
   );
 };

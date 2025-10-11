@@ -1,15 +1,16 @@
-
 import React, { useEffect, useRef } from 'react';
 import { XIcon } from './icons';
+import { PreviewContent } from '../types';
 
 interface ResultPreviewModalProps {
-  imageBase64: string | null;
-  plotlySpec: any | null;
+  content: PreviewContent;
   onClose: () => void;
 }
 
-const ResultPreviewModal: React.FC<ResultPreviewModalProps> = ({ imageBase64, plotlySpec, onClose }) => {
+const ResultPreviewModal: React.FC<ResultPreviewModalProps> = ({ content, onClose }) => {
   const plotlyContainerRef = useRef<HTMLDivElement>(null);
+  const isImage = content.type === 'image';
+  const isPlotly = content.type === 'plotly';
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -24,15 +25,22 @@ const ResultPreviewModal: React.FC<ResultPreviewModalProps> = ({ imageBase64, pl
   }, [onClose]);
 
   useEffect(() => {
-    if (plotlySpec && plotlyContainerRef.current) {
-      (window as any).Plotly.newPlot(
-        plotlyContainerRef.current,
-        plotlySpec.data,
-        plotlySpec.layout,
-        { responsive: true }
-      );
+    if (isPlotly && plotlyContainerRef.current) {
+      try {
+        const spec = JSON.parse(content.data);
+        if ((window as any).Plotly) {
+            (window as any).Plotly.newPlot(
+              plotlyContainerRef.current,
+              spec.data,
+              spec.layout || {},
+              { responsive: true }
+            );
+        }
+      } catch (e) {
+        console.error("Failed to render Plotly chart in modal:", e);
+      }
     }
-  }, [plotlySpec]);
+  }, [isPlotly, content.data]);
 
   return (
     <div 
@@ -46,11 +54,11 @@ const ResultPreviewModal: React.FC<ResultPreviewModalProps> = ({ imageBase64, pl
         onClick={e => e.stopPropagation()}
       >
         <div className="flex-1 p-6 flex items-center justify-center overflow-auto">
-          {imageBase64 && (
-            <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot preview" className="max-w-full max-h-full object-contain" />
+          {isImage && (
+            <img src={`data:image/png;base64,${content.data}`} alt="Generated plot preview" className="max-w-full max-h-full object-contain" />
           )}
-          {plotlySpec && (
-            <div ref={plotlyContainerRef} className="w-full h-full"></div>
+          {isPlotly && (
+            <div ref={plotlyContainerRef} className="w-full h-full bg-white rounded-md"></div>
           )}
         </div>
         <button 

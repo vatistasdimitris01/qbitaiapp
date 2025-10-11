@@ -53,7 +53,7 @@
     </script>
     
     <!-- Pyodide for in-browser Python -->
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
 
     <!-- Plotly for interactive charts -->
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
@@ -87,6 +87,16 @@
         --token-text-primary: #171717;
         --token-text-secondary: #6e6e6e;
         --token-border: #e5e5e5;
+        
+        /* New vars for CodeExecutor */
+        --bg-primary: var(--background);
+        --bg-secondary: var(--card);
+        --bg-tertiary: var(--token-surface-secondary);
+        --bg-inset: var(--token-surface-secondary);
+        --text-primary: var(--foreground);
+        --text-secondary: var(--muted-foreground);
+        --text-tertiary: var(--sidebar-muted-foreground);
+        --border-primary: var(--border);
     }
 
     .dark {
@@ -112,6 +122,16 @@
         --token-text-primary: #f4f4f5;
         --token-text-secondary: #a1a1aa;
         --token-border: #27272a;
+        
+        /* New vars for CodeExecutor */
+        --bg-primary: var(--background);
+        --bg-secondary: var(--card);
+        --bg-tertiary: var(--token-surface-secondary);
+        --bg-inset: #000;
+        --text-primary: var(--foreground);
+        --text-secondary: var(--muted-foreground);
+        --text-tertiary: var(--sidebar-muted-foreground);
+        --border-primary: var(--border);
     }
     
     html {
@@ -298,6 +318,29 @@
         animation: blink 1s infinite;
         margin-left: 1px;
     }
+
+    /* New styles for CodeExecutor */
+    .action-btn {
+        transition: background-color 0.2s;
+    }
+    .action-btn:hover {
+        background-color: var(--token-surface-secondary);
+    }
+    .code-container {
+        max-height: 500px;
+        transition: max-height 0.3s ease-in-out;
+        overflow: hidden;
+    }
+    .code-container.collapsed {
+        max-height: 0;
+    }
+    .error-text {
+        color: #ef4444; /* red-500 */
+    }
+    .dark .error-text {
+        color: #f87171; /* red-400 */
+    }
+
 
     @keyframes breath {
         0%, 100% { transform: scale(0.9); opacity: 0.7; }

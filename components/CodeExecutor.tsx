@@ -1,66 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlayIcon, ChevronDownIcon, CopyIcon, Maximize2Icon } from './icons';
-import ResultPreviewModal from './ResultPreviewModal';
+import type { PreviewContent } from '../types';
+
+declare global {
+    interface Window { 
+        loadPyodide: (config: { indexURL: string }) => Promise<any>;
+        Plotly: any;
+    }
+}
+
+const ExpandIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path fillRule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707zm4.344-4.344a.5.5 0 0 0 0 .707l4.096 4.096H11.5a.5.5 0 0 0 0 1h3.975a.5.5 0 0 0 .5-.5V11.5a.5.5 0 0 0-1 0v2.768l-4.096-4.096a.5.5 0 0 0-.707 0z"/>
+    </svg>
+);
+
+
+const LoadingSpinner = () => (
+    <svg className="animate-spin h-4 w-4 text-[var(--text-primary)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
 
 interface CodeExecutorProps {
   code: string;
+  onPreview: (content: PreviewContent) => void;
 }
 
-type ExecutionStatus = 'idle' | 'loading' | 'executing' | 'success' | 'error';
+type ExecutionStatus = 'loading' | 'executing' | 'success' | 'error';
 
-// This preamble is injected into the Python environment to intercept visual outputs.
-const pythonPreamble = `
-import io, base64, json
-import matplotlib.pyplot as plt
-from PIL import Image
-import plotly
-import numpy as np
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-
-# Patch matplotlib.pyplot.show to capture plots
-_original_plt_show = plt.show
-def custom_plt_show(*args, **kwargs):
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
-    plt.clf() # Clear the figure to prevent subsequent plots from overlapping
-_original_plt_show._is_patched = True
-plt.show = custom_plt_show
-
-# Patch PIL.Image.Image.show to capture images
-_original_pil_show = Image.Image.show
-def custom_pil_show(self, *args, **kwargs):
-    buf = io.BytesIO()
-    self.save(buf, format='PNG')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_PIL__:{b64_str}")
-_original_pil_show._is_patched = True
-Image.Image.show = custom_pil_show
-
-# Patch plotly.graph_objects.Figure.show to capture interactive charts
-_original_plotly_show = plotly.basedatatypes.BaseFigure.show
-def custom_plotly_show(self, *args, **kwargs):
-    fig_dict = self.to_dict()
-    json_str = json.dumps(fig_dict, cls=NumpyEncoder)
-    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
-_original_plotly_show._is_patched = True
-plotly.basedatatypes.BaseFigure.show = custom_plotly_show
-
-print("Python environment ready.")
-`;
-
-const pyodideRef = { current: null as any };
-
-const downloadFile = (filename: string, mimetype: string, base64Data: string) => {
-    const byteCharacters = atob(base64Data);
+// Helper to trigger download
+const downloadFile = (filename: string, mimetype: string, base64: string) => {
+    const byteCharacters = atob(base64);
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -77,191 +49,229 @@ const downloadFile = (filename: string, mimetype: string, base64Data: string) =>
     URL.revokeObjectURL(url);
 };
 
-
-const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
-  const [isCodeVisible, setIsCodeVisible] = useState(false);
-  const [status, setStatus] = useState<ExecutionStatus>('idle');
-  const [output, setOutput] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, onPreview }) => {
+  const pyodideRef = useRef<any>(null);
+  const plotlyRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<ExecutionStatus>('loading');
+  const [output, setOutput] = useState<string>('');
+  const [error, setError] = useState<string>('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [plotlySpec, setPlotlySpec] = useState<any | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const plotlyContainerRef = useRef<HTMLDivElement>(null);
-  
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code).then(() => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    });
-  };
+  const [plotlySpec, setPlotlySpec] = useState<string | null>(null);
+  const [isCodeVisible, setIsCodeVisible] = useState(false);
 
-  const executeCode = async () => {
-    setOutput([]);
-    setError(null);
-    setImageBase64(null);
-    setPlotlySpec(null);
-    
-    try {
-        if (!pyodideRef.current) {
-            setStatus('loading');
-            (window as any).loadPyodide({
-                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/"
-            }).then(async (pyodide: any) => {
-                pyodideRef.current = pyodide;
-                await pyodide.loadPackage(['numpy', 'pandas', 'matplotlib', 'scikit-learn', 'pillow']);
-                await pyodide.runPythonAsync(pythonPreamble);
-                executeCode(); // Re-run execution after loading
-            }).catch((e: Error) => {
-                setError(`Failed to load Python environment: ${e.message}`);
-                setStatus('error');
-                setIsCodeVisible(true);
+  useEffect(() => {
+    const runCode = async () => {
+      if (!code || (pyodideRef.current && status !== 'loading')) return;
+
+      let pyodide = pyodideRef.current;
+      
+      try {
+        if (!pyodide) {
+            pyodide = await window.loadPyodide({
+              indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
             });
-            return;
+            await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
+            await pyodide.loadPackage('micropip');
+            const micropip = pyodide.pyimport('micropip');
+            await micropip.install(['plotly', 'fpdf2']);
+            pyodideRef.current = pyodide;
         }
 
         setStatus('executing');
-        const pyodide = pyodideRef.current;
         
-        // Capture stdout
-        let capturedOutput: string[] = [];
-        pyodide.setStdout({
-            batched: (msg: string) => {
-                capturedOutput.push(msg);
-            }
-        });
-        // Capture stderr
-        let capturedError = '';
-        pyodide.setStderr({
-            batched: (msg: string) => {
-                capturedError += msg + '\n';
-            }
-        });
+        const preamble = `
+import io, base64, json, matplotlib
+import matplotlib.pyplot as plt
+from PIL import Image
+import plotly.graph_objects as go
+import numpy as np
+import plotly.graph_objs.layout.slider as slider
 
-        await pyodide.runPythonAsync(code);
+# Custom JSON encoder to handle numpy types that Plotly's validator dislikes
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
+
+matplotlib.use('agg')
+
+# Monkey-patch for Plotly slider step issue where model uses 'args2' instead of 'args'
+try:
+    original_step_init = slider.Step.__init__
+    def patched_step_init(self, arg=None, **kwargs):
+        if arg and isinstance(arg, dict) and 'args2' in arg:
+            arg['args'] = arg.pop('args2')
+        if 'args2' in kwargs:
+            kwargs['args'] = kwargs.pop('args2')
+        original_step_init(self, arg, **kwargs)
+    slider.Step.__init__ = patched_step_init
+except Exception as e:
+    print(f"Qbit patch error: Failed to patch Plotly Step: {e}")
+
+
+def custom_plt_show():
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    b64_str = base64.b64encode(buf.read()).decode('utf-8')
+    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
+    plt.clf()
+
+plt.show = custom_plt_show
+
+def custom_pil_show(self):
+    buf = io.BytesIO()
+    self.save(buf, format='PNG')
+    buf.seek(0)
+    b64_str = base64.b64encode(buf.read()).decode('utf-8')
+    print(f"__QBIT_PLOT_PIL__:{b64_str}")
+
+Image.Image.show = custom_pil_show
+
+def custom_plotly_show(self, *args, **kwargs):
+    fig_dict = self.to_dict()
+    json_str = json.dumps(fig_dict, cls=NumpyEncoder)
+    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
+
+go.Figure.show = custom_plotly_show
+if hasattr(go, 'FigureWidget'):
+    go.FigureWidget.show = custom_plotly_show
+`;
+
+        const fullCode = preamble + '\n' + code;
+
+        let stdout_stream = '';
+        let stderr_stream = '';
+        pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\n' });
+        pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\n' });
         
-        if (capturedError) {
-            setError(capturedError);
-            setStatus('error');
-            setIsCodeVisible(true);
-        } else {
-            const finalOutput: string[] = [];
-            capturedOutput.forEach(line => {
-                if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:')) {
-                    setImageBase64(line.substring('__QBIT_PLOT_MATPLOTLIB__:'.length));
-                } else if (line.startsWith('__QBIT_PLOT_PIL__:')) {
-                    setImageBase64(line.substring('__QBIT_PLOT_PIL__:'.length));
-                } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
-                    const jsonSpec = line.substring('__QBIT_PLOT_PLOTLY__:'.length);
-                    try {
-                        setPlotlySpec(JSON.parse(jsonSpec));
-                    } catch (e) {
-                         setError('Failed to parse Plotly JSON specification.');
-                    }
-                } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
-                    const parts = line.split(':');
-                    if (parts.length >= 4) {
-                        const [, filename, mimetype, b64_data] = parts;
-                        downloadFile(filename, mimetype, b64_data);
-                        finalOutput.push(`Downloaded file: ${filename}`);
-                    }
-                }
-                else {
-                    finalOutput.push(line);
-                }
-            });
-            setOutput(finalOutput.filter(line => line.trim() !== '' && line !== 'Python environment ready.'));
-            setStatus('success');
+        const result = await pyodide.runPythonAsync(fullCode);
+        
+        if (result !== undefined) {
+          stdout_stream += pyodide.repr(result);
         }
 
-    } catch (e: any) {
-        setError(e.message);
+        const lines = stdout_stream.split('\n');
+        let regularOutput = '';
+        
+        for (const line of lines) {
+            if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:')) {
+                setImageBase64(line.replace('__QBIT_PLOT_MATPLOTLIB__:', ''));
+            } else if (line.startsWith('__QBIT_PLOT_PIL__:')) {
+                setImageBase64(line.replace('__QBIT_PLOT_PIL__:', ''));
+            } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
+                setPlotlySpec(line.replace('__QBIT_PLOT_PLOTLY__:', ''));
+            } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
+                const [_, filename, mimetype, base64_data] = line.split(':', 4);
+                if (filename && mimetype && base64_data) {
+                    downloadFile(filename, mimetype, base64_data);
+                    regularOutput += `Downloading ${filename}...\n`;
+                }
+            } else {
+                regularOutput += line + '\n';
+            }
+        }
+        setOutput(regularOutput.trim());
+        if (stderr_stream) setError(stderr_stream.trim());
+        setStatus('success');
+      } catch (err: any) {
+        console.error("Pyodide execution failed:", err);
+        setError(`Execution failed: ${err.message || "An unknown error occurred."}`);
         setStatus('error');
-        setIsCodeVisible(true);
-    }
-  };
-  
-  useEffect(() => {
-    executeCode();
+      } finally {
+        if (pyodideRef.current) {
+            pyodideRef.current.setStdout({});
+            pyodideRef.current.setStderr({});
+        }
+      }
+    };
+    runCode();
   }, [code]);
 
   useEffect(() => {
-    if (plotlySpec && plotlyContainerRef.current) {
-      (window as any).Plotly.newPlot(plotlyContainerRef.current, plotlySpec.data, plotlySpec.layout);
+    if (plotlySpec && plotlyRef.current) {
+        try {
+            const spec = JSON.parse(plotlySpec);
+            if (window.Plotly) {
+                window.Plotly.newPlot(plotlyRef.current, spec.data, spec.layout || {});
+            }
+        } catch (e) {
+            console.error("Failed to render Plotly chart:", e);
+            setError("Failed to render interactive chart.");
+        }
     }
   }, [plotlySpec]);
 
-  const hasResult = output.length > 0 || error || imageBase64 || plotlySpec;
-  const hasVisualResult = imageBase64 || plotlySpec;
+  
+  const getStatusText = () => {
+      switch(status) {
+          case 'loading': return 'Loading Environment...';
+          case 'executing': return 'Executing...';
+          case 'success': return 'Done';
+          case 'error': return 'Error';
+      }
+  }
 
-  const statusMap = {
-      idle: { text: "Run code", color: "text-gray-500", bg: "bg-gray-100 dark:bg-gray-800" },
-      loading: { text: "Loading environment...", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30" },
-      executing: { text: "Executing...", color: "text-amber-500", bg: "bg-amber-100 dark:bg-amber-900/30" },
-      success: { text: "Execution complete", color: "text-green-500", bg: "bg-green-100 dark:bg-green-900/30" },
-      error: { text: "Execution failed", color: "text-red-500", bg: "bg-red-100 dark:bg-red-900/30" },
-  };
+  const hasVisualResult = !!imageBase64 || !!plotlySpec;
 
   return (
-    <div className="w-full my-4 border border-default rounded-lg bg-token-surface-secondary/50 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-2 pl-4 border-b border-default">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Python Code</span>
-                {status !== 'idle' && (
-                  <span className={`text-xs font-mono px-2 py-0.5 rounded-md ${statusMap[status].bg} ${statusMap[status].color}`}>
-                      {statusMap[status].text}
-                  </span>
-                )}
-            </div>
-            <div className="flex items-center gap-1">
-                <button onClick={handleCopy} className="p-2 text-muted-foreground hover:bg-background rounded-md transition-colors" title="Copy code">
-                    {isCopied ? <span className="text-xs px-1">Copied!</span> : <CopyIcon className="size-4" />}
+    <div className="bg-[var(--bg-secondary)] my-2 rounded-lg overflow-hidden border border-[var(--border-primary)] shadow-lg">
+      <div className="flex justify-between items-center px-4 py-2 bg-[var(--bg-tertiary)] text-xs text-[var(--text-tertiary)]">
+        <span className="font-semibold text-[var(--text-secondary)]">Python</span>
+        <div className="flex items-center gap-4">
+            <span className="text-sm italic flex items-center gap-2">
+                {(status === 'loading' || status === 'executing') && <LoadingSpinner />}
+                {getStatusText()}
+            </span>
+             {hasVisualResult && status === 'success' && (
+                <button 
+                    onClick={() => {
+                        if (imageBase64) onPreview({ type: 'image', data: imageBase64 });
+                        else if (plotlySpec) onPreview({ type: 'plotly', data: plotlySpec });
+                    }}
+                    className="action-btn flex items-center gap-2 text-sm text-[var(--text-tertiary)] px-2 py-1 rounded-md"
+                    aria-label="Expand result preview"
+                >
+                    <ExpandIcon />
+                    <span className="hidden sm:inline">&lt;|&gt;</span>
                 </button>
-                <button onClick={() => setIsCodeVisible(!isCodeVisible)} className="p-2 text-muted-foreground hover:bg-background rounded-md transition-colors" title={isCodeVisible ? "Hide code" : "Show code"}>
-                    <ChevronDownIcon className={`size-4 transition-transform ${isCodeVisible ? 'rotate-180' : ''}`} />
-                </button>
-                <button onClick={executeCode} disabled={status === 'loading' || status === 'executing'} className="flex items-center gap-1.5 p-2 pr-3 bg-background border border-default rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-wait">
-                    <PlayIcon className="size-4" />
-                    <span>Run</span>
-                </button>
-            </div>
+            )}
+            <button 
+                onClick={() => setIsCodeVisible(!isCodeVisible)}
+                className="action-btn flex items-center gap-2 text-sm text-[var(--text-tertiary)] px-2 py-1 rounded-md"
+                aria-label={isCodeVisible ? "Hide code" : "Show code"}
+            >
+                &lt;/&gt;
+            </button>
         </div>
-
-        {/* Code View (Collapsible) */}
-        {isCodeVisible && (
-            <div className="p-2 bg-background border-b border-default">
-                <pre><code className="language-python text-sm">{code}</code></pre>
-            </div>
-        )}
-
-        {/* Results View */}
-        {hasResult && (
-            <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold">Result</h4>
-                    {hasVisualResult && (
-                        <button onClick={() => setIsPreviewOpen(true)} className="p-1.5 text-muted-foreground hover:bg-background rounded-md transition-colors" title="Expand result">
-                            <Maximize2Icon className="size-4" />
-                        </button>
-                    )}
+      </div>
+      <div className={`code-container ${!isCodeVisible ? 'collapsed' : ''}`}>
+        <div>
+            <pre className="p-4 overflow-x-auto text-sm bg-[var(--bg-inset)]">
+              <code className="bg-transparent p-0">{code}</code>
+            </pre>
+        </div>
+      </div>
+      {(output || error || imageBase64 || plotlySpec) && (
+          <div className="px-4 py-2 border-t border-[var(--border-primary)]">
+            <h4 className="text-xs font-bold text-[var(--text-tertiary)] uppercase mb-2">Result</h4>
+            {imageBase64 && (
+                <div className="p-2 bg-[var(--bg-primary)] rounded-md flex justify-center my-2 max-h-96 overflow-auto">
+                    <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot or image" />
                 </div>
-                {imageBase64 && <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot" className="max-w-full h-auto rounded-md border border-default" />}
-                {plotlySpec && <div ref={plotlyContainerRef} className="w-full h-96"></div>}
-                {output.length > 0 && <pre className="text-sm whitespace-pre-wrap font-mono bg-background p-2 rounded-md">{output.join('\n')}</pre>}
-                {error && <pre className="text-sm whitespace-pre-wrap font-mono bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-2 rounded-md">{error}</pre>}
-            </div>
-        )}
-
-        {isPreviewOpen && hasVisualResult && (
-            <ResultPreviewModal
-                imageBase64={imageBase64}
-                plotlySpec={plotlySpec}
-                onClose={() => setIsPreviewOpen(false)}
-            />
-        )}
+            )}
+            {plotlySpec && (
+                <div ref={plotlyRef} className="p-2 bg-white rounded-md my-2"></div>
+            )}
+            {output && <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>}
+            {error && <pre className="text-sm error-text whitespace-pre-wrap">{error}</pre>}
+          </div>
+      )}
     </div>
   );
 };
-
-export default CodeExecutor;

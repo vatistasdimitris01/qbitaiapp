@@ -73,7 +73,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, onPreview }) =
             await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
             await pyodide.loadPackage('micropip');
             const micropip = pyodide.pyimport('micropip');
-            await micropip.install(['plotly', 'fpdf2', 'seaborn', 'statsmodels']);
+            await micropip.install(['plotly', 'fpdf2']);
             pyodideRef.current = pyodide;
         }
 
@@ -167,7 +167,7 @@ if hasattr(go, 'FigureWidget'):
             } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
                 setPlotlySpec(line.replace('__QBIT_PLOT_PLOTLY__:', ''));
             } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
-                const [_, filename, mimetype, base64_data] = line.split(':', 4);
+                const [_, filename, mimetype, base64_data] = line.split(':');
                 if (filename && mimetype && base64_data) {
                     downloadFile(filename, mimetype, base64_data);
                     regularOutput += `Downloading ${filename}...\n`;

@@ -48,7 +48,6 @@ export const getPyodide = () => {
                     'python-docx', // Added for .docx
                     'python-pptx', // Added for .pptx
                     'reportlab', // Added for .pdf
-                    'odfpy', // Added for OpenDocument formats
                     'tqdm', // Added for progress bars
                     'pyyaml', // Added for YAML
                     'nltk' // Added for NLP

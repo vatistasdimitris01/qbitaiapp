@@ -66,7 +66,7 @@ Available Libraries: The following libraries are pre-installed. You MUST assume 
   - Machine Learning: \`scikit-learn\`
   - Image Processing: \`pillow\` (\`PIL\`), \`opencv-python\`, \`scikit-image\`
   - Text & NLP: \`re\`, \`nltk\` (Note: Assume common tokenizers like 'punkt' are available; do not attempt to download large datasets).
-  - File Generation: \`openpyxl\` (.xlsx), \`python-docx\` (.docx), \`python-pptx\` (.pptx), \`reportlab\` (.pdf), \`odfpy\` (.odt, .ods), \`fpdf2\` (.pdf)
+  - File Generation: \`openpyxl\` (.xlsx), \`python-docx\` (.docx), \`python-pptx\` (.pptx), \`reportlab\` (.pdf), \`fpdf2\` (.pdf)
   - Utilities: \`sympy\`, \`beautifulsoup4\`, \`pyyaml\`, \`tqdm\`
 Environment: You are in a sandboxed Python environment with NO internet access. You cannot make network requests.
 

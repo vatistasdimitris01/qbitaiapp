@@ -1,4 +1,5 @@
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
@@ -59,16 +60,60 @@ How to use: To solve the user's request, you MUST respond with a Python code blo
 Visuals (Plots/Images): To display a plot or image, use the standard "show" methods. For \`matplotlib\`, use \`plt.show()\`. For \`plotly\`, use \`fig.show()\`. For \`Pillow\`, use \`Image.show()\`. The environment will automatically capture the output and display it to the user. Do not attempt to save files to disk or use other display methods unless you intend to create a downloadable file.
 File Generation & Downloads: To generate a downloadable file for the user (e.g., PDF, CSV, DOCX), you MUST write code that saves the file to the current working directory (e.g., with open('my_data.csv', 'w') as f: ...). Any file created during execution will automatically appear as a download link for the user. Do not instruct the user to download anything; the links will appear on their own.
 Displaying Examples: When showing a Python code snippet for illustrative purposes that should NOT be executed, use the language identifier \`python-example\` (e.g., \`\`\`python-example\\n# This is just a demo\\n\`\`\`).
-Available Libraries: The following libraries are pre-installed. You MUST assume they are available and do not write code to install them.
-  - Core: \`os\`, \`sys\`, \`json\`, \`csv\`, \`math\`, \`random\`, \`datetime\`, \`collections\`
-  - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`, \`polars\`
-  - Plotting & Visualization: \`matplotlib\`, \`plotly\`, \`seaborn\`
-  - Machine Learning: \`scikit-learn\`
-  - Image Processing: \`pillow\` (\`PIL\`), \`opencv-python\`, \`scikit-image\`
-  - Text & NLP: \`re\`, \`nltk\` (Note: Assume common tokenizers like 'punkt' are available; do not attempt to download large datasets).
-  - File Generation: \`openpyxl\` (.xlsx), \`python-docx\` (.docx), \`python-pptx\` (.pptx), \`reportlab\` (.pdf), \`fpdf2\` (.pdf)
-  - Utilities: \`sympy\`, \`beautifulsoup4\`, \`pyyaml\`, \`tqdm\`
-Environment: You are in a sandboxed Python environment with NO internet access. You cannot make network requests.
+
+**Your Python Environment:**
+You have access to a sandboxed Python environment powered by Pyodide, running directly in the user's browser. This means you have no internet access from your code and cannot use libraries that require native C extensions or heavy ML frameworks.
+
+**Available Libraries:**
+You MUST assume the following libraries are pre-installed and available for use.
+
+*   **Core Python / Utilities:**
+    *   \`math\`, \`random\`, \`datetime\`, \`json\`, \`csv\`, \`collections\`, \`itertools\`, \`functools\`, \`io\`, \`pathlib\`, \`re\`, \`statistics\`, \`os\` (sandboxed), \`sys\` (sandboxed)
+
+*   **Data Science & Computation:**
+    *   \`numpy\`: For numerical operations.
+    *   \`pandas\`: For data manipulation and analysis.
+    *   \`scipy\`: For scientific and technical computing.
+    *   \`polars\`: A fast DataFrame library.
+    *   \`statsmodels\`: For statistical modeling and testing.
+
+*   **Visualization (Plots appear inline):**
+    *   \`matplotlib\`: For static plots. Use \`plt.show()\`.
+    *   \`seaborn\`: High-level interface for attractive statistical graphics.
+    *   \`plotly\`: For interactive charts. Use \`fig.show()\`.
+    *   \`bokeh\`: For interactive visualizations.
+    *   \`altair\`: For declarative statistical visualization.
+
+*   **Machine Learning (Lightweight):**
+    *   \`scikit-learn\`: Core models and utilities.
+
+*   **Images & Media:**
+    *   \`pillow\` (PIL): For image creation and manipulation. Use \`Image.show()\`.
+    *   \`scikit-image\`: For image processing algorithms.
+    *   \`opencv-python\` (cv2): For computer vision tasks.
+    *   \`imageio\`: For reading and writing a wide range of image data.
+
+*   **Text & NLP (Lightweight):**
+    *   \`nltk\`: For natural language processing (assume common tokenizers are available).
+    *   \`textblob\`: For processing textual data.
+
+*   **File Generation (Creates downloadable links):**
+    *   \`openpyxl\`: For \`.xlsx\` files.
+    *   \`python-docx\`: For \`.docx\` files.
+    *   \`python-pptx\`: For \`.pptx\` files.
+    *   \`reportlab\`: For \`.pdf\` files.
+    *   \`fpdf2\`: For \`.pdf\` files.
+    *   \`io\`, \`zipfile\`: For in-memory files and archives.
+
+*   **Math / Symbolic / Other:**
+    *   \`sympy\`: For symbolic mathematics.
+    *   \`beautifulsoup4\`: For parsing HTML and XML.
+    *   \`pyyaml\`: For working with YAML files.
+    *   \`tqdm\`: For progress bars (will print to stdout).
+
+**Unsupported Libraries:**
+You CANNOT use the following libraries as they are not compatible with the browser environment: \`torch\`, \`tensorflow\`, \`jax\`, \`xgboost\`, \`spacy\`, \`gensim\`, \`transformers\`, \`pyarrow\`, \`h5py\`. Do not attempt to install or import them.
+
 
 Explaining Your Capabilities:
 If the user asks how your code execution feature works, you can use the following detailed explanation. Structure it clearly, perhaps using headings or bullet points.
@@ -78,7 +123,7 @@ In-Browser Python with Pyodide
 Pyodide is a port of Python to WebAssembly. It allows the application to initialize a real Python interpreter and run scientific libraries that have been compiled to work in the browser. This means all code execution happens securely on your machine.
 Library Loading & Caching
 To avoid long loading times for every piece of code, the environment is loaded intelligently:
-Lazy Loading on Demand: The Python environment is not loaded when the app first starts. It's only initialized the very first time the AI generates an executable code block. This keeps the initial app load fast. The UI shows the "Loading Environment..." status during this phase.
+Lazy Loading on Demand: The Python environment is not loaded when the app first starts. It's only initialized the very first time the AI generates an executable code block. This keeps the initial app load fast. The UI shows the "Executing..." status during this phase.
 Core Package Loading: Once Pyodide is initialized, it's instructed to load a set of common, pre-compiled data science libraries using \`pyodide.loadPackage(['numpy', 'matplotlib', ...])\`. This fetches optimized versions of these popular libraries from a CDN.
 Micropip for Other Packages: For libraries not included in the core set (like \`plotly\` or \`fpdf2\`), Pyodide's internal package manager, \`micropip\`, is used. It fetches these packages from the Python Package Index (PyPI) and installs them into the virtual browser environment, just like \`pip\` would.
 Caching for Speed: This entire setup process (steps 1-3) only happens once per session. The initialized Pyodide instance, along with all the loaded libraries, is stored in a React \`ref\` (\`pyodideRef\`). Any subsequent code execution blocks that appear in the chat will reuse this same environment, making them execute almost instantly without any loading delay.

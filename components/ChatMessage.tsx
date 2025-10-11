@@ -1,9 +1,9 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk } from '../types';
 import { 
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, 
-    DownloadIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon
 } from './icons';
 
 interface ChatMessageProps {
@@ -221,7 +221,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
 
   const hasThinking = !isUser && ((message.groundingChunks && message.groundingChunks.length > 0) || hasThinkingTag || parsedThinkingText);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
-  const hasDownloads = !isUser && message.downloadableFiles && message.downloadableFiles.length > 0;
   const hasDuration = !isUser && typeof message.duration === 'number';
 
   return (
@@ -312,21 +311,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate }) => {
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
                         </div>
                      )}
-                    {hasDownloads && (
-                        <div className="mt-4 border-t border-default pt-3 space-y-2">
-                            {message.downloadableFiles?.map((file, index) =>
-                            <a
-                                key={index}
-                                href={file.url}
-                                download={file.name}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-100 dark:bg-sidebar-active dark:text-sidebar-active-fg rounded-lg hover:bg-blue-200 dark:hover:opacity-80 transition-colors"
-                            >
-                                <DownloadIcon className="size-4" />
-                                <span>Download {file.name}</span>
-                            </a>
-                            )}
-                        </div>
-                    )}
                 </div>
                 <div className="flex items-center gap-2 mt-2 transition-opacity opacity-0 group-hover:opacity-100">
                     <IconButton onClick={handleCopy} aria-label="Copy message">

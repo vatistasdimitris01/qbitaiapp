@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Message, Attachment, Conversation, Persona, LocationInfo } from './types';
 import ChatInput from './components/ChatInput';
@@ -286,12 +287,8 @@ const App: React.FC = () => {
                         case 'chunk':
                             updatedMsg.text += update.payload;
                             break;
-                        case 'files':
-                            const filesPayload = update.payload as { name: string; content: string }[];
-                            updatedMsg.downloadableFiles = filesPayload.map(file => ({
-                                name: file.name,
-                                url: `data:application/octet-stream;base64,${file.content}`
-                            }));
+                        case 'grounding':
+                            updatedMsg.groundingChunks = update.payload;
                             break;
                         case 'usage':
                             updatedMsg.usageMetadata = update.payload;
@@ -368,12 +365,8 @@ const App: React.FC = () => {
                                 case 'chunk':
                                     updatedMsg.text += update.payload;
                                     break;
-                                case 'files':
-                                    const filesPayload = update.payload as { name: string; content: string }[];
-                                    updatedMsg.downloadableFiles = filesPayload.map(file => ({
-                                        name: file.name,
-                                        url: `data:application/octet-stream;base64,${file.content}`
-                                    }));
+                                case 'grounding':
+                                    updatedMsg.groundingChunks = update.payload;
                                     break;
                                 case 'usage':
                                     updatedMsg.usageMetadata = update.payload;

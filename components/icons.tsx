@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface IconProps {
@@ -173,14 +174,6 @@ export const PaletteIcon: React.FC<IconProps> = ({ className }) => (
         <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle>
         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.667 0-.424-.163-.82-.426-1.125-.263-.304-.633-.478-1.018-.478H10c-1.657 0-3-1.343-3-3s1.343-3 3-3h3c1.105 0 2-.895 2-2s-.895-2-2-2h-1.168c-.21 0-.413.043-.604.124-.19.08-.368.192-.52.33-.152.137-.275.298-.368.477-.093.178-.14.375-.14.582V2z"></path>
     </svg>
-);
-
-export const DownloadIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-    <polyline points="7 10 12 15 17 10"></polyline>
-    <line x1="12" y1="15" x2="12" y2="3"></line>
-  </svg>
 );
 
 export const BarChartIcon: React.FC<IconProps> = ({ className }) => (

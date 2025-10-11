@@ -1,3 +1,4 @@
+
 export type Author = 'user' | 'ai';
 
 export interface GroundingChunk {
@@ -20,10 +21,6 @@ export interface Message {
   text: string;
   groundingChunks?: GroundingChunk[];
   attachments?: Attachment[];
-  downloadableFiles?: {
-    name: string;
-    url: string;
-  }[];
   thinkingText?: string;
   duration?: number;
   usageMetadata?: {

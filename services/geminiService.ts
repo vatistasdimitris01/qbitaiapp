@@ -1,7 +1,8 @@
+
 import { Attachment, LocationInfo, Message } from "../types";
 
 export interface StreamUpdate {
-    type: 'chunk' | 'files' | 'usage' | 'end' | 'error';
+    type: 'chunk' | 'grounding' | 'usage' | 'end' | 'error';
     payload?: any;
 }
 

@@ -1,7 +1,6 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Buffer } from 'buffer';
-import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse, Chat } from "@google/genai";
+import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
 // Vercel Function config
 export const config = {
@@ -48,15 +47,13 @@ Current date: ${currentDate}
 **Your Capabilities & Tools:**
 You have access to a set of tools to help you answer questions and complete tasks. You should use them whenever appropriate.
 
-1.  **File Creation (\`create_files\`):**
-    *   **CRITICAL RULE:** Any user request that involves generating code (e.g., HTML, Python, JavaScript, CSS, etc.) or any other type of document (e.g., a report, a story, a list) **MUST** be fulfilled using the \`create_files\` tool.
-    *   Do **NOT** display code or document content in a markdown block inside your response. The user's intent is **always** to receive a downloadable file.
-    *   For example, if the user says "create an html website for a vet", your primary action is to call \`create_files\` with a payload like \`{ "files": [{ "filename": "index.html", "content": "<!DOCTYPE html>..." }] }\`. After calling the tool, your final text response to the user should be a simple confirmation, like "I've created the HTML file for the vet website for you."
-    *   If a user requests a format you can't create directly (like a PDF or DOCX), generate the content as a markdown (.md) or text (.txt) file using the tool, and inform the user you've provided a text-based version they can convert.
+1.  **Google Search Grounding:**
+    *   For questions about recent events, trending topics, or information that requires up-to-date knowledge, you will automatically use Google Search.
+    *   Your responses will be grounded in the search results to provide accurate and timely information. You must cite your sources by using markdown links like \`[Text](1)\`, \`[More Text](2)\` etc, where the number corresponds to the source number from the search results.
 
-2.  **Web Search (\`web_search\`):**
-    *   You can search the web for up-to-date information on any topic. When you use this tool, I will provide you with a summary of the search results. You should use this summary to formulate your answer.
-    *   Do not mention that you are summarizing search results or that you performed a web search; just provide the answer directly to the user as if you knew the information.
+2.  **Code Execution:**
+    *   You have a code execution environment. You can write and run code (e.g., Python) to perform calculations, analyze data, or solve complex problems.
+    *   When a user asks a question that requires computation, you should use this tool.
 
 **Response Format:**
 For every response, you must first write out your thought process in a <thinking>...</thinking> XML block. This should explain your reasoning and which tools you plan to use. After the thinking block, write the final, user-facing answer.
@@ -68,47 +65,8 @@ Do not mention his birthday or the year he was born. For this specific question,
 `;
 
 const tools: Tool[] = [
-    {
-        functionDeclarations: [
-            {
-                name: 'create_files',
-                description: "Use this tool to create any kind of text-based file, especially code files (like .html, .py, .js) and documents (.md, .txt). When a user asks for code or a document, you MUST use this function to create a downloadable file for them. Do not show code in your response.",
-                parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                        files: {
-                            type: Type.ARRAY,
-                            description: 'An array of files to create.',
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    filename: { 
-                                        type: Type.STRING,
-                                        description: 'The name of the file, including its extension (e.g., "my_script.py", "report.md").'
-                                    },
-                                    content: {
-                                        type: Type.STRING,
-                                        description: 'The full content of the file.'
-                                    },
-                                },
-                                required: ['filename', 'content'],
-                            }
-                        }
-                    },
-                    required: ['files'],
-                },
-            },
-            {
-                name: 'web_search',
-                description: "Performs a web search to find real-time information. Use this tool if you don't know the answer or suspect your knowledge might be outdated.",
-                parameters: {
-                    type: Type.OBJECT,
-                    properties: { query: { type: Type.STRING } },
-                    required: ['query'],
-                },
-            },
-        ],
-    },
+    { googleSearch: {} },
+    { codeExecution: {} }
 ];
 
 const writeStream = (res: VercelResponse, data: object) => {
@@ -156,79 +114,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 currentUserParts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
             }
         }
+        
+        const fullContents: Content[] = [
+            ...historyContents,
+            { role: 'user', parts: currentUserParts }
+        ];
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const chat: Chat = ai.chats.create({
+        
+        const stream = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash',
-            history: historyContents,
-            config: { tools, systemInstruction: finalSystemInstruction },
+            contents: fullContents,
+            config: {
+                tools,
+                systemInstruction: finalSystemInstruction
+            }
         });
 
-        let stream = await chat.sendMessageStream({ parts: currentUserParts });
-        let downloadableFiles: { name: string, content: string }[] | undefined;
         let finalUsageMetadata;
 
-        const MAX_TOOL_ROUNDS = 5;
-        for (let i = 0; i < MAX_TOOL_ROUNDS; i++) {
-            let functionCalls: any[] = [];
+        for await (const chunk of stream) {
+            const text = chunk.text;
+            if (text) {
+                writeStream(res, { type: 'chunk', payload: text });
+            }
             
-            for await (const chunk of stream) {
-                const text = chunk.text;
-                if (text) {
-                    writeStream(res, { type: 'chunk', payload: text });
-                }
-                if (chunk.candidates?.[0]?.content?.parts) {
-                    for(const part of chunk.candidates[0].content.parts) {
-                        if (part.functionCall) {
-                            functionCalls.push(part.functionCall);
-                        }
-                    }
-                }
-                if (chunk.usageMetadata) {
-                    finalUsageMetadata = chunk.usageMetadata;
-                }
+            const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+            if (groundingMetadata?.groundingChunks) {
+                writeStream(res, { type: 'grounding', payload: groundingMetadata.groundingChunks });
             }
 
-            if (functionCalls.length > 0) {
-                const call = functionCalls[0];
-                let toolResponsePart: Part | null = null;
-
-                if (call.name === 'create_files' && call.args) {
-                    const { files } = call.args as { files: { filename: string, content: string }[] };
-                    toolResponsePart = { functionResponse: { name: 'create_files', response: { files_created: files.map(f => f.filename) } } };
-                    downloadableFiles = files.map(f => ({ name: f.filename, content: Buffer.from(f.content).toString('base64') }));
-                } else if (call.name === 'web_search' && call.args) {
-                    const { query } = call.args as { query: string };
-                    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
-                    try {
-                        const searchRes = await fetch(searchUrl);
-                        if (!searchRes.ok) throw new Error(`Google Search API responded with status ${searchRes.status}`);
-                        const searchData = await searchRes.json();
-                        const summary = searchData.items?.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}`).join('\n\n') || "No relevant information found.";
-                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary } } };
-                    } catch (searchError: any) {
-                        toolResponsePart = { functionResponse: { name: 'web_search', response: { summary: "There was an error performing the web search." } } };
-                    }
-                }
-
-                if (toolResponsePart) {
-                    stream = await chat.sendMessageStream({ parts: [toolResponsePart] });
-                } else {
-                    break;
-                }
-            } else {
-                break; // End of conversation turn
+            if (chunk.usageMetadata) {
+                finalUsageMetadata = chunk.usageMetadata;
             }
         }
-
-        if (downloadableFiles) {
-            const fileNames = downloadableFiles.map(f => `\`${f.name}\``).join(', ');
-            const confirmationText = downloadableFiles.length > 1
-                ? `I've created the files ${fileNames} for you. You can download them below.`
-                : `I've created the file ${fileNames} for you. You can download it below.`;
-            writeStream(res, { type: 'chunk', payload: confirmationText });
-            writeStream(res, { type: 'files', payload: downloadableFiles });
-        }
+        
         if (finalUsageMetadata) {
             writeStream(res, { type: 'usage', payload: finalUsageMetadata });
         }

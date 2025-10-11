@@ -20,10 +20,40 @@ export const getPyodide = () => {
                 const pyodide = await window.loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
                 });
-                await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
+                
+                // Core packages that are pre-built for pyodide
+                await pyodide.loadPackage([
+                    'numpy', 
+                    'matplotlib', 
+                    'pandas', 
+                    'scikit-learn', 
+                    'sympy', 
+                    'pillow', // PIL
+                    'beautifulsoup4', 
+                    'scipy', 
+                    'opencv-python',
+                    'scikit-image' // Added
+                ]);
+                
                 await pyodide.loadPackage('micropip');
                 const micropip = pyodide.pyimport('micropip');
-                await micropip.install(['plotly', 'fpdf2']);
+                
+                // Pure python packages or packages with wheels for pyodide
+                await micropip.install([
+                    'plotly', 
+                    'fpdf2',
+                    'seaborn', // Added
+                    'polars', // Added
+                    'openpyxl', // Added for .xlsx
+                    'python-docx', // Added for .docx
+                    'python-pptx', // Added for .pptx
+                    'reportlab', // Added for .pdf
+                    'odfpy', // Added for OpenDocument formats
+                    'tqdm', // Added for progress bars
+                    'pyyaml', // Added for YAML
+                    'nltk' // Added for NLP
+                ]);
+                
                 resolve(pyodide);
             } catch (error) {
                 console.error("Pyodide loading failed:", error);

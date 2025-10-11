@@ -73,7 +73,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, onPreview }) =
             await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python']);
             await pyodide.loadPackage('micropip');
             const micropip = pyodide.pyimport('micropip');
-            await micropip.install(['plotly', 'fpdf2']);
+            await micropip.install(['plotly', 'fpdf2', 'seaborn', 'statsmodels']);
             pyodideRef.current = pyodide;
         }
 

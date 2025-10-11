@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getPyodide } from '../services/pyodideService';
+import { CopyIcon } from './icons';
 
 const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -31,21 +32,52 @@ const downloadFile = (filename: string, mimetype: string, base64: string) => {
 
 interface CodeExecutorProps {
     code: string;
+    title?: string;
 }
 
-type ExecutionStatus = 'loading-env' | 'executing' | 'success' | 'error';
+type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, title }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
-    const [status, setStatus] = useState<ExecutionStatus>('loading-env');
+    const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<string>('');
     const [error, setError] = useState<string>('');
     const [imageBase64, setImageBase64] = useState<string | null>(null);
     const [plotlySpec, setPlotlySpec] = useState<string | null>(null);
+    const [highlightedCode, setHighlightedCode] = useState('');
+    const [isCopied, setIsCopied] = useState(false);
+
+    useEffect(() => {
+        if ((window as any).hljs) {
+            try {
+                const highlighted = (window as any).hljs.highlight(code, { language: 'python', ignoreIllegals: true }).value;
+                setHighlightedCode(highlighted);
+            } catch (e) {
+                setHighlightedCode(code); // Fallback to plain text
+            }
+        } else {
+            setHighlightedCode(code);
+        }
+    }, [code]);
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
+    };
 
     useEffect(() => {
         let isCancelled = false;
+
         const runCode = async () => {
+            // Reset previous state
+            setOutput('');
+            setError('');
+            setImageBase64(null);
+            setPlotlySpec(null);
+            setStatus('loading-env');
+
             try {
                 const pyodide = await getPyodide();
                 if (isCancelled) return;
@@ -167,27 +199,44 @@ if hasattr(go, 'FigureWidget'):
         }
     }, [plotlySpec]);
 
-    if (status === 'loading-env' || status === 'executing') {
-        return (
-            <div className="flex items-center text-sm text-muted-foreground bg-token-surface-secondary/50 p-3 rounded-lg">
-                <LoadingSpinner />
-                <span>Executing...</span>
-            </div>
-        );
-    }
-    
+    const hasOutput = imageBase64 || plotlySpec || output || error;
+
     return (
-        <div className="space-y-2">
-            {imageBase64 && (
-                <div className="p-4 bg-white rounded-xl border border-default flex justify-center max-h-[500px] overflow-auto">
-                    <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot or image" className="max-w-full h-auto" />
+        <div className="code-block-container not-prose my-4 bg-token-surface-secondary/50 border border-token rounded-lg overflow-hidden">
+             <div className="code-block-header flex items-center justify-between px-4 py-2 border-b border-token text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{title || 'Python Code'}</span>
+                <div className="flex items-center gap-2">
+                    <span className="uppercase">Python</span>
+                    <button onClick={handleCopy} className="p-1 -mr-1 rounded text-muted-foreground hover:text-foreground" title={isCopied ? 'Copied!' : 'Copy code'}>
+                        <CopyIcon className="size-4" />
+                    </button>
+                </div>
+            </div>
+            <pre className={`p-4 overflow-x-auto text-sm bg-transparent ${hasOutput || status === 'executing' || status === 'loading-env' ? 'border-b border-token' : ''}`}>
+                <code className="language-python hljs" dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+            </pre>
+            
+            {(status === 'executing' || status === 'loading-env') && (
+                 <div className="flex items-center text-sm text-muted-foreground p-4">
+                    <LoadingSpinner />
+                    <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
                 </div>
             )}
-            {plotlySpec && (
-                <div ref={plotlyRef} className="p-2 bg-white rounded-xl border border-default"></div>
+
+            {status !== 'idle' && status !== 'loading-env' && status !== 'executing' && hasOutput && (
+                <div className="p-4 space-y-2">
+                    {imageBase64 && (
+                        <div className="p-4 bg-white rounded-xl border border-default flex justify-center max-h-[500px] overflow-auto">
+                            <img src={`data:image/png;base64,${imageBase64}`} alt="Generated plot or image" className="max-w-full h-auto" />
+                        </div>
+                    )}
+                    {plotlySpec && (
+                        <div ref={plotlyRef} className="p-2 bg-white rounded-xl border border-default"></div>
+                    )}
+                    {output && <pre className="text-sm text-foreground whitespace-pre-wrap bg-token-surface p-3 rounded-md">{output}</pre>}
+                    {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
+                </div>
             )}
-            {output && <pre className="text-sm text-foreground whitespace-pre-wrap bg-token-surface-secondary p-3 rounded-md">{output}</pre>}
-            {error && <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>}
         </div>
     );
 };

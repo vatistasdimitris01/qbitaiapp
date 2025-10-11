@@ -21,6 +21,21 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'a
     </button>
 );
 
+const CodeCopyButton = ({ code }: { code: string }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+    return (
+        <button onClick={handleCopy} className="p-1 -mr-1 rounded text-muted-foreground hover:text-foreground" title={isCopied ? 'Copied!' : 'Copy code'}>
+            <CopyIcon className="size-4" />
+        </button>
+    );
+};
+
+
 const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) => {
     return (
         <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
@@ -119,8 +134,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         const textToRender = parsedResponseText || '';
         if (!textToRender) return [];
 
-        const parts: { type: 'text' | 'code'; content?: string; lang?: string; code?: string }[] = [];
-        const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+        const parts: { type: 'text' | 'code'; content?: string; lang?: string; title?: string; code?: string }[] = [];
+        const codeBlockRegex = /```(\w+)?(?:[ ]?title="([^"]+)")?\n([\s\S]*?)```/g;
         let lastIndex = 0;
         let match;
 
@@ -133,8 +148,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             }
 
             const lang = match[1] || 'plaintext';
-            const code = match[2].trim();
-            parts.push({ type: 'code', lang, code });
+            const title = match[2];
+            const code = match[3].trim();
+            parts.push({ type: 'code', lang, title, code });
 
             lastIndex = match.index + match[0].length;
         }
@@ -193,18 +209,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             if (lang === 'mermaid') {
                 return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
             }
-
+            // All other code rendering is handled by the contentParts logic,
+            // so this default renderer for inline/other code blocks can be simple.
             const safeLang = escapeHtml(lang);
             const escapedCode = escapeHtml(code);
-
-            try {
+             try {
                 if ((window as any).hljs) {
                     const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
-                    return `<pre><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
+                    return `<pre class="not-prose"><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
                 }
             } catch (e) { /* language not supported */ }
-
-            return `<pre><code class="language-${safeLang}">${escapedCode}</code></pre>`;
+            return `<pre class="not-prose"><code class="language-${safeLang}">${escapedCode}</code></pre>`;
         };
         return renderer;
     }, []);
@@ -349,7 +364,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     if (lang === 'python') {
                                         return (
                                             <div key={index} className="not-prose my-4">
-                                                <CodeExecutor code={part.code} />
+                                                <CodeExecutor code={part.code} title={part.title} />
                                             </div>
                                         );
                                     }
@@ -367,9 +382,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     } catch (e) { /* language not supported */ }
 
                                     return (
-                                        <pre key={index}>
-                                            <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-                                        </pre>
+                                        <div key={index} className="code-block-container not-prose my-4 bg-token-surface-secondary/50 border border-token rounded-lg overflow-hidden">
+                                            <div className="code-block-header flex items-center justify-between px-4 py-2 border-b border-token text-xs text-muted-foreground">
+                                                <span className="font-semibold text-foreground">{part.title || 'Code Block'}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="uppercase ">{lang}</span>
+                                                    <CodeCopyButton code={part.code} />
+                                                </div>
+                                            </div>
+                                            <pre className="p-4 overflow-x-auto text-sm bg-transparent">
+                                                <code className={`language-${safeLang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                                            </pre>
+                                        </div>
                                     );
                                 }
                                 return null;

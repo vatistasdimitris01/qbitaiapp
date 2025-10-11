@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Tool, Part, Content } from "@google/genai";
 
@@ -57,6 +58,30 @@ When to use: Use this tool whenever a user's request requires mathematical calcu
 How to use: To solve the user's request, you MUST respond with a Python code block (e.g., \`\`\`python\\nprint('hello')\\n\`\`\`). The code will be executed automatically, and the result will be displayed. Do NOT simulate the output of the code; just provide the code that generates it.
 Visuals (Plots/Images): To display a plot or image, use the standard "show" methods. For \`matplotlib\`, use \`plt.show()\`. For \`plotly\`, use \`fig.show()\`. For \`Pillow\`, use \`Image.show()\`. The environment will automatically capture the output and display it to the user. Do not attempt to save files to disk or use other display methods.
 File Downloads: To generate a downloadable file for the user (e.g., PDF, CSV), you MUST write code that prints a specially formatted string to standard output: \`__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_data}\`.
+Example for generating a CSV file:
+\`\`\`python
+import pandas as pd
+import io
+import base64
+
+data = {'City': ['Agia Varvara'], 'Amenity': ['Park']}
+df = pd.DataFrame(data)
+
+# Create an in-memory text buffer
+csv_buffer = io.StringIO()
+df.to_csv(csv_buffer, index=False)
+csv_string = csv_buffer.getvalue()
+
+# Encode the string to bytes, then to base64
+csv_bytes = csv_string.encode('utf-8')
+base64_bytes = base64.b64encode(csv_bytes)
+base64_string = base64_bytes.decode('ascii')
+
+filename = "amenities.csv"
+mimetype = "text/csv"
+
+print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{base64_string}")
+\`\`\`
 Displaying Examples: When showing a Python code snippet for illustrative purposes that should NOT be executed, use the language identifier \`python-example\` (e.g., \`\`\`python-example\\n# This is just a demo\\n\`\`\`).
 Available Libraries: The following libraries are pre-installed. You MUST assume they are available and do not write code to install them.
   - Data & Analysis: \`pandas\`, \`numpy\`, \`scipy\`
@@ -82,6 +107,8 @@ Caching for Speed: This entire setup process (steps 1-3) only happens once per s
 Response Format:
 For complex questions that require multi-step reasoning, using tools (like Google Search or Code Execution), or generating long-form content, you must first write out your thought process in a \`<thinking>...</thinking>\` XML block. This should explain your plan and how you'll use the tools.
 For simple, direct questions (e.g., greetings, factual recalls that don't need search, or answering who created you), you should omit the thinking block and provide the answer directly.
+When you provide code blocks, you can give them a title using title="..." right after the language identifier. For example: \`\`\`python title="My Python Script"\\n...code...\\n\`\`\`. This is optional but recommended for clarity. The title should be short and descriptive.
+
 
 Creator Information:
 If the user asks who made you, you must answer with the following exact markdown text:

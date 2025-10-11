@@ -77,12 +77,28 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code }) => {
                 setStatus('executing');
 
                 const preamble = `
-import io, base64, json, matplotlib
+import io, base64, json, matplotlib, os, sys
 import matplotlib.pyplot as plt
 from PIL import Image
 import plotly.graph_objects as go
 import numpy as np
 import plotly.graph_objs.layout.slider as slider
+
+# Create a dedicated, persistent directory for matplotlib's font cache
+# to prevent it from polluting the main filesystem and potentially hitting limits.
+# This directory will be reused across executions.
+mpl_config_dir = "/home/pyodide/mpl_config"
+if not os.path.exists(mpl_config_dir):
+    os.makedirs(mpl_config_dir)
+os.environ['MPLCONFIGDIR'] = mpl_config_dir
+
+# Also, create a directory for NLTK data as a safeguard.
+# The system prompt instructs the model not to download, but this prevents errors
+# if a script implicitly tries to access the default NLTK data path.
+nltk_data_dir = "/home/pyodide/nltk_data"
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir)
+os.environ['NLTK_DATA'] = nltk_data_dir
 
 # Custom JSON encoder to handle numpy types that Plotly's validator dislikes
 class NumpyEncoder(json.JSONEncoder):
@@ -125,12 +141,12 @@ go.Figure.show = custom_plotly_show
 if hasattr(go, 'FigureWidget'):
     go.FigureWidget.show = custom_plotly_show
 `;
-                const fullCode = preamble + '\n' + code;
+                const fullCode = preamble + '\\n' + code;
 
                 let stdout_stream = '';
                 let stderr_stream = '';
-                pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\n' });
-                pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\n' });
+                pyodide.setStdout({ batched: (str: string) => stdout_stream += str + '\\n' });
+                pyodide.setStderr({ batched: (str: string) => stderr_stream += str + '\\n' });
 
                 const filesBefore = new Set(pyodide.FS.readdir('/home/pyodide'));
 
@@ -156,7 +172,7 @@ if hasattr(go, 'FigureWidget'):
                 pyodide.setStdout({});
                 pyodide.setStderr({});
 
-                const lines = stdout_stream.split('\n');
+                const lines = stdout_stream.split('\\n');
                 let regularOutput = '';
 
                 for (const line of lines) {
@@ -167,7 +183,7 @@ if hasattr(go, 'FigureWidget'):
                     } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
                         setPlotlySpec(line.replace('__QBIT_PLOT_PLOTLY__:', ''));
                     } else {
-                        regularOutput += line + '\n';
+                        regularOutput += line + '\\n';
                     }
                 }
                 setOutput(regularOutput.trim());

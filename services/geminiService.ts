@@ -106,11 +106,15 @@ export const streamMessageToAI = async (
 
         // Process any remaining data in buffer
         if (buffer.trim() !== '') {
-            try {
-                const update: StreamUpdate = JSON.parse(buffer);
-                onUpdate(update);
-            } catch (e) {
-                console.error("Failed to parse final stream buffer:", buffer, e);
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                try {
+                    const update: StreamUpdate = JSON.parse(line);
+                    onUpdate(update);
+                } catch (e) {
+                    console.error("Failed to parse final stream buffer line:", line, e);
+                }
             }
         }
 

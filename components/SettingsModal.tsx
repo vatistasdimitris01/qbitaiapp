@@ -98,26 +98,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const TabButton: React.FC<{tab: SettingsTab, label: string, icon: React.ReactNode}> = ({tab, label, icon}) => (
      <button 
         onClick={() => setActiveTab(tab)}
-        className={`group flex-1 md:w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 md:py-2 md:rounded-lg text-center md:text-left transition-colors truncate
-        ${activeTab === tab ? 'bg-sidebar-accent text-sidebar-foreground' : 'hover:bg-sidebar-accent text-sidebar-foreground'}`}
+        className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors truncate
+        ${activeTab === tab ? 'bg-sidebar-active text-sidebar-active-fg' : 'text-sidebar-fg hover:bg-sidebar-active hover:text-sidebar-active-fg'}`}
       >
-        <div className="hidden md:block text-sidebar-accent-foreground group-hover:text-sidebar-foreground transition-colors">{icon}</div>
+        <div className="text-sidebar-muted-fg group-hover:text-sidebar-active-fg transition-colors">{icon}</div>
         <span className="font-medium text-sm truncate">{label}</span>
       </button>
   );
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-token-main-surface-primary rounded-2xl shadow-xl w-full max-w-3xl h-[600px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <header className="flex items-center justify-between py-2.5 pl-4 pr-2 border-b border-token-border-light flex-shrink-0">
-          <h2 id="radix-«rj7»" className="text-token-text-primary text-lg font-normal">{t('modalTitle')}</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-token-main-surface-secondary">
-            <XIcon className="size-5 text-token-text-secondary" />
+      <div className="bg-token-surface rounded-2xl shadow-xl w-full max-w-4xl h-[600px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <header className="flex items-center justify-between py-2.5 pl-6 pr-2 border-b border-token flex-shrink-0">
+          <h2 className="text-token-primary text-lg font-semibold">{t('modalTitle')}</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-token-surface-secondary">
+            <XIcon className="size-5 text-token-secondary" />
           </button>
         </header>
         
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-           <div className="flex flex-row md:flex-col md:w-48 shrink-0 border-b md:border-r md:border-b-0 border-token-border-light bg-token-bg-elevated-secondary md:p-2">
+        <div className="flex flex-1 overflow-hidden">
+           <div className="w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
               <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
               <TabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
@@ -126,25 +126,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="flex-1 p-6 overflow-y-auto space-y-8">
             {activeTab === 'General' && (
               <section>
-                <h3 className="text-lg font-normal text-token-text-primary mb-4 pb-3 border-b border-token-border-light">{t('tabGeneral')}</h3>
+                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabGeneral')}</h3>
+                <p className="text-sm text-token-secondary mb-6">Customize the application's appearance and language.</p>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-token-text-primary">{t('theme')}</label>
+                    <label className="text-sm font-medium text-token-primary">{t('theme')}</label>
                     <div className="flex items-center gap-2">
                       {(['light', 'dark', 'system'] as const).map(th => (
-                        <button key={th} onClick={() => setTheme(th)} className={`px-4 py-2 text-sm rounded-md capitalize transition-colors ${theme === th ? 'bg-gray-900 text-white dark:bg-white dark:text-black' : 'bg-token-main-surface-secondary text-token-text-primary hover:bg-gray-300 dark:hover:bg-neutral-800'}`}>
+                        <button key={th} onClick={() => setTheme(th)} className={`px-4 py-2 text-sm rounded-md capitalize transition-colors ${theme === th ? 'bg-gray-900 text-white dark:bg-white dark:text-black' : 'bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800'}`}>
                           {t(`theme${th.charAt(0).toUpperCase() + th.slice(1)}`)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="language-select" className="text-sm font-medium text-token-text-primary">{t('language')}</label>
+                    <label htmlFor="language-select" className="text-sm font-medium text-token-primary">{t('language')}</label>
                     <select
                       id="language-select"
                       value={language}
                       onChange={e => setLanguage(e.target.value as Language)}
-                      className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary"
+                      className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary"
                     >
                       {Object.keys(translations).map(langCode => (
                         <option key={langCode} value={langCode}>
@@ -159,28 +160,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             
             {activeTab === 'Personalization' && (
               <section>
-                 <h3 className="text-lg font-normal text-token-text-primary mb-4 pb-3 border-b border-token-border-light">{t('tabPersonalization')}</h3>
+                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabPersonalization')}</h3>
+                 <p className="text-sm text-token-secondary mb-6">Tailor the AI's personality for this conversation.</p>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label htmlFor="persona-select" className="text-sm font-medium text-token-text-primary">{t('personas')}</label>
-                    <p className="text-xs text-token-text-secondary">Apply a persona to the current conversation.</p>
-                    <select id="persona-select" value={activeConversation?.personaId || 'default'} onChange={handlePersonaChange} className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary">
+                    <label htmlFor="persona-select" className="text-sm font-medium text-token-primary">{t('personas')}</label>
+                    <p className="text-xs text-token-secondary">Apply a persona to the current conversation.</p>
+                    <select id="persona-select" value={activeConversation?.personaId || 'default'} onChange={handlePersonaChange} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary">
                       <option value="default">{t('personaSelect')} (Default)</option>
                       {personas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
-                  <div className="border-t border-token-border-light pt-4 space-y-4">
-                    <h3 className="font-semibold text-token-text-primary">{t('personaManage')}</h3>
+                  <div className="border-t border-token pt-6 space-y-4">
+                    <h3 className="font-semibold text-token-primary">{t('personaManage')}</h3>
                     {personas.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-token-main-surface-secondary">
-                            <span className="text-token-text-primary">{p.name}</span>
+                        <div key={p.id} className="flex items-center justify-between p-3 rounded-md bg-token-surface-secondary">
+                            <span className="text-token-primary font-medium">{p.name}</span>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingPersona(p)} className="text-sm text-gray-600 dark:text-gray-400 hover:underline">{t('edit')}</button>
+                                <button onClick={() => setEditingPersona(p)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{t('edit')}</button>
                                 <button onClick={() => handleDeletePersona(p.id)}><Trash2Icon className="size-4 text-red-500 hover:text-red-700" /></button>
                             </div>
                         </div>
                     ))}
-                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-gray-600 rounded-md border border-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-800/50">{t('personaAdd')}</button>
+                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 rounded-md border border-dashed border-token hover:bg-token-surface-secondary">{t('personaAdd')}</button>
                   </div>
                 </div>
               </section>
@@ -188,33 +190,33 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             
             {activeTab === 'Usage' && (
               <section>
-                <h3 className="text-lg font-normal text-token-text-primary mb-4 pb-3 border-b border-token-border-light">{t('tabUsage')}</h3>
+                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabUsage')}</h3>
+                <p className="text-sm text-token-secondary mb-6">Usage statistics for the current conversation.</p>
                 <div className="space-y-4">
-                    <p className="text-sm text-token-text-secondary">Usage statistics for the current conversation.</p>
-                    <div className="w-full rounded-lg border border-token-border-light bg-token-main-surface-secondary text-token-text-primary shadow-sm text-sm overflow-hidden">
-                        <div className="w-full space-y-2 p-3">
+                    <div className="w-full rounded-lg border border-token bg-token-surface-secondary text-token-primary shadow-sm text-sm overflow-hidden">
+                        <div className="w-full space-y-2 p-4">
                             <div className="flex items-center justify-between gap-3 text-xs">
-                                <p>Unlimited</p>
-                                <p className="font-mono text-token-text-secondary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)} / ∞</p>
+                                <p className="font-semibold">Token Usage</p>
+                                <p className="font-mono text-token-secondary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)}</p>
                             </div>
                             <div className="space-y-2">
-                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-token-main-surface-primary">
+                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-token-surface">
                                     <div className="bg-blue-500 h-full w-full flex-1 transition-all" style={{ width: '100%' }}></div>
                                 </div>
                             </div>
                         </div>
-                        <div className="w-full p-3 border-t border-token-border-light">
+                        <div className="w-full p-4 border-t border-token space-y-1">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-token-text-secondary">Input</span>
-                                <span>{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-text-secondary">• ${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
+                                <span className="text-token-secondary">Input</span>
+                                <span>{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-token-text-secondary">Output</span>
-                                <span>{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-text-secondary">• ${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
+                                <span className="text-token-secondary">Output</span>
+                                <span>{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                         </div>
-                        <div className="flex w-full items-center justify-between gap-3 bg-token-main-surface-primary p-3 text-xs">
-                            <span className="text-token-text-secondary">Total cost</span>
+                        <div className="flex w-full items-center justify-between gap-3 bg-token-surface p-4 text-sm font-semibold">
+                            <span className="text-token-secondary">Total cost</span>
                             <span>${usageStats.totalCost.toFixed(4)}</span>
                         </div>
                     </div>
@@ -241,14 +243,14 @@ const PersonaEditor: React.FC<{persona: Persona, onSave: (p: Persona) => void, o
     
     return (
          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-token-main-surface-primary rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-                 <div className="p-4 space-y-4">
-                    <h3 className="text-lg font-semibold text-token-text-primary">{persona.name ? t('edit') + ' ' + t('personas') : t('personaAdd')}</h3>
-                    <input type="text" placeholder={t('personaName')} value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary" />
-                    <textarea placeholder={t('personaInstruction')} value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2 border rounded-md bg-token-main-surface-secondary border-token-border-light text-token-text-primary" />
+            <div className="bg-token-surface rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                 <div className="p-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-token-primary">{persona.name ? t('edit') + ' Persona' : t('personaAdd')}</h3>
+                    <input type="text" placeholder={t('personaName')} value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                    <textarea placeholder={t('personaInstruction')} value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
                  </div>
-                 <div className="flex justify-end gap-2 p-4 border-t border-token-border-light">
-                     <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-token-main-surface-secondary text-token-text-primary hover:bg-gray-300 dark:hover:bg-neutral-800">{t('personaCancel')}</button>
+                 <div className="flex justify-end gap-2 p-4 border-t border-token bg-token-surface-secondary/50 rounded-b-lg">
+                     <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-token-surface border border-token text-token-primary hover:bg-token-surface-secondary">{t('personaCancel')}</button>
                      <button onClick={handleSave} className="px-4 py-2 text-sm rounded-md bg-gray-800 text-white dark:bg-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-200">{t('personaSave')}</button>
                  </div>
             </div>

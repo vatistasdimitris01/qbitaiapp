@@ -1,6 +1,8 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { performance } from 'perf_hooks';
+// FIX: Import Buffer to provide type definitions for the Node.js Buffer object.
+import { Buffer } from 'buffer';
 import { GoogleGenAI, Tool, Type, Part, Content, GenerateContentResponse } from "@google/genai";
 import type { GroundingChunk } from '../types';
 

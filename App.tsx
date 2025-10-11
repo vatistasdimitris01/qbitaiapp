@@ -168,9 +168,9 @@ const App: React.FC = () => {
   // SEO: Update document title based on active conversation
   useEffect(() => {
     if (activeConversation && activeConversation.title && activeConversation.title !== t('newChat')) {
-      document.title = `qbit - ${activeConversation.title}`;
+      document.title = `Qbit - ${activeConversation.title}`;
     } else {
-      document.title = 'qbit - AI Chat Assistant';
+      document.title = 'Qbit - AI Chat Assistant';
     }
   }, [activeConversation, t]);
 
@@ -412,7 +412,7 @@ const App: React.FC = () => {
          <div className="md:hidden fixed top-4 left-4 z-30">
             <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 rounded-lg bg-background/80 backdrop-blur-sm hover:bg-background text-foreground transition-colors border border-border/50"
+                className="p-2 rounded-lg bg-background/80 backdrop-blur-sm hover:bg-background text-foreground transition-colors border border-default"
                 title={t('openSidebar')}
             >
                 <LayoutGridIcon className="size-5" />
@@ -425,11 +425,11 @@ const App: React.FC = () => {
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
             {activeConversation && activeConversation.messages.length > 0 ? (
               activeConversation.messages.map((msg) => <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} />)
             ) : (
-               <div className="text-center text-muted-foreground pt-16">
+               <div className="text-center text-muted pt-16">
                  {t('startConversation')}
                </div>
             )}
@@ -446,7 +446,7 @@ const App: React.FC = () => {
         </main>
         
         <div className="mt-auto pt-4">
-          <footer className="max-w-3xl mx-auto px-4 sm:px-6 pb-4">
+          <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
               <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} />
           </footer>
         </div>

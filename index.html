@@ -3,25 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>qbit - AI Chat Assistant</title>
+    <title>Qbit - AI Chat Assistant</title>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
-    <meta name="keywords" content="AI chat, qbit, Gemini, chatbot, AI assistant, conversational AI, modern UI">
+    <meta name="description" content="Qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
+    <meta name="keywords" content="AI chat, Qbit, Gemini, chatbot, AI assistant, conversational AI, modern UI">
     <link rel="canonical" href="/" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="/">
-    <meta property="og:title" content="qbit - AI Chat Assistant">
-    <meta property="og:description" content="qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
+    <meta property="og:title" content="Qbit - AI Chat Assistant">
+    <meta property="og:description" content="Qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
     <meta property="og:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="/">
-    <meta property="twitter:title" content="qbit - AI Chat Assistant">
-    <meta property="twitter:description" content="qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
+    <meta property="twitter:title" content="Qbit - AI Chat Assistant">
+    <meta property="twitter:description" content="Qbit is a modern AI chat application powered by Gemini, featuring beautiful light and dark themes, file attachments, and persona customization. Start chatting today!">
     <meta property="twitter:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
 
     <!-- PWA Meta Tags -->
@@ -29,7 +29,7 @@
     <meta name="theme-color" content="#000000">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="qbit">
+    <meta name="apple-mobile-web-app-title" content="Qbit">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="shortcut icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
     <link rel="icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" sizes="any" type="image/png">
@@ -51,98 +51,115 @@
       import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
       window.mermaid = mermaid;
     </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
 <style>
     :root {
-        --background: #ffffff;
+        --background: #f8f9fa;
         --foreground: #111827;
         --muted-foreground: #6b7280;
         
-        --sidebar-bg: #f3f4f6;
-        --sidebar-foreground: #111827;
-        --sidebar-accent: #e5e7eb;
-        --sidebar-accent-foreground: #4b5563;
+        --sidebar-bg: #ffffff;
+        --sidebar-foreground: #374151;
+        --sidebar-muted-foreground: #9ca3af;
+        --sidebar-active-bg: #f3f4f6;
+        --sidebar-active-foreground: #111827;
+        --sidebar-border: #e5e7eb;
 
-        --token-main-surface-primary: #ffffff;
-        --token-main-surface-secondary: #f7f7f8;
-        --token-bg-elevated-secondary: #f7f7f8;
+        --card: #ffffff;
+        --border: #e5e7eb;
+        
+        --ai-message-bg: #ffffff;
+        --user-message-bg: #dbeafe;
+
+        --token-surface: #ffffff;
+        --token-surface-secondary: #f3f4f6;
         --token-text-primary: #171717;
         --token-text-secondary: #6e6e6e;
-        --token-border-light: #e5e5e5;
-
-        --muted: #f3f4f6;
-        --card: rgba(255, 255, 255, 0.75);
-        --border: rgba(0, 0, 0, 0.08);
+        --token-border: #e5e5e5;
     }
+
     .dark {
-        --background: #000000;
-        --foreground: #ffffff;
+        --background: #09090b;
+        --foreground: #f4f4f5;
         --muted-foreground: #a1a1aa;
         
         --sidebar-bg: #000000;
-        --sidebar-foreground: #ffffff;
-        --sidebar-accent: #27272a;
-        --sidebar-accent-foreground: #a1a1aa;
-
-        --token-main-surface-primary: #18181b;
-        --token-main-surface-secondary: #27272a;
-        --token-bg-elevated-secondary: #18181b;
-        --token-text-primary: #ffffff;
+        --sidebar-foreground: #a1a1aa;
+        --sidebar-muted-foreground: #52525b;
+        --sidebar-active-bg: #18181b;
+        --sidebar-active-foreground: #f4f4f5;
+        --sidebar-border: #27272a;
+        
+        --card: #18181b;
+        --border: #27272a;
+        
+        --ai-message-bg: #27272a;
+        --user-message-bg: #1e40af;
+        
+        --token-surface: #18181b;
+        --token-surface-secondary: #27272a;
+        --token-text-primary: #f4f4f5;
         --token-text-secondary: #a1a1aa;
-        --token-border-light: #27272a;
-
-        --muted: #27272a;
-        --card: rgba(24, 24, 27, 0.7);
-        --border: rgba(255, 255, 255, 0.1);
+        --token-border: #27272a;
+    }
+    
+    html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
     body {
+        font-family: 'Inter', sans-serif;
         background-color: var(--background);
         color: var(--foreground);
     }
-    .bg-sidebar { background-color: var(--sidebar-bg); }
-    .text-sidebar-foreground { color: var(--sidebar-foreground); }
-    .bg-sidebar-accent { background-color: var(--sidebar-accent); }
-    .text-sidebar-accent-foreground { color: var(--sidebar-accent-foreground); }
-    .hover\:bg-sidebar-accent:hover { background-color: var(--sidebar-accent); }
-    .hover\:bg-sidebar-accent\/80:hover { background-color: color-mix(in srgb, var(--sidebar-accent) 80%, transparent); }
-    .hover\:text-sidebar-foreground:hover { color: var(--sidebar-foreground); }
-    .border-sidebar-accent { border-color: var(--sidebar-accent); }
-    .placeholder-sidebar-accent-foreground::placeholder { color: var(--sidebar-accent-foreground); }
-    .focus\:bg-sidebar-accent:focus { background-color: var(--sidebar-accent); }
 
-    /* Glassy UI Helpers */
+    .bg-sidebar { background-color: var(--sidebar-bg); }
+    .text-sidebar-fg { color: var(--sidebar-foreground); }
+    .text-sidebar-muted-fg { color: var(--sidebar-muted-foreground); }
+    .bg-sidebar-active { background-color: var(--sidebar-active-bg); }
+    .text-sidebar-active-fg { color: var(--sidebar-active-foreground); }
+    .border-sidebar { border-color: var(--sidebar-border); }
+    .hover\:bg-sidebar-active:hover { background-color: var(--sidebar-active-bg); }
+
     .bg-card {
         background-color: var(--card);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
     }
-    .bg-muted { background-color: var(--muted); }
-    .border-border { border-color: var(--border); }
+    .border-default { border-color: var(--border); }
+    .text-muted { color: var(--muted-foreground); }
+    .placeholder-muted::placeholder { color: var(--muted-foreground); }
 
+    .bg-ai-message { background-color: var(--ai-message-bg); }
+    .bg-user-message { background-color: var(--user-message-bg); }
 
     /* Settings Modal Tokens */
-    .bg-token-main-surface-primary { background-color: var(--token-main-surface-primary); }
-    .bg-token-main-surface-secondary { background-color: var(--token-main-surface-secondary); }
-    .hover\:bg-token-main-surface-secondary:hover { background-color: var(--token-main-surface-secondary); }
-    .bg-token-bg-elevated-secondary { background-color: var(--token-bg-elevated-secondary); }
-    .text-token-text-primary { color: var(--token-text-primary); }
-    .text-token-text-secondary { color: var(--token-text-secondary); }
-    .border-token-border-light { border-color: var(--token-border-light); }
+    .bg-token-surface { background-color: var(--token-surface); }
+    .bg-token-surface-secondary { background-color: var(--token-surface-secondary); }
+    .text-token-primary { color: var(--token-text-primary); }
+    .text-token-secondary { color: var(--token-text-secondary); }
+    .border-token { border-color: var(--token-border); }
+    .hover\:bg-token-surface-secondary:hover { background-color: var(--token-surface-secondary); }
 
 
     .prose {
-        --tw-prose-body: #374151;
-        --tw-prose-headings: #111827;
-        --tw-prose-lead: #4b5563;
+        --tw-prose-body: var(--foreground);
+        --tw-prose-headings: var(--foreground);
+        --tw-prose-lead: var(--muted-foreground);
         --tw-prose-links: #1d4ed8;
-        --tw-prose-bold: #111827;
-        --tw-prose-counters: #6b7280;
+        --tw-prose-bold: var(--foreground);
+        --tw-prose-counters: var(--muted-foreground);
         --tw-prose-bullets: #d1d5db;
-        --tw-prose-hr: #e5e7eb;
-        --tw-prose-quotes: #111827;
-        --tw-prose-quote-borders: #e5e7eb;
-        --tw-prose-captions: #6b7280;
-        --tw-prose-code: #111827;
+        --tw-prose-hr: var(--border);
+        --tw-prose-quotes: var(--foreground);
+        --tw-prose-quote-borders: var(--border);
+        --tw-prose-captions: var(--muted-foreground);
+        --tw-prose-code: var(--foreground);
         --tw-prose-pre-code: #e5e7eb;
         --tw-prose-pre-bg: #1f2937;
         --tw-prose-th-borders: #d1d5db;
@@ -152,18 +169,8 @@
     }
     
     .dark .prose {
-        --tw-prose-body: #ffffff;
-        --tw-prose-headings: #ffffff;
-        --tw-prose-lead: #ffffff;
-        --tw-prose-links: #ffffff;
-        --tw-prose-bold: #ffffff;
-        --tw-prose-counters: #ffffff;
-        --tw-prose-bullets: #ffffff;
-        --tw-prose-hr: #27272a;
-        --tw-prose-quotes: #ffffff;
-        --tw-prose-quote-borders: #3f3f46;
-        --tw-prose-captions: #ffffff;
-        --tw-prose-code: #ffffff;
+        --tw-prose-bullets: #4b5563;
+        --tw-prose-links: #60a5fa;
         --tw-prose-pre-code: #e5e5e5;
         --tw-prose-pre-bg: #18181b;
         --tw-prose-th-borders: #3f3f46;
@@ -190,16 +197,11 @@
     .prose li { margin-top: 0.25em; margin-bottom: 0.25em; }
     .prose li > p { margin-top: 0.5em; margin-bottom: 0.5em; }
     .prose a {
-        color: #2563eb;
+        color: var(--tw-prose-links);
         text-decoration: underline;
         font-weight: 500;
     }
-    .prose a:hover { color: #1d4ed8; }
-    .dark .prose a {
-        color: var(--tw-prose-links);
-        font-weight: 500;
-        text-decoration: none;
-    }
+    .prose a:hover { text-decoration-color: transparent; }
     .dark .prose a:hover { text-decoration: underline; }
     .prose pre {
         color: var(--tw-prose-pre-code);
@@ -238,12 +240,12 @@
       content: "`";
     }
     .prose blockquote {
-        border-left: 4px solid #d1d5db;
+        border-left: 4px solid var(--border);
         padding-left: 1em;
         margin-top: 1.6em;
         margin-bottom: 1.6em;
         font-style: italic;
-        color: #6b7280;
+        color: var(--muted-foreground);
     }
     .prose table {
         width: 100%;
@@ -252,15 +254,16 @@
         margin-bottom: 1.6em;
     }
     .prose th, .prose td {
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border);
         padding: 0.5em;
     }
     .prose th {
         background-color: #f9fafb;
         font-weight: 600;
     }
+    .dark .prose th { background-color: #27272a; }
     .prose details {
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border);
         border-radius: 0.5rem;
         padding: 0.5em;
         margin-top: 1.6em;
@@ -282,7 +285,8 @@
     "vite": "https://aistudiocdn.com/vite@^7.1.5",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
     "marked": "https://aistudiocdn.com/marked@^16.3.0",
-    "perf_hooks": "https://aistudiocdn.com/perf_hooks@^0.0.1"
+    "perf_hooks": "https://aistudiocdn.com/perf_hooks@^0.0.1",
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
   }
 }
 </script>

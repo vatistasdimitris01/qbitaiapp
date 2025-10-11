@@ -41,7 +41,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
     
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const filePromises = Array.from(e.target.files).map(async file => {
+            // FIX: Explicitly type `file` as `File` to correct the type inference issue.
+            const filePromises = Array.from(e.target.files).map(async (file: File) => {
                 const { data, preview } = await fileToBase64(file);
                 return {
                     name: file.name,
@@ -102,12 +103,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                     name="files" 
                     onChange={handleFileChange}
                 />
-                <div className="relative w-full bg-card border border-border rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
+                <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
                     {attachments.length > 0 && (
                         <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
                             {attachments.map((file, index) => (
                                 <div key={index} className="relative group/chip flex-shrink-0 mt-2">
-                                    <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-600">
+                                    <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
                                         <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
                                             <img alt={file.name} className="h-full w-full object-cover" src={file.preview} />
                                         </figure>
@@ -129,7 +130,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                             ref={textareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-foreground/50"
+                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-muted"
                             style={{ resize: 'none', minHeight: '44px' }}
                             placeholder={placeholder}
                             rows={1}
@@ -139,8 +140,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                         ></textarea>
                     </div>
                     <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
-                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-muted border border-border text-muted-foreground disabled:opacity-60">
-                            <PaperclipIcon className="text-muted-foreground" />
+                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
+                            <PaperclipIcon className="text-muted" />
                         </button>
                         <div className="ml-auto relative">
                             <button
@@ -156,7 +157,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t }) =>
                     </div>
                 </div>
             </form>
-             <p className="text-xs text-center text-muted-foreground mt-2">
+             <p className="text-xs text-center text-muted mt-2">
                 {t('disclaimer')}
             </p>
         </div>

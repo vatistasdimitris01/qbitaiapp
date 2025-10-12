@@ -69,6 +69,20 @@ export default async function handler(req: Request) {
         // Per guidelines, use gemini-2.5-flash
         const model = 'gemini-2.5-flash';
 
+        const baseSystemInstruction = `You are a helpful and brilliant assistant.
+- Your main goal is to be proactive and execute tasks for the user.
+- When a user asks for a file (e.g., "create an excel file," "make a pdf report") or a data visualization (e.g., "plot this data"), you MUST respond with a runnable Python code block that generates the requested output.
+- **IMPORTANT**: If the user's request is a direct command to create a file or plot, you MUST add the 'autorun' keyword to the code block's info string, like this: \`\`\`python autorun
+- Do NOT provide manual instructions, steps, or guidance on how to install dependencies or run the code. Generate the code directly.
+- After calling a file-saving function (like \`.to_excel()\`, \`.save()\`, or \`.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
+- When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.
+- You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
+- When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user. You just need to call the standard save functions with a filename (e.g., \`df.to_excel('filename.xlsx')\`, \`doc.save('filename.docx')\`, \`pdf.output('filename.pdf')\`).`;
+
+        const finalSystemInstruction = personaInstruction
+            ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`
+            : baseSystemInstruction;
+
         // Set up the streaming response to send data back to the client as it's generated.
         const responseStream = new ReadableStream({
             async start(controller) {
@@ -83,7 +97,8 @@ export default async function handler(req: Request) {
                         model: model,
                         contents: contents,
                         config: {
-                            systemInstruction: personaInstruction,
+                            systemInstruction: finalSystemInstruction,
+                            tools: [{googleSearch: {}}],
                         },
                     });
 

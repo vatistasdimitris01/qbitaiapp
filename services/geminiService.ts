@@ -77,48 +77,45 @@ export const streamMessageToAI = async (
         const decoder = new TextDecoder();
         let buffer = '';
 
-        const processBuffer = () => {
-            let newlineIndex;
-            // Process all complete lines in the buffer
-            while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-                const line = buffer.substring(0, newlineIndex);
-                buffer = buffer.substring(newlineIndex + 1);
+        const processStream = async () => {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
 
-                if (line.trim() === '') continue;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep the last partial line in buffer
 
-                try {
-                    const update: StreamUpdate = JSON.parse(line);
-                    if (update.type !== 'end') {
-                       onUpdate(update);
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    try {
+                        const update: StreamUpdate = JSON.parse(line);
+                        if (update.type === 'end') {
+                            return; // Graceful end of stream
+                        }
+                        onUpdate(update);
+                    } catch (e) {
+                        console.error("Failed to parse stream line:", line, e);
                     }
-                } catch (e) {
-                    console.error("Failed to parse stream line:", line, e);
                 }
             }
         };
 
-        while (true) {
-            const { done, value } = await reader.read();
-            
-            if (value) {
-                buffer += decoder.decode(value, { stream: true });
-                processBuffer();
-            }
+        await processStream();
 
-            if (done) {
-                // The stream is done. There might be a final piece of data in the buffer
-                // that doesn't end with a newline.
-                if (buffer.trim()) {
-                    try {
-                        const update: StreamUpdate = JSON.parse(buffer);
-                         if (update.type !== 'end') {
-                            onUpdate(update);
-                        }
-                    } catch (e) {
-                         console.error("Failed to parse final stream buffer:", buffer, e);
-                    }
+        // Process any remaining data in buffer
+        if (buffer.trim() !== '') {
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                try {
+                    const update: StreamUpdate = JSON.parse(line);
+                    onUpdate(update);
+                } catch (e) {
+                    console.error("Failed to parse final stream buffer line:", line, e);
                 }
-                break; // Exit the loop
             }
         }
 

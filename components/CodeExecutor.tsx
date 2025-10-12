@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, EyeIcon } from './icons';
@@ -103,7 +102,6 @@ try:
             b64_data = base64.b64encode(excel_bytes).decode('utf-8')
             mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{b64_data}")
-            print(f"Successfully created '{filename}'")
         else:
             original_workbook_save(self, filename)
     Workbook.save = patched_workbook_save
@@ -119,7 +117,6 @@ try:
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
             print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
-            print(f"Successfully created '{name}'")
         else:
             # If no filename, behave as original (e.g., return bytes for dest='S')
             return original_fpdf_output(self, name=name, dest=dest)
@@ -139,7 +136,6 @@ try:
             b64_data = base64.b64encode(word_bytes).decode('utf-8')
             mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             print(f"__QBIT_DOWNLOAD_FILE__:{path_or_stream}:{mimetype}:{b64_data}")
-            print(f"Successfully created '{path_or_stream}'")
         else:
             original_document_save(self, path_or_stream)
     Document.save = patched_document_save
@@ -180,10 +176,13 @@ const downloadFile = (filename: string, mimetype: string, base64: string) => {
     URL.revokeObjectURL(url);
 };
 
+type DownloadableFile = { filename: string; mimetype: string; data: string };
+
 type ExecutionResult = {
   output: string | null;
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+  downloadableFile?: DownloadableFile;
 };
 
 interface CodeExecutorProps {
@@ -214,10 +213,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
     const [error, setError] = useState<string>('');
+    const [downloadableFile, setDownloadableFile] = useState<DownloadableFile | null>(null);
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error) ? 'output' : 'code');
+    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error || persistedResult.downloadableFile) ? 'output' : 'code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
 
     useEffect(() => {
@@ -265,7 +265,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         if (initialRunRef.current) {
             initialRunRef.current = false; // Prevent re-running on subsequent renders
             if (persistedResult) {
-                const { output: savedOutput, error: savedError, type } = persistedResult;
+                const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
                 if (savedError) {
                     setError(savedError);
                     setStatus('error');
@@ -279,8 +279,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     }
                     setStatus('success');
                 }
-                setView('output');
-                setHasRunOnce(true);
+                if (savedFile) {
+                    setDownloadableFile(savedFile);
+                }
+                 if (savedError || savedOutput !== null || savedFile) {
+                    setView('output');
+                    setHasRunOnce(true);
+                }
             } else if (autorun) {
                 handleRunCode();
             }
@@ -325,6 +330,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let stdoutBuffer = '';
         let stderrBuffer = '';
         let finalResult: ExecutionResult | null = null;
+        let currentRunDownloadableFile: DownloadableFile | null = null;
     
         const cleanup = () => {
             if (workerRef.current) {
@@ -346,7 +352,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     break;
                 case 'stdout':
                     stdoutBuffer += data + '\\n';
-                    setOutput(stdoutBuffer.trim());
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\\n');
                     break;
                 case 'stderr':
                     stderrBuffer += msgError + '\\n';
@@ -355,36 +361,45 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 case 'plot':
                     if (plotType === 'plotly') {
                         setOutput(data);
-                         finalResult = { output: data, error: '', type: 'plotly-json' };
+                        finalResult = { output: data, error: '', type: 'plotly-json' };
                     } else { // matplotlib or pil
                         setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
                         finalResult = { output: data, error: '', type: 'image-base64' };
                     }
                     break;
                 case 'download':
-                    if (mimetype.startsWith('image/')) {
-                        setOutput(<img src={`data:${mimetype};base64,${data}`} alt={filename} className="max-w-full h-auto bg-white rounded-lg" />);
-                    } else {
-                        downloadFile(filename, mimetype, data);
-                    }
+                    const fileInfo = { filename, mimetype, data };
+                    downloadFile(filename, mimetype, data);
+                    setDownloadableFile(fileInfo);
+                    currentRunDownloadableFile = fileInfo;
                     break;
                 case 'success':
                     setStatus('success');
                     setView('output');
+                    let resultToPersist: ExecutionResult;
                     if (finalResult) {
-                        onExecutionComplete(finalResult);
+                        resultToPersist = { ...finalResult, error: '' };
                     } else if (stdoutBuffer.trim()) {
-                        onExecutionComplete({ output: stdoutBuffer.trim(), error: '', type: 'string' });
-                    } else if (stderrBuffer.trim()) { // Handle cases where stderr is used for warnings but code succeeds
-                        onExecutionComplete({ output: null, error: stderrBuffer.trim(), type: 'error' });
+                        resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
+                    } else {
+                        resultToPersist = { output: null, error: '', type: 'string' };
                     }
+                    if (currentRunDownloadableFile) {
+                        resultToPersist.downloadableFile = currentRunDownloadableFile;
+                    }
+                    onExecutionComplete(resultToPersist);
                     cleanup();
                     break;
                 case 'error':
-                    setError(msgError);
+                    const errorMsg = msgError || stderrBuffer.trim();
+                    setError(errorMsg);
                     setStatus('error');
                     setView('output');
-                    onExecutionComplete({ output: null, error: msgError, type: 'error' });
+                    const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
+                    if (currentRunDownloadableFile) {
+                        errorResult.downloadableFile = currentRunDownloadableFile;
+                    }
+                    onExecutionComplete(errorResult);
                     cleanup();
                     break;
             }
@@ -492,6 +507,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const handleRunCode = async () => {
         setOutput('');
         setError('');
+        setDownloadableFile(null);
         if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
             URL.revokeObjectURL(htmlPreviewUrl);
             setHtmlPreviewUrl(null);
@@ -551,10 +567,24 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 ) : (lang === 'react' || lang === 'jsx') ? (
                     <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
                 ) : typeof output === 'string' ? (
-                    <div className="text-sm text-foreground whitespace-pre-wrap">{output}</div>
+                    <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
                 ) : (
                     <div>{output}</div>
                 )
+            )}
+             {downloadableFile && !error && (
+                <div className="mt-4 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
+                    <p className="text-sm text-foreground flex-1 min-w-0">
+                        Download started: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                    </p>
+                    <button 
+                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                        className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
+                    >
+                        <DownloadIcon className="size-4" />
+                        <span>Re-download</span>
+                    </button>
+                </div>
             )}
         </div>
     );

@@ -332,7 +332,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     
         let stdoutBuffer = '';
         let stderrBuffer = '';
-        let finalResult: ExecutionResult | null = null;
+        let plotResult: { output: string; type: 'image-base64' | 'plotly-json' } | null = null;
         let currentRunDownloadableFile: DownloadableFile | null = null;
     
         const cleanup = () => {
@@ -354,20 +354,20 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     }
                     break;
                 case 'stdout':
-                    stdoutBuffer += data + '\\n';
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\\n');
+                    stdoutBuffer += data + '\n';
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\n');
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\\n';
+                    stderrBuffer += msgError + '\n';
                     setError(stderrBuffer.trim());
                     break;
                 case 'plot':
                     if (plotType === 'plotly') {
                         setOutput(data);
-                        finalResult = { output: data, error: '', type: 'plotly-json' };
+                        plotResult = { output: data, type: 'plotly-json' };
                     } else { // matplotlib or pil
                         setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                        finalResult = { output: data, error: '', type: 'image-base64' };
+                        plotResult = { output: data, type: 'image-base64' };
                     }
                     break;
                 case 'download':
@@ -379,18 +379,29 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 case 'success':
                     setStatus('success');
                     setView('output');
-                    let resultToPersist: ExecutionResult;
-                    if (finalResult) {
-                        resultToPersist = { ...finalResult, error: '' };
-                    } else if (stdoutBuffer.trim()) {
-                        resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
-                    } else {
-                        resultToPersist = { output: null, error: '', type: 'string' };
+                    
+                    let finalOutputText = stdoutBuffer.trim();
+                    let finalResultType: ExecutionResult['type'] = 'string';
+                    let finalResultData: string | null = null;
+
+                    if (plotResult) {
+                        finalResultType = plotResult.type;
+                        finalResultData = plotResult.output;
+                    } else if (finalOutputText) {
+                        finalResultData = finalOutputText;
+                    } else if (currentRunDownloadableFile && !finalOutputText) {
+                        // If a file was the ONLY output, create a confirmation message.
+                        const confirmationMessage = `File '${currentRunDownloadableFile.filename}' created successfully. Your download should start automatically.`;
+                        setOutput(confirmationMessage);
+                        finalResultData = confirmationMessage;
                     }
-                    if (currentRunDownloadableFile) {
-                        resultToPersist.downloadableFile = currentRunDownloadableFile;
-                    }
-                    onExecutionComplete(resultToPersist);
+
+                    onExecutionComplete({
+                        output: finalResultData,
+                        error: '',
+                        type: finalResultType,
+                        downloadableFile: currentRunDownloadableFile,
+                    });
                     cleanup();
                     break;
                 case 'error':
@@ -398,11 +409,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     setError(errorMsg);
                     setStatus('error');
                     setView('output');
-                    const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
-                    if (currentRunDownloadableFile) {
-                        errorResult.downloadableFile = currentRunDownloadableFile;
-                    }
-                    onExecutionComplete(errorResult);
+                    onExecutionComplete({
+                        output: null,
+                        error: errorMsg,
+                        type: 'error',
+                        downloadableFile: currentRunDownloadableFile
+                    });
                     cleanup();
                     break;
             }
@@ -424,13 +436,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let consoleOutput = '';
         const oldConsoleLog = console.log;
         console.log = (...args) => {
-            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\\n';
+            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
         };
         try {
             const result = (0, eval)(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
-                finalOutput += `\\n// returns\\n${JSON.stringify(result, null, 2)}`;
+                finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
             }
             const trimmedOutput = finalOutput.trim();
             setOutput(trimmedOutput);
@@ -553,7 +565,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
             {error && (
                 <div className="space-y-2">
-                    <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
+                    <pre className="text-sm text-red-500 dark:text-red-40á400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
                     {onFixRequest && (
                         <button 
                             onClick={() => onFixRequest(error)}
@@ -578,7 +590,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
              {downloadableFile && !error && (
                 <div className="mt-4 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
                     <p className="text-sm text-foreground flex-1 min-w-0">
-                        Download started: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                        File created: <span className="font-semibold truncate">{downloadableFile.filename}</span>
                     </p>
                     <button 
                         onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}

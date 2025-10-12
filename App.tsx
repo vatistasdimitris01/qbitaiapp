@@ -13,7 +13,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
-import { LayoutGridIcon } from './components/icons';
+import { LayoutGridIcon, SquarePenIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -532,6 +532,15 @@ ${error}
         aria-label={t('openSidebar')}
       >
         <LayoutGridIcon className="size-5" />
+      </button>
+
+      {/* New Chat Button for PC */}
+      <button
+        onClick={handleNewChat}
+        className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        aria-label={t('newChat')}
+      >
+        <SquarePenIcon className="size-5" />
       </button>
 
       {/* Sidebar Overlay */}

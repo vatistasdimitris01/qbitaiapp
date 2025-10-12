@@ -128,7 +128,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
     };
 
     return (
-        <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
+        <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
             <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
                 <div className="flex items-baseline space-x-2 min-w-0">
                     <h3 className="font-semibold text-foreground text-base truncate">{title || 'Code Example'}</h3>
@@ -145,7 +145,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
                     </button>
                 </div>
             </header>
-            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
+            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
                 <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
             </div>
         </div>
@@ -403,7 +403,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
                             bg-user-message text-foreground
                         `}>
-                            <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
+                            <div className={`${isShortUserMessage ? 'px-4 py-2 sm:px-5 sm:py-2.5' : 'px-3 py-2 sm:px-4 sm:py-3'}`}>
                                 {hasAttachments && (
                                     <div className="flex flex-wrap justify-start gap-2 mb-2">
                                         {message.files?.map((file, index) =>

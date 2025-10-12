@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
 import { FileAttachment } from '../types';
@@ -99,7 +100,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                     name="files" 
                     onChange={handleFileChange}
                 />
-                <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
+                <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-2 sm:px-4 pt-3 pb-16">
                     {attachments.length > 0 && (
                         <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
                             {attachments.map((file, index) => (
@@ -126,7 +127,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                             ref={textareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-muted"
+                            className="w-full px-2 sm:px-3 pt-2 mb-16 bg-transparent focus:outline-none text-foreground placeholder-muted"
                             style={{ resize: 'none', minHeight: '44px' }}
                             placeholder={placeholder}
                             rows={1}
@@ -135,8 +136,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                             onKeyDown={handleKeyDown}
                         ></textarea>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
-                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
+                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-2 sm:px-4 py-2">
+                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
                             <PaperclipIcon className="text-muted" />
                         </button>
                         <div className="ml-auto relative">
@@ -145,7 +146,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                                     type="button"
                                     onClick={onAbortGeneration}
                                     aria-label="Stop generation"
-                                    className="inline-flex items-center justify-center rounded-xl h-12 w-12 sm:h-11 sm:w-11 bg-white dark:bg-card border border-default shadow-md"
+                                    className="inline-flex items-center justify-center rounded-xl h-11 w-11 bg-white dark:bg-card border border-default shadow-md"
                                     style={{ transform: 'translateY(-2px)' }}
                                 >
                                     <div className="flex items-center justify-center h-7 w-7 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
@@ -156,7 +157,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                                 <button
                                     type="submit"
                                     aria-label="Submit"
-                                    className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    className={`inline-flex items-center justify-center rounded-full h-11 w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
                                     style={{ transform: 'translateY(-2px)' }}
                                     disabled={(!text.trim() && attachments.length === 0)}
                                 >

@@ -107,9 +107,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       </button>
   );
 
+  const MobileTabButton: React.FC<{
+      tab: SettingsTab;
+      label: string;
+      icon: React.ReactNode;
+  }> = ({ tab, label, icon }) => (
+      <button
+          onClick={() => setActiveTab(tab)}
+          className={`flex flex-col items-center justify-center gap-1.5 p-3 text-xs font-medium w-full transition-colors ${
+              activeTab === tab
+                  ? 'text-token-primary border-b-2 border-token-primary'
+                  : 'text-token-secondary hover:bg-token-surface-secondary'
+          }`}
+          aria-current={activeTab === tab ? 'page' : undefined}
+      >
+          {icon}
+          <span className="truncate">{label}</span>
+      </button>
+  );
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-token-surface rounded-2xl shadow-xl w-full max-w-4xl h-[600px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center sm:p-4" onClick={onClose}>
+      <div className="bg-token-surface shadow-xl w-full max-w-4xl h-full sm:h-[600px] sm:max-h-[85vh] flex flex-col overflow-hidden sm:rounded-2xl" onClick={e => e.stopPropagation()}>
         <header className="flex items-center justify-between py-2.5 pl-6 pr-2 border-b border-token flex-shrink-0">
           <h2 className="text-token-primary text-lg font-semibold">{t('modalTitle')}</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-token-surface-secondary">
@@ -117,14 +136,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </header>
         
-        <div className="flex flex-1 overflow-hidden">
-           <div className="w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
+        <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
+           {/* Desktop Sidebar */}
+           <div className="hidden md:block w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
               <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
               <TabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
           </div>
 
-          <div className="flex-1 p-6 overflow-y-auto space-y-8">
+          {/* Mobile Top Nav */}
+          <div className="block md:hidden border-b border-token">
+              <div className="flex items-center justify-around">
+                  <MobileTabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
+                  <MobileTabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
+                  <MobileTabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
+              </div>
+          </div>
+
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-8">
             {activeTab === 'General' && (
               <section>
                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabGeneral')}</h3>

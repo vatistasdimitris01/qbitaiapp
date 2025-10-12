@@ -211,6 +211,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
     const workerRef = useRef<Worker | null>(null);
+    const currentRunFileRef = useRef<DownloadableFile | null>(null);
     const initialRunRef = useRef(true);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
@@ -333,7 +334,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let stdoutBuffer = '';
         let stderrBuffer = '';
         let plotResult: { output: string; type: 'image-base64' | 'plotly-json' } | null = null;
-        let currentRunDownloadableFile: DownloadableFile | null = null;
+        currentRunFileRef.current = null; // Reset ref for this run
     
         const cleanup = () => {
             if (workerRef.current) {
@@ -374,12 +375,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     const fileInfo = { filename, mimetype, data };
                     downloadFile(filename, mimetype, data);
                     setDownloadableFile(fileInfo);
-                    currentRunDownloadableFile = fileInfo;
+                    currentRunFileRef.current = fileInfo;
                     break;
                 case 'success':
                     setStatus('success');
                     setView('output');
                     
+                    const currentRunDownloadableFile = currentRunFileRef.current;
                     let finalOutputText = stdoutBuffer.trim();
                     let finalResultType: ExecutionResult['type'] = 'string';
                     let finalResultData: string | null = null;
@@ -413,7 +415,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         output: null,
                         error: errorMsg,
                         type: 'error',
-                        downloadableFile: currentRunDownloadableFile
+                        downloadableFile: currentRunFileRef.current
                     });
                     cleanup();
                     break;
@@ -565,7 +567,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
             {error && (
                 <div className="space-y-2">
-                    <pre className="text-sm text-red-500 dark:text-red-40á400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
+                    <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
                     {onFixRequest && (
                         <button 
                             onClick={() => onFixRequest(error)}

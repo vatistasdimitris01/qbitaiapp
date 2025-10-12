@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qbit-cache-v2';
+const CACHE_NAME = 'qbit-cache-v3';
 // All local files and the main entry points
 const urlsToCache = [
   '/',
@@ -12,6 +12,8 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
+        // Use skipWaiting to ensure the new service worker activates immediately.
+        self.skipWaiting(); 
         return cache.addAll(urlsToCache);
       })
   );
@@ -29,10 +31,11 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+        // Take control of all open clients immediately
+        return self.clients.claim();
     })
   );
-  // Take control of all open clients immediately
-  return self.clients.claim();
 });
 
 // Listen for a message from the client to skip waiting and activate the new SW
@@ -42,7 +45,6 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Intercept fetch requests
 self.addEventListener('fetch', (event) => {
   // For navigation requests, we add headers for cross-origin isolation
   // This is required for Pyodide (SharedArrayBuffer).
@@ -52,7 +54,9 @@ self.addEventListener('fetch', (event) => {
         .then(response => {
           const newHeaders = new Headers(response.headers);
           newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-          newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+          // Use 'credentialless' to allow cross-origin resources without CORP headers
+          // as long as they are loaded with the crossorigin="anonymous" attribute.
+          newHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
 
           // Cache the original response before modifying headers for the browser
           const responseToCache = response.clone();
@@ -68,37 +72,45 @@ self.addEventListener('fetch', (event) => {
             headers: newHeaders,
           });
         })
-        .catch(() => caches.match(event.request)) // Fallback to cache if network fails
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(event.request).then(cachedResponse => {
+              // If we find it in cache, we MUST add the headers for COEP to work offline
+              if (cachedResponse) {
+                  const newHeaders = new Headers(cachedResponse.headers);
+                  newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+                  newHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
+
+                  return new Response(cachedResponse.body, {
+                      status: cachedResponse.status,
+                      statusText: cachedResponse.statusText,
+                      headers: newHeaders
+                  });
+              }
+              // If not in cache either, it will fail.
+              return cachedResponse; 
+          });
+        })
     );
     return;
   }
 
-  // For other GET requests, use a network-falling-back-to-cache strategy
-  // with a special case for cross-origin resources to handle COEP.
-  if (event.request.method === 'GET') {
-    const requestUrl = new URL(event.request.url);
-
-    // For cross-origin requests, create a new request with 'no-cors' mode.
-    // For same-origin requests, use the original request.
-    const fetchRequest = requestUrl.origin !== self.location.origin
-      ? new Request(event.request, { mode: 'no-cors' })
-      : event.request;
-
-    event.respondWith(
-      fetch(fetchRequest)
-        .then((response) => {
-          // If the fetch is successful, clone the response and cache it.
-          // This works for regular and opaque (no-cors) responses.
-          const responseToCache = response.clone();
+  // For all other requests, use a network-first, falling-back-to-cache strategy.
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        // We can only cache successful GET requests.
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
-          return response;
-        })
-        .catch(() => {
-          // If the network request fails, serve from the cache.
-          return caches.match(event.request);
-        })
-    );
-  }
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // If the network fails, try to serve from cache.
+        return caches.match(event.request);
+      })
+  );
 });

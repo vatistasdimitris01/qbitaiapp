@@ -85,9 +85,10 @@ export default async function handler(req: Request) {
             """\`
     3.  **For MULTI-LINE strings, ensure the closing triple quotes are on a new line.**
     4.  **Ensure all brackets \`()\`, square brackets \`[]\`, and curly braces \`{}\` are properly opened and closed.** Pay special attention to multi-line data structures.
-    5.  Failure to follow these rules will result in invalid code. Adherence is mandatory.
+    5.  **All variables MUST be defined before they are used.** This prevents \`NameError\`. Check your code carefully for undefined variables, especially list variables for table headers.
+    6.  Failure to follow these rules will result in invalid code. Adherence is mandatory.
 
-- **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library. Do NOT use \`pandas.to_excel()\`. Create a workbook, add data to worksheets, and save it using \`wb.save("filename.xlsx")\`. The environment will automatically handle the download.
+- **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library. Do NOT use \`pandas.to_excel()\`. When using \`openpyxl\`, you MUST define column headers as a Python list (e.g., \`headers = ["Column A", "Column B"]\`) and then add this list to the worksheet using \`worksheet.append(headers)\` BEFORE appending any data rows. This prevents \`NameError\`. Create a workbook, add data to worksheets, and save it using \`wb.save("filename.xlsx")\`. The environment will automatically handle the download.
 
 - After calling a file-saving function (like \`wb.save()\`, \`doc.save()\`, or \`pdf.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
 - When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.

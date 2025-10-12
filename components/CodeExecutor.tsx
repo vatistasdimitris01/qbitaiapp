@@ -291,9 +291,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         resultToPersist = { ...finalResult, error: '' };
                     } else if (stdoutBuffer.trim()) {
                         resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
+                    } else if (currentRunDownloadableFile) {
+                        const msg = `File '${currentRunDownloadableFile.filename}' created successfully.`;
+                        setOutput(msg);
+                        resultToPersist = { output: msg, error: '', type: 'string' };
                     } else {
                         resultToPersist = { output: null, error: '', type: 'string' };
                     }
+                    
                     if (currentRunDownloadableFile) {
                         resultToPersist.downloadableFile = currentRunDownloadableFile;
                     }
@@ -550,7 +555,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const OutputDisplay = () => (
         <div className="pt-4">
             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
-            {error && (
+            {error ? (
                 <div className="space-y-2">
                     <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
                     {onFixRequest && (
@@ -562,39 +567,35 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         </button>
                     )}
                 </div>
-            )}
-            
-            {!error && output && (
-                (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
-                     <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
-                ) : (lang === 'react' || lang === 'jsx') ? (
-                    <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
-                ) : typeof output === 'string' ? (
-                    <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
-                ) : (
-                    <div>{output}</div>
-                )
-            )}
-
-            {!error && !output && downloadableFile && (
-                <div className="text-sm text-foreground mb-4">
-                    File '{downloadableFile.filename}' created successfully.
-                </div>
-            )}
-             
-            {downloadableFile && (
-                <div className="mt-2 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
-                    <p className="text-sm text-foreground flex-1 min-w-0">
-                        Generated file: <span className="font-semibold truncate">{downloadableFile.filename}</span>
-                    </p>
-                    <button 
-                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
-                        className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
-                    >
-                        <DownloadIcon className="size-4" />
-                        <span>Re-download</span>
-                    </button>
-                </div>
+            ) : (
+                <>
+                    {output && (
+                        (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
+                             <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
+                        ) : (lang === 'react' || lang === 'jsx') ? (
+                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
+                        ) : typeof output === 'string' ? (
+                            <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
+                        ) : (
+                            <div>{output}</div>
+                        )
+                    )}
+                     
+                    {downloadableFile && (
+                        <div className="mt-2 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
+                            <p className="text-sm text-foreground flex-1 min-w-0">
+                                Generated file: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                            </p>
+                            <button 
+                                onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                                className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
+                            >
+                                <DownloadIcon className="size-4" />
+                                <span>Re-download</span>
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

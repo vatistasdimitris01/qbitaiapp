@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon } from './icons';
 
 declare global {
     interface Window {
@@ -518,26 +518,29 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         
         if (status === 'executing' || status === 'loading-env') {
             return (
-                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full flex items-center transition-colors text-sm font-medium">
+                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 rounded-full flex items-center transition-colors text-sm font-medium">
                     <div className="w-2.5 h-2.5 bg-white rounded-sm mr-2"></div> Stop
                 </button>
             );
         }
         if (!hasRunOnce) {
             return (
-                 <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-                    Run code
+                 <button onClick={handleRunCode} className="bg-black text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                    <span className="hidden sm:inline">Run code</span>
+                    <span className="sm:hidden">Run</span>
                 </button>
             );
         }
         // hasRunOnce is true from here
         return (
-            <div className="flex items-center space-x-2 sm:space-x-4">
-                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary px-4 py-2 rounded-full text-sm font-medium hover:bg-border">
-                    {view === 'code' ? 'Show Output' : 'Show Code'}
+            <div className="flex items-center gap-2 sm:gap-4">
+                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-border">
+                    <span className="hidden sm:inline">{view === 'code' ? 'Show Output' : 'Show Code'}</span>
+                    <span className="sm:hidden">{view === 'code' ? 'Output' : 'Code'}</span>
                 </button>
-                <button onClick={handleRunCode} className="bg-black text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-                    Run Again
+                <button onClick={handleRunCode} className="bg-black text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                    <span className="hidden sm:inline">Run Again</span>
+                    <span className="sm:hidden">Re-run</span>
                 </button>
             </div>
         );
@@ -545,17 +548,20 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex items-center justify-between">
-                <div className="flex items-baseline space-x-2">
-                    <h3 className="font-semibold text-foreground text-base">{title || 'Code Executor'}</h3>
-                    <span className="text-sm text-muted-foreground">· {lang}</span>
+            <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                <div className="flex items-baseline space-x-2 min-w-0">
+                    <h3 className="font-semibold text-foreground text-base truncate">{title || 'Code Executor'}</h3>
+                    <span className="text-sm text-muted-foreground flex-shrink-0">· {lang}</span>
                 </div>
-                <div className="flex items-center space-x-2 sm:space-x-4">
+                <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                        <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Download</button>
+                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
+                        <DownloadIcon className="size-4" />
+                        <span className="hidden sm:inline">Download</span>
+                    </button>
                     {renderButtons()}
                 </div>
             </header>

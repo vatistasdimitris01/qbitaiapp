@@ -129,17 +129,20 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex items-center justify-between pb-4">
-                <div className="flex items-baseline space-x-2">
-                    <h3 className="font-semibold text-foreground text-base">{title || 'Code Example'}</h3>
-                    <span className="text-sm text-muted-foreground">· {lang}</span>
+            <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
+                <div className="flex items-baseline space-x-2 min-w-0">
+                    <h3 className="font-semibold text-foreground text-base truncate">{title || 'Code Example'}</h3>
+                    <span className="text-sm text-muted-foreground flex-shrink-0">· {lang}</span>
                 </div>
-                <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
+                <div className="flex items-center space-x-4 text-sm font-medium">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                        <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    <button onClick={handleDownload} className="text-muted-foreground hover:text-foreground transition-colors">Download</button>
+                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                        <DownloadIcon className="size-4" />
+                        <span className="hidden sm:inline">Download</span>
+                    </button>
                 </div>
             </header>
             <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">

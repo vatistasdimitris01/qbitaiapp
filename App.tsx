@@ -44,7 +44,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
   const [appHeight, setAppHeight] = useState(window.innerHeight);

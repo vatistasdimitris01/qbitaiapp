@@ -86,10 +86,13 @@ export default async function handler(req: Request) {
     3.  **For MULTI-LINE strings, ensure the closing triple quotes are on a new line.**
     4.  **Ensure all brackets \`()\`, square brackets \`[]\`, and curly braces \`{}\` are properly opened and closed.** Pay special attention to multi-line data structures.
     5.  Failure to follow these rules will result in invalid code. Adherence is mandatory.
-- After calling a file-saving function (like \`.to_excel()\`, \`.save()\`, or \`.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
+
+- **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library. Do NOT use \`pandas.to_excel()\`. Create a workbook, add data to worksheets, and save it using \`wb.save("filename.xlsx")\`. The environment will automatically handle the download.
+
+- After calling a file-saving function (like \`wb.save()\`, \`doc.save()\`, or \`pdf.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
 - When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
-- When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user. You just need to call the standard save functions with a filename (e.g., \`df.to_excel('filename.xlsx')\`, \`doc.save('filename.docx')\`, \`pdf.output('filename.pdf')\`).`;
+- When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user. You just need to call the standard save functions with a filename (e.g., \`wb.save('filename.xlsx')\`, \`doc.save('filename.docx')\`, \`pdf.output('filename.pdf')\`).`;
 
         const finalSystemInstruction = personaInstruction
             ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`

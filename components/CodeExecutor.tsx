@@ -19,7 +19,7 @@ const pythonWorkerSource = `
         await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
-        await micropip.install(['plotly', 'fpdf2', 'seaborn']);
+        await micropip.install(['plotly', 'fpdf2', 'seaborn', 'openpyxl', 'python-docx']);
         self.postMessage({ type: 'status', status: 'ready' });
     }
     const pyodideReadyPromise = loadPyodideAndPackages();
@@ -38,8 +38,15 @@ const pythonWorkerSource = `
                     } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
                         self.postMessage({ type: 'plot', plotType: 'plotly', data: line.substring(line.indexOf(':') + 1) });
                     } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
-                        const [_, filename, mimetype, data] = line.split(':');
-                        self.postMessage({ type: 'download', filename, mimetype, data });
+                        const separator = ':';
+                        const parts = line.split(separator);
+                        if (parts.length >= 4) {
+                            parts.shift(); // remove command
+                            const filename = parts.shift() || 'download';
+                            const mimetype = parts.shift() || 'application/octet-stream';
+                            const data = parts.join(separator); // Rejoin the rest
+                            self.postMessage({ type: 'download', filename, mimetype, data });
+                        }
                     } else {
                         self.postMessage({ type: 'stdout', data: line });
                     }

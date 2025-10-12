@@ -221,7 +221,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error || persistedResult.downloadableFile) ? 'output' : 'code');
+    const [view, setView] = useState<'code' | 'output'>(persistedResult ? 'output' : 'code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
 
     useEffect(() => {
@@ -264,37 +264,44 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         }
     }, [output, lang, view]);
     
-    // Effect for initial run (autorun or restoring from persisted state)
+    // Effect to synchronize the component's state with the persisted result from the parent
     useEffect(() => {
-        if (initialRunRef.current) {
-            initialRunRef.current = false; // Prevent re-running on subsequent renders
-            if (persistedResult) {
-                const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
-                if (savedError) {
-                    setError(savedError);
-                    setStatus('error');
-                } else if (savedOutput !== null) {
-                    if (type === 'image-base64') {
-                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                    } else if (type === 'plotly-json') {
-                        setOutput(savedOutput);
-                    } else { // 'string'
-                        setOutput(savedOutput);
-                    }
-                    setStatus('success');
+        if (persistedResult) {
+            const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
+
+            if (savedError) {
+                setError(savedError);
+                setStatus('error');
+            } else if (savedOutput !== null) {
+                if (type === 'image-base64') {
+                    setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                } else if (type === 'plotly-json') {
+                    setOutput(savedOutput);
+                } else { // 'string'
+                    setOutput(savedOutput);
                 }
-                if (savedFile) {
-                    setDownloadableFile(savedFile);
-                }
-                 if (savedError || savedOutput !== null || savedFile) {
-                    setView('output');
-                    setHasRunOnce(true);
-                }
-            } else if (autorun) {
-                handleRunCode();
+                setStatus('success');
+            }
+            
+            if (savedFile) {
+                setDownloadableFile(savedFile);
+            }
+
+            // If there's any result to show, switch to the output view
+            if (savedError || savedOutput !== null || savedFile) {
+                setView('output');
+                setHasRunOnce(true);
             }
         }
-    }, [persistedResult, autorun, code, lang]);
+    }, [persistedResult]);
+
+    // Effect to handle the initial automatic run
+    useEffect(() => {
+        if (initialRunRef.current && autorun && !persistedResult) {
+            initialRunRef.current = false; // Ensure autorun only happens once on initial load
+            handleRunCode();
+        }
+    }, [autorun, persistedResult]);
 
 
     const handleCopy = () => {

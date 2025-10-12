@@ -31,7 +31,8 @@ const initialPersonas: Persona[] = [
 type ExecutionResult = {
   output: string | null;
   error: string;
-  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+// FIX: Added 'html' to support rendering HTML output from the code executor.
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error' | 'html';
 };
 
 

@@ -23,7 +23,7 @@ export const getPyodide = () => {
                 await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
                 await pyodide.loadPackage('micropip');
                 const micropip = pyodide.pyimport('micropip');
-                await micropip.install(['plotly', 'fpdf2', 'seaborn']);
+                await micropip.install(['plotly', 'fpdf2', 'openpyxl', 'python-docx', 'seaborn']);
                 resolve(pyodide);
             } catch (error) {
                 console.error("Pyodide loading failed:", error);

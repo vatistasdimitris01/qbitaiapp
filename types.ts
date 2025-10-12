@@ -81,3 +81,15 @@ export interface Conversation {
 }
 
 export type AIStatus = 'idle' | 'thinking' | 'searching' | 'generating' | 'complete' | 'error';
+
+export interface FileExecutionOutput {
+    data: string; // base64 encoded string
+    mimeType: string;
+    filename: string;
+}
+
+export type ExecutionResult = {
+    output: string | null | FileExecutionOutput;
+    error: string;
+    type: 'string' | 'image-base64' | 'plotly-json' | 'error' | 'html' | 'file';
+};

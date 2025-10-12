@@ -1,15 +1,10 @@
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getPyodide } from '../services/pyodideService';
-import { PlayIcon, CopyIcon, DownloadIcon, CheckIcon, RefreshCwIcon } from './icons';
+import { PlayIcon, CopyIcon, DownloadIcon, CheckIcon, RefreshCwIcon, FileTextIcon } from './icons';
 import AITextLoading from './AITextLoading';
-
-// This type should ideally be in types.ts, but is defined locally in ChatMessage and App
-// I'm defining it here to match and extending it with 'html' support.
-type ExecutionResult = {
-  output: string | null;
-  error: string;
-  type: 'string' | 'image-base64' | 'plotly-json' | 'error' | 'html';
-};
+import type { ExecutionResult, FileExecutionOutput } from '../types';
 
 interface CodeExecutorProps {
     code: string;
@@ -25,6 +20,15 @@ const langExtensions: { [key: string]: string } = {
     python: 'py', javascript: 'js', js: 'js', html: 'html', react: 'jsx', jsx: 'jsx'
 };
 
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
 const ResultDisplay: React.FC<{ result: ExecutionResult }> = ({ result }) => {
     const plotlyContainerRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +36,7 @@ const ResultDisplay: React.FC<{ result: ExecutionResult }> = ({ result }) => {
         if (result.type === 'plotly-json' && result.output && plotlyContainerRef.current) {
             try {
                 if (window.Plotly) {
-                    const plotData = JSON.parse(result.output);
+                    const plotData = JSON.parse(result.output as string);
                     window.Plotly.newPlot(plotlyContainerRef.current, plotData.data, plotData.layout, { responsive: true });
                 } else {
                     console.error("Plotly library not found.");
@@ -47,15 +51,55 @@ const ResultDisplay: React.FC<{ result: ExecutionResult }> = ({ result }) => {
 
     switch (result.type) {
         case 'string':
-            return <pre className="whitespace-pre-wrap text-sm">{result.output}</pre>;
+            // FIX: Cast result.output to string to prevent trying to render an object.
+            return <pre className="whitespace-pre-wrap text-sm">{result.output as string}</pre>;
         case 'image-base64':
-            return <img src={`data:image/png;base64,${result.output}`} alt="Execution result" className="max-w-full h-auto rounded-md" />;
+            // FIX: Cast result.output to string to prevent trying to render an object.
+            return <img src={`data:image/png;base64,${result.output as string}`} alt="Execution result" className="max-w-full h-auto rounded-md" />;
         case 'plotly-json':
             return <div ref={plotlyContainerRef} className="w-full h-96"></div>;
         case 'html':
-            return <iframe srcDoc={result.output || ''} className="w-full h-96 border border-default rounded-md" title="HTML Output" sandbox="allow-scripts" />;
+            return <iframe srcDoc={result.output as string || ''} className="w-full h-96 border border-default rounded-md" title="HTML Output" sandbox="allow-scripts" />;
         case 'error':
             return <pre className="whitespace-pre-wrap text-sm text-red-500">{result.error}</pre>;
+        case 'file': {
+            const fileOutput = result.output as FileExecutionOutput;
+            if (!fileOutput) return null;
+
+            const handleDownloadClick = () => {
+                const byteString = atob(fileOutput.data);
+                const bytes = new Uint8Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) {
+                    bytes[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: fileOutput.mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileOutput.filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            return (
+                <div className="flex items-center gap-4 p-2 rounded-lg bg-token-surface-secondary border border-default w-full">
+                    <FileTextIcon className="size-6 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground truncate" title={fileOutput.filename}>{fileOutput.filename}</p>
+                        <p className="text-xs text-muted-foreground">{fileOutput.mimeType}</p>
+                    </div>
+                    <button
+                        onClick={handleDownloadClick}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-background hover:bg-token-surface-secondary border border-default text-foreground"
+                    >
+                        <DownloadIcon className="size-4" />
+                        Download
+                    </button>
+                </div>
+            );
+        }
         default:
             return null;
     }
@@ -82,18 +126,16 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     }, [code, lang]);
 
     const runPythonCode = async (pythonCode: string): Promise<ExecutionResult> => {
+        let namespace: any;
         try {
             const pyodide = await getPyodide();
-            // Unique namespace for each execution
-            const namespace = pyodide.globals.get("dict")();
+            namespace = pyodide.globals.get("dict")();
             
-            // Capture output
             let stdout = '';
             let stderr = '';
             pyodide.setStdout({ batched: (msg: string) => stdout += msg + '\n' });
             pyodide.setStderr({ batched: (msg: string) => stderr += msg + '\n' });
 
-            // Special preamble for matplotlib to output figures as base64
             const preamble = `
 import matplotlib
 matplotlib.use('Agg')
@@ -103,45 +145,62 @@ import io, base64
 def get_figure_as_base64():
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close() # Close the plot to free memory
+    plt.close()
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 `;
             await pyodide.runPythonAsync(preamble, { globals: namespace });
 
-            const result = await pyodide.runPythonAsync(pythonCode, { globals: namespace });
+            const executionResult = await pyodide.runPythonAsync(pythonCode, { globals: namespace });
 
             if (stderr) {
                 return { type: 'error', error: stderr, output: null };
             }
 
-            // Check if a matplotlib figure was created
+            const fileOutputPy = namespace.get('__qbit_file_output__');
+            if (fileOutputPy) {
+                const fileOutput = fileOutputPy.toJs({ dict_converter: Object.fromEntries });
+                fileOutputPy.destroy();
+
+                if (fileOutput && fileOutput.data instanceof Uint8Array && fileOutput.mime_type && fileOutput.filename) {
+                    const base64Data = uint8ArrayToBase64(fileOutput.data);
+                    return {
+                        type: 'file',
+                        output: {
+                            data: base64Data,
+                            mimeType: fileOutput.mime_type,
+                            filename: fileOutput.filename
+                        },
+                        error: ''
+                    };
+                }
+            }
+
             const isFig = await pyodide.runPythonAsync('len(plt.get_fignums()) > 0', { globals: namespace });
             if (isFig) {
                 const imageB64 = await pyodide.runPythonAsync('get_figure_as_base64()', { globals: namespace });
                 return { type: 'image-base64', output: imageB64, error: '' };
             }
 
-            // Check if result is a plotly figure
-            if (result && typeof result.to_json === 'function') {
-                const plotlyJson = result.to_json();
-                result.destroy();
+            if (executionResult && typeof executionResult.to_json === 'function') {
+                const plotlyJson = executionResult.to_json();
+                executionResult.destroy();
                 return { type: 'plotly-json', output: plotlyJson, error: '' };
             }
 
             let output = stdout;
-            if (result !== undefined && result !== null) {
-                output += result;
+            if (executionResult !== undefined && executionResult !== null) {
+                output += executionResult;
             }
             
-            namespace.destroy();
             return { type: 'string', output: output.trim(), error: '' };
 
         } catch (e: any) {
             return { type: 'error', error: e.message, output: null };
         } finally {
+             if (namespace) namespace.destroy();
              const pyodide = await getPyodide();
-             pyodide.setStdout({}); // Reset stdout
-             pyodide.setStderr({}); // Reset stderr
+             pyodide.setStdout({});
+             pyodide.setStderr({});
         }
     };
     

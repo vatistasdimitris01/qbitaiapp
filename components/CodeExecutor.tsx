@@ -54,12 +54,15 @@ const pythonWorkerSource = `
             pyodide.setStderr({ batched: (str) => self.postMessage({ type: 'stderr', error: str }) });
 
             const preamble = \`
-import io, base64, json, matplotlib
+import io, base64, json, matplotlib, warnings
 import matplotlib.pyplot as plt
 from PIL import Image
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer): return int(obj)

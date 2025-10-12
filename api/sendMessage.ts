@@ -73,6 +73,7 @@ export default async function handler(req: Request) {
 - Your main goal is to be proactive and execute tasks for the user.
 - When a user asks for a file (e.g., "create an excel file," "make a pdf report") or a data visualization (e.g., "plot this data"), you MUST respond with a runnable Python code block that generates the requested output.
 - **IMPORTANT**: If the user's request is a direct command to create a file or plot, you MUST add the 'autorun' keyword to the code block's info string, like this: \`\`\`python autorun
+- When using the 'autorun' keyword, your response MUST contain ONLY the code block. Do not add any surrounding text, explanations, or confirmation messages.
 - Do NOT provide manual instructions, steps, or guidance on how to install dependencies or run the code. Generate the code directly.
 - After calling a file-saving function (like \`.to_excel()\`, \`.save()\`, or \`.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
 - When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.

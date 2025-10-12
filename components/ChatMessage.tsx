@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
@@ -383,7 +382,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className="group flex flex-col w-full max-w-3xl">
+            <div className="flex flex-col w-full max-w-3xl">
                 {hasThinking && (
                     <div className="w-full mb-2">
                         <button
@@ -413,7 +412,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                         )}
                     </div>
                 )}
-                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                <div className={`group flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                     {isUser ? (
                          <div className={`
                             w-fit max-w-full

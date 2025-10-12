@@ -129,12 +129,11 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex items-center justify-between pb-4">
-                <div className="flex items-baseline space-x-2">
-                    <h3 className="font-semibold text-foreground text-base">{title || 'Code Example'}</h3>
-                    <span className="text-sm text-muted-foreground">· {lang}</span>
+            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-4">
+                <div className="flex items-baseline">
+                    <h3 className="font-semibold text-foreground text-base">{title || (lang.charAt(0).toUpperCase() + lang.slice(1))}</h3>
                 </div>
-                <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium">
+                <div className="flex items-center space-x-4 sm:space-x-6 text-sm font-medium flex-shrink-0">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>

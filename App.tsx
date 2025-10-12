@@ -13,7 +13,6 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
-import { LayoutGridIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -42,7 +41,6 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('system');
@@ -232,7 +230,6 @@ const App: React.FC = () => {
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
-    setIsMobileSidebarOpen(false);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -520,55 +517,23 @@ ${error}
             </button>
         </div>
       )}
-      {/* Mobile Sidebar */}
-      <div className="md:hidden">
-          <div 
-              className={`fixed inset-0 bg-black/30 z-40 transition-opacity ${isMobileSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              onClick={() => setIsMobileSidebarOpen(false)}
-          ></div>
-          <Sidebar 
-            isOpen={isMobileSidebarOpen} 
-            toggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            isMobile={true}
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onNewChat={handleNewChat}
-            onSelectConversation={(id) => { setActiveConversationId(id); setIsMobileSidebarOpen(false); }}
-            onDeleteConversation={handleDeleteConversation}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            t={t}
-          />
-      </div>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex">
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            isMobile={false}
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onNewChat={handleNewChat}
-            onSelectConversation={setActiveConversationId}
-            onDeleteConversation={handleDeleteConversation}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            t={t}
-          />
-       </div>
-
-       {!isMobileSidebarOpen && (
-         <div className="md:hidden fixed top-4 left-4 z-30">
-            <button
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 rounded-lg bg-background/80 backdrop-blur-sm hover:bg-background text-foreground transition-colors border border-default"
-                title={t('openSidebar')}
-            >
-                <LayoutGridIcon className="size-5" />
-            </button>
-        </div>
-      )}
+      
+      {/* Unified Sidebar for all screen sizes */}
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isMobile={false}
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onNewChat={handleNewChat}
+        onSelectConversation={setActiveConversationId}
+        onDeleteConversation={handleDeleteConversation}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        t={t}
+      />
       
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
+      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">

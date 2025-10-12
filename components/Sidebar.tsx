@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   LayoutGridIcon,
@@ -109,9 +110,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // Collapsed Sidebar (Desktop only)
+  // Collapsed Sidebar
   return (
-    <div className="flex-col h-full bg-sidebar border-r border-sidebar z-50 fixed inset-y-0 left-0 w-16 transition-all duration-300 hidden md:flex">
+    <div className="flex-col h-full bg-sidebar border-r border-sidebar z-50 fixed inset-y-0 left-0 w-16 transition-all duration-300 flex">
         <div className="flex items-center justify-center px-3 py-2 h-[57px]">
           <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg" title={t('openSidebar')}>
             <LayoutGridIcon className="transition-transform duration-500 ease-in-out" />

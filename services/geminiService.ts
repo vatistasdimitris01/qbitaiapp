@@ -77,46 +77,45 @@ export const streamMessageToAI = async (
         const decoder = new TextDecoder();
         let buffer = '';
 
-        const processStream = async () => {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    break;
-                }
+        const processBuffer = () => {
+            let newlineIndex;
+            // Process all complete lines in the buffer
+            while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.substring(0, newlineIndex);
+                buffer = buffer.substring(newlineIndex + 1);
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep the last partial line in buffer
+                if (line.trim() === '') continue;
 
-                for (const line of lines) {
-                    if (line.trim() === '') continue;
-                    try {
-                        const update: StreamUpdate = JSON.parse(line);
-                        if (update.type === 'end') {
-                            return; // Graceful end of stream
-                        }
-                        onUpdate(update);
-                    } catch (e) {
-                        console.error("Failed to parse stream line:", line, e);
+                try {
+                    const update: StreamUpdate = JSON.parse(line);
+                    if (update.type !== 'end') {
+                       onUpdate(update);
                     }
+                } catch (e) {
+                    console.error("Failed to parse stream line:", line, e);
                 }
             }
         };
 
-        await processStream();
-
-        // Process any remaining data in buffer
-        if (buffer.trim() !== '') {
-            const lines = buffer.split('\n');
-            for (const line of lines) {
-                if (line.trim() === '') continue;
-                try {
-                    const update: StreamUpdate = JSON.parse(line);
-                    onUpdate(update);
-                } catch (e) {
-                    console.error("Failed to parse final stream buffer line:", line, e);
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                // The stream is done. Process any remaining data in the buffer.
+                if (buffer.trim()) {
+                    try {
+                        const update: StreamUpdate = JSON.parse(buffer);
+                         if (update.type !== 'end') {
+                            onUpdate(update);
+                        }
+                    } catch (e) {
+                         console.error("Failed to parse final stream buffer:", buffer, e);
+                    }
                 }
+                break; // Exit the loop
             }
+
+            buffer += decoder.decode(value, { stream: true });
+            processBuffer();
         }
 
     } catch (error) {

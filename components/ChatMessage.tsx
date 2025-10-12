@@ -12,6 +12,7 @@ type ExecutionResult = {
   output: string | null;
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+  downloadableFile?: { filename: string; mimetype: string; data: string; };
 };
 
 interface ChatMessageProps {
@@ -156,7 +157,6 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
-    const [isCopied, setIsCopied] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
@@ -242,27 +242,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
 
     const handleCopy = () => {
-        if (isUser) {
-            const textToCopy = getTextFromMessage(message.content);
-            if (textToCopy) {
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    setIsCopied(true);
-                    setTimeout(() => setIsCopied(false), 2000);
-                });
-            }
-            return;
-        }
-
-        const textToCopy = contentParts
-            .filter(part => part.type === 'text' && part.content)
-            .map(part => part.content)
-            .join('\n\n');
-
+        const textToCopy = isUser ? messageText : parsedResponseText;
         if (textToCopy) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 2000);
-            });
+            navigator.clipboard.writeText(textToCopy);
+            // You might want to add a visual confirmation here
         }
     };
 
@@ -321,18 +304,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             try {
                 const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
                 if (mermaidElements.length > 0 && (window as any).mermaid) {
-                    mermaidElements.forEach((el, i) => {
-                        const id = `mermaid-graph-${message.id || 'msg'}-${i}`;
-                        const code = el.textContent || '';
-                        if (code && !el.hasAttribute('data-processed')) {
-                            try {
-                                (window as any).mermaid.render(id, code, (svgCode: string) => {
+                    (window as any).mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
+                    mermaidElements.forEach((el) => {
+                        if (el.textContent && !el.getAttribute('data-processed')) {
+                             try {
+                                (window as any).mermaid.render(`mermaid-${message.id}-${Math.random().toString(36).substring(2)}`, el.textContent, (svgCode: string) => {
                                     el.innerHTML = svgCode;
                                     el.setAttribute('data-processed', 'true');
                                 });
-                            } catch (e) {
-                                el.innerHTML = "Error rendering diagram.";
-                                console.error("Mermaid render error:", e)
+                            } catch(e) {
+                                el.innerHTML = "Error rendering diagram";
+                                console.error("Mermaid render error:", e);
                             }
                         }
                     });
@@ -349,7 +331,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                 console.error('Task list checkbox error:', error);
             }
         }
-    }, [contentParts, message.type, message.id]);
+    }, [contentParts, message.type, message.id, parsedResponseText]);
 
     const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
@@ -492,9 +474,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading ? 'opacity-0' : 'opacity-100')}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasVisibleContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                           <CopyIcon className="size-4" />
                         </IconButton>
                         {!isUser && (
                             <>

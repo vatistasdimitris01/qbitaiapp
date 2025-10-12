@@ -5,6 +5,7 @@ import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, EyeIcon } f
 declare global {
     interface Window {
         Babel: any;
+        Plotly: any;
     }
 }
 
@@ -210,24 +211,47 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const reactRootRef = useRef<any>(null);
     const workerRef = useRef<Worker | null>(null);
     const initialRunRef = useRef(true);
-    const fileResultRef = useRef<DownloadableFile | null>(persistedResult?.downloadableFile || null);
     
-    const [status, setStatus] = useState<ExecutionStatus>(persistedResult ? (persistedResult.error ? 'error' : 'success') : 'idle');
-    const [output, setOutput] = useState<OutputContent>(() => {
-        if (!persistedResult) return '';
-        const { output: savedOutput, type } = persistedResult;
-        if (type === 'image-base64' && savedOutput) {
-            return <img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />;
-        }
-        return savedOutput || '';
-    });
-    const [error, setError] = useState<string>(persistedResult?.error || '');
+    const [status, setStatus] = useState<ExecutionStatus>('idle');
+    const [output, setOutput] = useState<OutputContent>('');
+    const [error, setError] = useState<string>('');
+    const [downloadableFile, setDownloadableFile] = useState<DownloadableFile | null>(null);
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [view, setView] = useState<'code' | 'output'>(persistedResult ? 'output' : 'code');
+    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error || persistedResult.downloadableFile) ? 'output' : 'code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
 
+    const handleRunCode = async () => {
+        setOutput('');
+        setError('');
+        setDownloadableFile(null);
+        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
+            URL.revokeObjectURL(htmlPreviewUrl);
+            setHtmlPreviewUrl(null);
+        }
+
+        switch (lang.toLowerCase()) {
+            case 'python':
+                await runPython();
+                break;
+            case 'javascript':
+            case 'js':
+                runJavaScript();
+                break;
+            case 'html':
+                runHtml();
+                break;
+            case 'react':
+            case 'jsx':
+                runReact();
+                break;
+            default:
+                setError(`Language "${lang}" is not executable.`);
+                setStatus('error');
+        }
+    };
+    
     const runPython = async () => {
         setStatus('loading-env');
         setHasRunOnce(true);
@@ -244,6 +268,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let stdoutBuffer = '';
         let stderrBuffer = '';
         let finalResult: ExecutionResult | null = null;
+        let currentRunDownloadableFile: DownloadableFile | null = null;
     
         const cleanup = () => {
             if (workerRef.current) {
@@ -264,12 +289,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     }
                     break;
                 case 'stdout':
-                    stdoutBuffer += data + '\n';
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\n');
+                    stdoutBuffer += data + '\\n';
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\\n');
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\n';
-                    setError(prev => prev + msgError + '\n');
+                    stderrBuffer += msgError + '\\n';
+                    setError(stderrBuffer.trim());
                     break;
                 case 'plot':
                     if (plotType === 'plotly') {
@@ -283,7 +308,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 case 'download':
                     const fileInfo = { filename, mimetype, data };
                     downloadFile(filename, mimetype, data);
-                    fileResultRef.current = fileInfo; // Use ref to track file
+                    setDownloadableFile(fileInfo);
+                    currentRunDownloadableFile = fileInfo;
                     break;
                 case 'success':
                     setStatus('success');
@@ -294,21 +320,24 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     } else if (stdoutBuffer.trim()) {
                         resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
                     } else {
-                        // If there's no output but a file was made, we still have a success
                         resultToPersist = { output: null, error: '', type: 'string' };
                     }
-                    if (fileResultRef.current) {
-                        resultToPersist.downloadableFile = fileResultRef.current;
+                    if (currentRunDownloadableFile) {
+                        resultToPersist.downloadableFile = currentRunDownloadableFile;
                     }
                     onExecutionComplete(resultToPersist);
                     cleanup();
                     break;
                 case 'error':
-                    const finalErrorMsg = msgError || stderrBuffer.trim();
-                    setError(finalErrorMsg);
+                    const errorMsg = msgError || stderrBuffer.trim();
+                    setError(errorMsg);
                     setStatus('error');
                     setView('output');
-                    onExecutionComplete({ output: null, error: finalErrorMsg, type: 'error', downloadableFile: fileResultRef.current ?? undefined });
+                    const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
+                    if (currentRunDownloadableFile) {
+                        errorResult.downloadableFile = currentRunDownloadableFile;
+                    }
+                    onExecutionComplete(errorResult);
                     cleanup();
                     break;
             }
@@ -330,13 +359,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let consoleOutput = '';
         const oldConsoleLog = console.log;
         console.log = (...args) => {
-            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
+            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\\n';
         };
         try {
             const result = (0, eval)(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
-                finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
+                finalOutput += `\\n// returns\\n${JSON.stringify(result, null, 2)}`;
             }
             const trimmedOutput = finalOutput.trim();
             setOutput(trimmedOutput);
@@ -373,7 +402,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 setHtmlPreviewUrl(null);
             }
         } catch (err: any) {
-            setError(`Execution failed: ${err.message || String(err)}`);
+            setError('Execution failed: ' + (err.message || String(err)));
             setStatus('error');
         }
         setView('output');
@@ -412,37 +441,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         }
         setView('output');
     };
-
-    const handleRunCode = async () => {
-        setOutput('');
-        setError('');
-        fileResultRef.current = null;
-        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
-            URL.revokeObjectURL(htmlPreviewUrl);
-            setHtmlPreviewUrl(null);
-        }
-
-        switch (lang.toLowerCase()) {
-            case 'python':
-                await runPython();
-                break;
-            case 'javascript':
-            case 'js':
-                runJavaScript();
-                break;
-            case 'html':
-                runHtml();
-                break;
-            case 'react':
-            case 'jsx':
-                runReact();
-                break;
-            default:
-                setError(`Language "${lang}" is not executable.`);
-                setStatus('error');
-        }
-    };
-
+    
     useEffect(() => {
         // Cleanup worker and URL on component unmount
         return () => {
@@ -473,25 +472,47 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         if (lang === 'python' && plotlyRef.current && typeof output === 'string' && output.startsWith('{')) {
             try {
                 const spec = JSON.parse(output);
-                if ((window as any).Plotly) {
-                    (window as any).Plotly.newPlot(plotlyRef.current, spec.data, spec.layout || {}, { responsive: true });
+                if (window.Plotly) {
+                    window.Plotly.newPlot(plotlyRef.current, spec.data, spec.layout || {}, { responsive: true });
                 }
             } catch (e) {
                 console.error("Failed to render Plotly chart:", e);
                 setError("Failed to render interactive chart.");
             }
         }
-    }, [output, lang, view, persistedResult]); // Re-render Plotly on persistedResult change
+    }, [output, lang, view]);
     
-    // Effect for initial run (autorun)
+    // Effect for initial run (autorun or restoring from persisted state)
     useEffect(() => {
         if (initialRunRef.current) {
-            initialRunRef.current = false;
-            if (autorun && !persistedResult) {
+            initialRunRef.current = false; // Prevent re-running on subsequent renders
+            if (persistedResult) {
+                const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
+                if (savedError) {
+                    setError(savedError);
+                    setStatus('error');
+                } else if (savedOutput !== null) {
+                    if (type === 'image-base64') {
+                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                    } else if (type === 'plotly-json') {
+                        setOutput(savedOutput);
+                    } else { // 'string'
+                        setOutput(savedOutput);
+                    }
+                    setStatus('success');
+                }
+                if (savedFile) {
+                    setDownloadableFile(savedFile);
+                }
+                 if (savedError || savedOutput !== null || savedFile) {
+                    setView('output');
+                    setHasRunOnce(true);
+                }
+            } else if (autorun) {
                 handleRunCode();
             }
         }
-    }, [autorun, persistedResult]);
+    }, [persistedResult, autorun]);
 
 
     const handleCopy = () => {
@@ -526,68 +547,54 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         setView('code');
     };
     
-    const OutputDisplay = () => {
-        const finalFile = fileResultRef.current;
-        const hasTextOutput = typeof output === 'string' && output.trim() !== '';
-        const hasReactOutput = React.isValidElement(output);
-        const hasError = !!error;
-        
-        const showFileConfirmation = finalFile && !hasTextOutput && !hasReactOutput && !hasError;
-
-        return (
-            <div className="pt-4">
-                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
-                {hasError && (
-                    <div className="space-y-2">
-                        <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error.trim()}</pre>
-                        {onFixRequest && (
-                            <button 
-                                onClick={() => onFixRequest(error)}
-                                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                                Fix it
-                            </button>
-                        )}
-                    </div>
-                )}
-                {!hasError && (
-                    <>
-                        {hasTextOutput && (lang === 'python' && (output as string).startsWith('{')) ? (
-                            <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
-                        ) : hasTextOutput ? (
-                            <div className="text-sm text-foreground whitespace-pre-wrap">{output}</div>
-                        ) : null}
-
-                        {hasReactOutput && (lang === 'react' || lang === 'jsx') ? (
-                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
-                        ) : hasReactOutput ? (
-                             <div>{output}</div>
-                        ): null}
-
-                        {showFileConfirmation && (
-                             <div className="text-sm text-foreground">
-                                File '{finalFile?.filename}' has been created and is ready for download.
-                            </div>
-                        )}
-                    </>
-                )}
-                 {finalFile && (
-                    <div className="mt-4 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
-                        <p className="text-sm text-foreground flex-1 min-w-0">
-                            Generated file: <span className="font-semibold truncate">{finalFile.filename}</span>
-                        </p>
+    const OutputDisplay = () => (
+        <div className="pt-4">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
+            {error && (
+                <div className="space-y-2">
+                    <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
+                    {onFixRequest && (
                         <button 
-                            onClick={() => downloadFile(finalFile.filename, finalFile.mimetype, finalFile.data)}
-                            className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
+                            onClick={() => onFixRequest(error)}
+                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
                         >
-                            <DownloadIcon className="size-4" />
-                            <span>Re-download</span>
+                            Fix it
                         </button>
-                    </div>
-                )}
-            </div>
-        );
-    };
+                    )}
+                </div>
+            )}
+            {output && !error && (
+                (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
+                     <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
+                ) : (lang === 'react' || lang === 'jsx') ? (
+                    <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
+                ) : typeof output === 'string' ? (
+                    <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
+                ) : (
+                    <div>{output}</div>
+                )
+            )}
+            {!output && !error && downloadableFile && (
+                 <div className="text-sm text-foreground">
+                    File '{downloadableFile.filename}' has been created and is ready for download.
+                </div>
+            )}
+             {downloadableFile && (
+                <div className="mt-4 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
+                    <p className="text-sm text-foreground flex-1 min-w-0">
+                        Generated file: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                    </p>
+                    <button 
+                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                        className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
+                    >
+                        <DownloadIcon className="size-4" />
+                        <span>Re-download</span>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
     
     const CodeDisplay = () => (
         <>

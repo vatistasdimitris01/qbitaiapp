@@ -545,11 +545,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <div className="flex items-baseline">
-                    <h3 className="font-semibold text-foreground text-base">{title || (lang.charAt(0).toUpperCase() + lang.slice(1))}</h3>
+            <header className="flex items-center justify-between">
+                <div className="flex items-baseline space-x-2">
+                    <h3 className="font-semibold text-foreground text-base">{title || 'Code Executor'}</h3>
+                    <span className="text-sm text-muted-foreground">· {lang}</span>
                 </div>
-                <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+                <div className="flex items-center space-x-2 sm:space-x-4">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         <span className={isCopied ? 'text-green-500' : ''}>{isCopied ? 'Copied!' : 'Copy'}</span>

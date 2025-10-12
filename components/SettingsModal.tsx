@@ -99,7 +99,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const TabButton: React.FC<{tab: SettingsTab, label: string, icon: React.ReactNode}> = ({tab, label, icon}) => (
      <button 
         onClick={() => setActiveTab(tab)}
-        className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors truncate shrink-0
+        className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors truncate
         ${activeTab === tab ? 'bg-sidebar-active text-sidebar-active-fg' : 'text-sidebar-fg hover:bg-sidebar-active hover:text-sidebar-active-fg'}`}
       >
         <div className="text-sidebar-muted-fg group-hover:text-sidebar-active-fg transition-colors">{icon}</div>
@@ -117,14 +117,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </header>
         
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-           <nav className="w-full md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-token bg-token-surface-secondary/50 p-2 md:p-4 flex flex-row md:flex-col gap-2 md:space-y-2 overflow-x-auto">
+        <div className="flex flex-1 overflow-hidden">
+           <div className="w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
               <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
               <TabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
-          </nav>
+          </div>
 
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-8">
+          <div className="flex-1 p-6 overflow-y-auto space-y-8">
             {activeTab === 'General' && (
               <section>
                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabGeneral')}</h3>

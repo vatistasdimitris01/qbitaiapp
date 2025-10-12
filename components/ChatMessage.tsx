@@ -1,14 +1,19 @@
 
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, GroundingChunk, MessageContent, AIStatus, ExecutionResult } from '../types';
+import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon, CheckIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
+
+type ExecutionResult = {
+  output: string | null;
+  error: string;
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+};
 
 interface ChatMessageProps {
     message: Message;

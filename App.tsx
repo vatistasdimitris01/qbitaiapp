@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, ExecutionResult } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -27,6 +26,13 @@ const initialPersonas: Persona[] = [
   { id: 'persona-eng', name: 'Engineer', instruction: 'You are a senior software engineer. Provide clear, concise, and technically accurate answers. Use code examples in markdown format when appropriate. Be direct and to the point.' },
   { id: 'persona-teach', name: 'Teacher', instruction: 'You are a friendly and patient teacher. Explain concepts clearly and simply, as if you are talking to a student. Use analogies and examples to make topics understandable.' },
 ];
+
+// Define a type for serializable execution results
+type ExecutionResult = {
+  output: string | null;
+  error: string;
+  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+};
 
 
 const App: React.FC = () => {

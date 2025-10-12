@@ -570,7 +570,7 @@ ${error}
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+          <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4">
             {activeConversation && activeConversation.messages.length > 0 ? (
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;

@@ -316,6 +316,24 @@ margin-left: 1px;
 0%, 100% { opacity: 1; }
 50% { opacity: 0; }
 }
+
+/* Added for mobile responsiveness */
+@media (max-width: 640px) {
+  .prose {
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .prose h1 { font-size: 1.5rem; }
+  .prose h2 { font-size: 1.25rem; }
+  .prose h3 { font-size: 1.125rem; }
+  .prose pre {
+    font-size: 0.85em;
+    padding: 0.6em 0.8em;
+  }
+  .prose code {
+    font-size: 0.85em;
+  }
+}
 </style>
 <script type="importmap">
 {

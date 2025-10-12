@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, EyeIcon } from './icons';
 
 declare global {
     interface Window {
@@ -500,7 +500,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     
     const CodeDisplay = () => (
         <>
-            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
+            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
                 <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
             </div>
             {(status === 'executing' || status === 'loading-env') && (
@@ -515,50 +515,51 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const renderButtons = () => {
         const isRunnable = ['python', 'javascript', 'js', 'react', 'jsx', 'html'].includes(lang.toLowerCase());
         if (!isRunnable) return null;
-        
+
         if (status === 'executing' || status === 'loading-env') {
             return (
-                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 rounded-full flex items-center transition-colors text-sm font-medium">
-                    <div className="w-2.5 h-2.5 bg-white rounded-sm mr-2"></div> Stop
+                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center transition-colors text-sm font-medium h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Stop execution">
+                    <div className="w-2.5 h-2.5 bg-white rounded-sm sm:mr-2"></div>
+                    <span className="hidden sm:inline">Stop</span>
                 </button>
             );
         }
         if (!hasRunOnce) {
             return (
-                 <button onClick={handleRunCode} className="bg-black text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                 <button onClick={handleRunCode} className="bg-black text-white rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Run code">
+                    <PlayIcon className="size-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Run code</span>
-                    <span className="sm:hidden">Run</span>
                 </button>
             );
         }
         // hasRunOnce is true from here
         return (
-            <div className="flex items-center gap-2 sm:gap-4">
-                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-border">
-                    <span className="hidden sm:inline">{view === 'code' ? 'Show Output' : 'Show Code'}</span>
-                    <span className="sm:hidden">{view === 'code' ? 'Output' : 'Code'}</span>
+            <div className="flex items-center gap-2 sm:gap-2">
+                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary rounded-full text-sm font-medium hover:bg-border flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label={view === 'code' ? 'Show Output' : 'Show Code'}>
+                    <EyeIcon className="size-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">{view === 'code' ? 'Output' : 'Code'}</span>
                 </button>
-                <button onClick={handleRunCode} className="bg-black text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                <button onClick={handleRunCode} className="bg-black text-white rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Run Again">
+                    <RefreshCwIcon className="size-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Run Again</span>
-                    <span className="sm:hidden">Re-run</span>
                 </button>
             </div>
         );
     }
 
     return (
-        <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
+        <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
             <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
                 <div className="flex items-baseline space-x-2 min-w-0">
                     <h3 className="font-semibold text-foreground text-base truncate">{title || 'Code Executor'}</h3>
                     <span className="text-sm text-muted-foreground flex-shrink-0">· {lang}</span>
                 </div>
                 <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
+                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
+                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label="Download code">
                         <DownloadIcon className="size-4" />
                         <span className="hidden sm:inline">Download</span>
                     </button>

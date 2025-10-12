@@ -128,24 +128,24 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
     };
 
     return (
-        <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
+        <div className="not-prose my-4 w-full max-w-3xl bg-card p-4 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
             <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
                 <div className="flex items-baseline space-x-2 min-w-0">
                     <h3 className="font-semibold text-foreground text-base truncate">{title || 'Code Example'}</h3>
                     <span className="text-sm text-muted-foreground flex-shrink-0">· {lang}</span>
                 </div>
                 <div className="flex items-center space-x-4 text-sm font-medium">
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isCopied ? "Copied code" : "Copy code"}>
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Download code">
                         <DownloadIcon className="size-4" />
                         <span className="hidden sm:inline">Download</span>
                     </button>
                 </div>
             </header>
-            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
+            <div className="font-mono text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-4 rounded-lg overflow-x-auto code-block-area">
                 <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
             </div>
         </div>
@@ -376,7 +376,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             aria-expanded={isThinkingOpen}
                         >
                             <BrainIcon className="size-4" />
-                            <span className="flex-1 text-left font-medium">Chain of Thought</span>
+                            <span className="flex-1 text-left font-medium hidden sm:inline">Chain of Thought</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
@@ -403,7 +403,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
                             bg-user-message text-foreground
                         `}>
-                            <div className={`${isShortUserMessage ? 'px-4 py-2 sm:px-5 sm:py-2.5' : 'px-3 py-2 sm:px-4 sm:py-3'}`}>
+                            <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
                                 {hasAttachments && (
                                     <div className="flex flex-wrap justify-start gap-2 mb-2">
                                         {message.files?.map((file, index) =>

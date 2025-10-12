@@ -355,12 +355,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const hasVisibleContent = useMemo(() => {
-        if (isUser) {
-            return !!messageText.trim() || (message.files && message.files.length > 0);
-        }
         return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim()) || (p.type === 'code' && p.code));
-    }, [contentParts, isUser, messageText, message.files]);
-
+    }, [contentParts]);
     const showTypingIndicator = !isUser && isLoading;
     
     const statusTexts: Record<string, string[]> = {
@@ -386,7 +382,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className="flex flex-col w-full max-w-3xl">
+            <div className="group flex flex-col w-full max-w-3xl">
                 {hasThinking && (
                     <div className="w-full mb-2">
                         <button
@@ -416,7 +412,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                         )}
                     </div>
                 )}
-                <div className={`group flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                     {isUser ? (
                          <div className={`
                             w-fit max-w-full
@@ -496,7 +492,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${(!isLoading && hasVisibleContent) ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading ? 'opacity-0' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>

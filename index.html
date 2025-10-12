@@ -288,6 +288,21 @@ border-radius: 1px;
 animation: blink 1s infinite;
 margin-left: 1px;
 }
+/* New AI Text Loading styles */
+.ai-text-loading {
+    background: linear-gradient(to right, var(--foreground) 20%, var(--muted-foreground) 40%, var(--muted-foreground) 60%, var(--foreground) 80%);
+    background-size: 200% auto;
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 2s linear infinite;
+    display: inline-block;
+}
+.animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out forwards;
+}
+
 /* New styles for CodeExecutor */
 .action-btn { transition: background-color 0.2s, color 0.2s; }
 .action-btn:hover { background-color: var(--bg-primary); color: var(--text-primary); }
@@ -315,6 +330,21 @@ margin-left: 1px;
 @keyframes blink {
 0%, 100% { opacity: 1; }
 50% { opacity: 0; }
+}
+@keyframes shine {
+  to {
+    background-position: -200% center;
+  }
+}
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Added for mobile responsiveness */

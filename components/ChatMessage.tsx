@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent } from '../types';
@@ -7,6 +6,7 @@ import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon, CheckIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
+import AITextLoading from './AITextLoading';
 
 type ExecutionResult = {
   output: string | null;
@@ -362,6 +362,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim()) || (p.type === 'code' && p.code));
     }, [contentParts]);
     const showTypingIndicator = !isUser && isLoading;
+    
+    const thinkingTexts = [
+        "Thinking...",
+        "Processing request...",
+        "Analyzing data...",
+        "Consulting sources...",
+    ];
+
+    const generatingTexts = [
+        "Generating response...",
+        "Composing message...",
+        "Formatting output...",
+    ];
 
 
     return (
@@ -470,7 +483,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 <div className="pt-2">
                                     {hasVisibleContent
                                         ? <span className="typing-indicator cursor"></span>
-                                        : <span className="typing-indicator breathing"></span>
+                                        : <AITextLoading texts={isThinkingInProgress ? thinkingTexts : generatingTexts} />
                                     }
                                 </div>
                             )}

@@ -13,6 +13,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
+import { LayoutGridIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -40,7 +41,7 @@ const App: React.FC = () => {
   const [personas, setPersonas] = useState<Persona[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('system');
@@ -230,6 +231,7 @@ const App: React.FC = () => {
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
+    setIsSidebarOpen(false); // Close sidebar for a better UX
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -506,6 +508,11 @@ ${error}
 `;
     handleSendMessage(message);
   };
+  
+  const handleSelectConversation = (id: string) => {
+      setActiveConversationId(id);
+      setIsSidebarOpen(false); // Close sidebar after selecting a conversation
+  };
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
@@ -518,22 +525,39 @@ ${error}
         </div>
       )}
       
-      {/* Unified Sidebar for all screen sizes */}
+      {/* Floating Sidebar Toggle Button */}
+      <button
+        onClick={() => setIsSidebarOpen(true)}
+        className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        aria-label={t('openSidebar')}
+      >
+        <LayoutGridIcon className="size-5" />
+      </button>
+
+      {/* Sidebar Overlay */}
       <Sidebar 
         isOpen={isSidebarOpen} 
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        isMobile={false}
         conversations={conversations}
         activeConversationId={activeConversationId}
         onNewChat={handleNewChat}
-        onSelectConversation={setActiveConversationId}
+        onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setIsSettingsOpen(true)}
         t={t}
       />
       
+      {/* Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300"
+          aria-hidden="true"
+        ></div>
+      )}
+      
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className="flex-1 flex flex-col h-full">
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">

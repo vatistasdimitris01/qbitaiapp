@@ -76,13 +76,15 @@ export default async function handler(req: Request) {
 - **IMPORTANT**: If the user's request is a direct command to create a file or plot, you MUST add the 'autorun' keyword to the code block's info string, like this: \`\`\`python autorun
 - When using the 'autorun' keyword, your response MUST contain ONLY the code block. Do not add any surrounding text, explanations, or confirmation messages.
 - Do NOT provide manual instructions, steps, or guidance on how to install dependencies or run the code. Generate the code directly.
-- **CRITICAL PYTHON SYNTAX RULES**: To prevent syntax errors, you MUST adhere to the following:
-    1.  **ALWAYS use triple quotes (\`"""..."""\`) for ALL string literals.** This is mandatory for every string, including variable assignments, dictionary keys, and list elements.
-    2.  This rule is especially important for strings that contain quotes, special characters, or span multiple lines.
-    3.  Example of correct usage: \`my_variable = """This is a correct string."""\`
-    4.  Example of incorrect usage: \`my_variable = "This is an incorrect string."\`
-    5.  **Ensure all brackets \`()\`, square brackets \`[]\`, and curly braces \`{}\` are properly opened and closed.** Pay special attention to multi-line data structures.
-    6.  This is a non-negotiable instruction to ensure code validity.
+- **CRITICAL PYTHON SYNTAX RULES**: To prevent syntax errors, you MUST adhere to the following non-negotiable rules:
+    1.  **For ALL string literals, you MUST use triple quotes (\`"""..."""\`).**
+    2.  **For SINGLE-LINE strings, the opening and closing triple quotes MUST be on the SAME line.**
+        -   **CORRECT:** \`variable = """A single line string."""\`
+        -   **INCORRECT:** \`variable = """A single line string
+            """\`
+    3.  **For MULTI-LINE strings, ensure the closing triple quotes are on a new line.**
+    4.  **Ensure all brackets \`()\`, square brackets \`[]\`, and curly braces \`{}\` are properly opened and closed.** Pay special attention to multi-line data structures.
+    5.  Failure to follow these rules will result in invalid code. Adherence is mandatory.
 - After calling a file-saving function (like \`.to_excel()\`, \`.save()\`, or \`.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
 - When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.

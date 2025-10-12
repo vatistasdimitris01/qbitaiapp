@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 interface AITextLoadingProps {
@@ -17,6 +18,8 @@ const AITextLoading: React.FC<AITextLoadingProps> = ({
     const [animationKey, setAnimationKey] = useState(0);
 
     useEffect(() => {
+        if (texts.length === 0) return;
+        
         const interval = 1500;
         const timer = setInterval(() => {
             setCurrentTextIndex((prevIndex) => (prevIndex + 1) % texts.length);
@@ -25,6 +28,8 @@ const AITextLoading: React.FC<AITextLoadingProps> = ({
 
         return () => clearInterval(timer);
     }, [texts]);
+
+    if (texts.length === 0) return null;
 
     return (
         <div className="flex items-center justify-start py-2">

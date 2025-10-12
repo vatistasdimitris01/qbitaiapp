@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [personas, setPersonas] = useState<Persona[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -266,6 +267,7 @@ const App: React.FC = () => {
         abortControllerRef.current = null;
     }
     setIsLoading(false);
+    setAiStatus('idle');
   };
 
   const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
@@ -305,6 +307,7 @@ const App: React.FC = () => {
             : c
     ));
     setIsLoading(true);
+    setAiStatus('thinking');
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -327,11 +330,13 @@ const App: React.FC = () => {
         
                 switch (update.type) {
                     case 'chunk':
+                        setAiStatus('generating');
                         newMessages = newMessages.map(msg =>
                             msg.id === aiMessageId ? { ...msg, content: (msg.content as string || '') + update.payload } : msg
                         );
                         break;
                     case 'grounding':
+                        setAiStatus('searching');
                         const sourcesMessage: Message = {
                             id: `sources-${aiMessageId}`,
                             type: MessageType.AI_SOURCES,
@@ -359,6 +364,8 @@ const App: React.FC = () => {
         (duration) => { // onFinish callback
             setIsLoading(false);
             abortControllerRef.current = null;
+            setAiStatus('complete');
+            setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => { // onError callback
             setConversations(prev => prev.map(c => {
@@ -370,6 +377,8 @@ const App: React.FC = () => {
             }));
             setIsLoading(false);
             abortControllerRef.current = null;
+            setAiStatus('error');
+            setTimeout(() => setAiStatus('idle'), 500);
         }
     );
   };
@@ -388,6 +397,7 @@ const App: React.FC = () => {
     const lastUserMessage = historyUpToRegenPoint[lastUserMessageIndex];
     
     setIsLoading(true);
+    setAiStatus('thinking');
     
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -429,12 +439,14 @@ const App: React.FC = () => {
 
                 switch (update.type) {
                     case 'chunk':
+                        setAiStatus('generating');
                         newMessages[targetMsgIndex] = {
                             ...newMessages[targetMsgIndex],
                             content: (newMessages[targetMsgIndex].content as string) + update.payload
                         };
                         break;
                     case 'grounding':
+                        setAiStatus('searching');
                         const sourcesMessage: Message = { 
                             id: `sources-${messageIdToRegenerate}`, 
                             type: MessageType.AI_SOURCES, 
@@ -460,6 +472,8 @@ const App: React.FC = () => {
         (duration) => {
             setIsLoading(false);
             abortControllerRef.current = null;
+            setAiStatus('complete');
+            setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => {
             setConversations(prev => prev.map(c => {
@@ -473,6 +487,8 @@ const App: React.FC = () => {
             }));
             setIsLoading(false);
             abortControllerRef.current = null;
+            setAiStatus('error');
+            setTimeout(() => setAiStatus('idle'), 500);
         }
     );
   };
@@ -575,11 +591,13 @@ ${error}
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;
                 const isCurrentlyLoading = isLoading && isLastMessage;
+                const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
                 return <ChatMessage
                             key={msg.id}
                             message={msg}
                             onRegenerate={handleRegenerate}
                             isLoading={isCurrentlyLoading}
+                            aiStatus={currentAiStatus}
                             onShowAnalysis={handleShowAnalysis}
                             executionResults={executionResults}
                             onStoreExecutionResult={handleStoreExecutionResult}

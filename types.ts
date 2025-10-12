@@ -79,3 +79,5 @@ export interface Conversation {
   personaId?: string;
   createdAt: string;
 }
+
+export type AIStatus = 'idle' | 'thinking' | 'searching' | 'generating' | 'complete' | 'error';

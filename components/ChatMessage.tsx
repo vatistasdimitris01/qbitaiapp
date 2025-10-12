@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, GroundingChunk, MessageContent } from '../types';
+import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon, CheckIcon
@@ -18,6 +19,7 @@ interface ChatMessageProps {
     message: Message;
     onRegenerate: (messageId: string) => void;
     isLoading: boolean;
+    aiStatus: AIStatus;
     onShowAnalysis: (code: string, lang: string) => void;
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
@@ -153,7 +155,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 };
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -188,15 +190,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
-    const isThinkingInProgress = useMemo(() => {
-        return hasThinkingTag && !messageText.includes('</thinking>');
-    }, [hasThinkingTag, messageText]);
-
     useEffect(() => {
-        if (isThinkingInProgress) {
+        if (aiStatus === 'thinking') {
             setIsThinkingOpen(true);
         }
-    }, [isThinkingInProgress]);
+    }, [aiStatus]);
 
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
@@ -363,19 +361,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     }, [contentParts]);
     const showTypingIndicator = !isUser && isLoading;
     
-    const thinkingTexts = [
-        "Thinking...",
-        "Processing request...",
-        "Analyzing data...",
-        "Consulting sources...",
-    ];
+    const statusTexts: Record<string, string[]> = {
+        thinking: [
+            "Thinking...",
+            "Processing request...",
+            "Analyzing data...",
+            "Consulting sources...",
+        ],
+        searching: [
+            "Searching the web...",
+            "Finding sources...",
+            "Consulting Google...",
+        ],
+        generating: [
+            "Generating response...",
+            "Composing message...",
+            "Formatting output...",
+        ],
+    };
 
-    const generatingTexts = [
-        "Generating response...",
-        "Composing message...",
-        "Formatting output...",
-    ];
-
+    const loadingTexts = statusTexts[aiStatus] || statusTexts.thinking;
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -483,17 +488,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 <div className="pt-2">
                                     {hasVisibleContent
                                         ? <span className="typing-indicator cursor"></span>
-                                        : <AITextLoading texts={isThinkingInProgress ? thinkingTexts : generatingTexts} />
+                                        : <AITextLoading texts={loadingTexts} />
                                     }
                                 </div>
                             )}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity ${isUser ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading ? 'opacity-0' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>
-                        {!isUser && !isLoading && (
+                        {!isUser && (
                             <>
                                 <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
                                     <RefreshCwIcon className="size-4" />

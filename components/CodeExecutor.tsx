@@ -211,7 +211,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
     const workerRef = useRef<Worker | null>(null);
-    const currentRunFileRef = useRef<DownloadableFile | null>(null);
     const initialRunRef = useRef(true);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
@@ -221,7 +220,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
-    const [view, setView] = useState<'code' | 'output'>(persistedResult ? 'output' : 'code');
+    const [view, setView] = useState<'code' | 'output'>(persistedResult && (persistedResult.output || persistedResult.error || persistedResult.downloadableFile) ? 'output' : 'code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
 
     useEffect(() => {
@@ -264,44 +263,37 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         }
     }, [output, lang, view]);
     
-    // Effect to synchronize the component's state with the persisted result from the parent
+    // Effect for initial run (autorun or restoring from persisted state)
     useEffect(() => {
-        if (persistedResult) {
-            const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
-
-            if (savedError) {
-                setError(savedError);
-                setStatus('error');
-            } else if (savedOutput !== null) {
-                if (type === 'image-base64') {
-                    setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                } else if (type === 'plotly-json') {
-                    setOutput(savedOutput);
-                } else { // 'string'
-                    setOutput(savedOutput);
+        if (initialRunRef.current) {
+            initialRunRef.current = false; // Prevent re-running on subsequent renders
+            if (persistedResult) {
+                const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
+                if (savedError) {
+                    setError(savedError);
+                    setStatus('error');
+                } else if (savedOutput !== null) {
+                    if (type === 'image-base64') {
+                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                    } else if (type === 'plotly-json') {
+                        setOutput(savedOutput);
+                    } else { // 'string'
+                        setOutput(savedOutput);
+                    }
+                    setStatus('success');
                 }
-                setStatus('success');
-            }
-            
-            if (savedFile) {
-                setDownloadableFile(savedFile);
-            }
-
-            // If there's any result to show, switch to the output view
-            if (savedError || savedOutput !== null || savedFile) {
-                setView('output');
-                setHasRunOnce(true);
+                if (savedFile) {
+                    setDownloadableFile(savedFile);
+                }
+                 if (savedError || savedOutput !== null || savedFile) {
+                    setView('output');
+                    setHasRunOnce(true);
+                }
+            } else if (autorun) {
+                handleRunCode();
             }
         }
-    }, [persistedResult]);
-
-    // Effect to handle the initial automatic run
-    useEffect(() => {
-        if (initialRunRef.current && autorun && !persistedResult) {
-            initialRunRef.current = false; // Ensure autorun only happens once on initial load
-            handleRunCode();
-        }
-    }, [autorun, persistedResult]);
+    }, [persistedResult, autorun, code, lang]);
 
 
     const handleCopy = () => {
@@ -340,8 +332,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     
         let stdoutBuffer = '';
         let stderrBuffer = '';
-        let plotResult: { output: string; type: 'image-base64' | 'plotly-json' } | null = null;
-        currentRunFileRef.current = null; // Reset ref for this run
+        let finalResult: ExecutionResult | null = null;
+        let currentRunDownloadableFile: DownloadableFile | null = null;
     
         const cleanup = () => {
             if (workerRef.current) {
@@ -362,55 +354,43 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     }
                     break;
                 case 'stdout':
-                    stdoutBuffer += data + '\n';
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\n');
+                    stdoutBuffer += data + '\\n';
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\\n');
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\n';
+                    stderrBuffer += msgError + '\\n';
                     setError(stderrBuffer.trim());
                     break;
                 case 'plot':
                     if (plotType === 'plotly') {
                         setOutput(data);
-                        plotResult = { output: data, type: 'plotly-json' };
+                        finalResult = { output: data, error: '', type: 'plotly-json' };
                     } else { // matplotlib or pil
                         setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                        plotResult = { output: data, type: 'image-base64' };
+                        finalResult = { output: data, error: '', type: 'image-base64' };
                     }
                     break;
                 case 'download':
                     const fileInfo = { filename, mimetype, data };
                     downloadFile(filename, mimetype, data);
                     setDownloadableFile(fileInfo);
-                    currentRunFileRef.current = fileInfo;
+                    currentRunDownloadableFile = fileInfo;
                     break;
                 case 'success':
                     setStatus('success');
                     setView('output');
-                    
-                    const currentRunDownloadableFile = currentRunFileRef.current;
-                    let finalOutputText = stdoutBuffer.trim();
-                    let finalResultType: ExecutionResult['type'] = 'string';
-                    let finalResultData: string | null = null;
-
-                    if (plotResult) {
-                        finalResultType = plotResult.type;
-                        finalResultData = plotResult.output;
-                    } else if (finalOutputText) {
-                        finalResultData = finalOutputText;
-                    } else if (currentRunDownloadableFile && !finalOutputText) {
-                        // If a file was the ONLY output, create a confirmation message.
-                        const confirmationMessage = `File '${currentRunDownloadableFile.filename}' created successfully. Your download should start automatically.`;
-                        setOutput(confirmationMessage);
-                        finalResultData = confirmationMessage;
+                    let resultToPersist: ExecutionResult;
+                    if (finalResult) {
+                        resultToPersist = { ...finalResult, error: '' };
+                    } else if (stdoutBuffer.trim()) {
+                        resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
+                    } else {
+                        resultToPersist = { output: null, error: '', type: 'string' };
                     }
-
-                    onExecutionComplete({
-                        output: finalResultData,
-                        error: '',
-                        type: finalResultType,
-                        downloadableFile: currentRunDownloadableFile,
-                    });
+                    if (currentRunDownloadableFile) {
+                        resultToPersist.downloadableFile = currentRunDownloadableFile;
+                    }
+                    onExecutionComplete(resultToPersist);
                     cleanup();
                     break;
                 case 'error':
@@ -418,12 +398,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     setError(errorMsg);
                     setStatus('error');
                     setView('output');
-                    onExecutionComplete({
-                        output: null,
-                        error: errorMsg,
-                        type: 'error',
-                        downloadableFile: currentRunFileRef.current
-                    });
+                    const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
+                    if (currentRunDownloadableFile) {
+                        errorResult.downloadableFile = currentRunDownloadableFile;
+                    }
+                    onExecutionComplete(errorResult);
                     cleanup();
                     break;
             }
@@ -445,13 +424,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let consoleOutput = '';
         const oldConsoleLog = console.log;
         console.log = (...args) => {
-            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
+            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\\n';
         };
         try {
             const result = (0, eval)(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
-                finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
+                finalOutput += `\\n// returns\\n${JSON.stringify(result, null, 2)}`;
             }
             const trimmedOutput = finalOutput.trim();
             setOutput(trimmedOutput);
@@ -599,7 +578,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
              {downloadableFile && !error && (
                 <div className="mt-4 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
                     <p className="text-sm text-foreground flex-1 min-w-0">
-                        File created: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                        Download started: <span className="font-semibold truncate">{downloadableFile.filename}</span>
                     </p>
                     <button 
                         onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}

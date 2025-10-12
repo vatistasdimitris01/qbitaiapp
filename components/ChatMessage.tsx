@@ -132,8 +132,8 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
             <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
-                <div className="flex items-baseline space-x-2 min-w-0">
-                    <h3 className="font-semibold text-foreground text-base capitalize truncate">{lang}</h3>
+                <div className="flex items-center space-x-2 min-w-0">
+                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
                 </div>
                 <div className="flex items-center space-x-4 text-sm font-medium">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isCopied ? "Copied code" : "Copy code"}>

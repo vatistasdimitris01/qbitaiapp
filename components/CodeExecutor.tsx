@@ -89,6 +89,62 @@ def custom_plotly_show(self, *args, **kwargs):
     print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
 go.Figure.show = custom_plotly_show
 if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
+
+# --- Monkey-patch file generation libraries to trigger downloads ---
+try:
+    from openpyxl.workbook.workbook import Workbook
+    original_workbook_save = Workbook.save
+    def patched_workbook_save(self, filename):
+        if isinstance(filename, str):
+            buffer = io.BytesIO()
+            original_workbook_save(self, buffer)
+            buffer.seek(0)
+            excel_bytes = buffer.read()
+            b64_data = base64.b64encode(excel_bytes).decode('utf-8')
+            mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{b64_data}")
+            print(f"Successfully created '{filename}'")
+        else:
+            original_workbook_save(self, filename)
+    Workbook.save = patched_workbook_save
+except ImportError:
+    pass
+
+try:
+    from fpdf import FPDF
+    original_fpdf_output = FPDF.output
+    def patched_fpdf_output(self, name='', dest='S'):
+        if name: # If a filename is provided, intercept it for download
+            pdf_output_bytes = original_fpdf_output(self, dest='S').encode('latin1')
+            b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
+            mimetype = "application/pdf"
+            print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
+            print(f"Successfully created '{name}'")
+        else:
+            # If no filename, behave as original (e.g., return bytes for dest='S')
+            return original_fpdf_output(self, name=name, dest=dest)
+    FPDF.output = patched_fpdf_output
+except ImportError:
+    pass
+
+try:
+    from docx.document import Document
+    original_document_save = Document.save
+    def patched_document_save(self, path_or_stream):
+        if isinstance(path_or_stream, str):
+            buffer = io.BytesIO()
+            original_document_save(self, buffer)
+            buffer.seek(0)
+            word_bytes = buffer.read()
+            b64_data = base64.b64encode(word_bytes).decode('utf-8')
+            mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            print(f"__QBIT_DOWNLOAD_FILE__:{path_or_stream}:{mimetype}:{b64_data}")
+            print(f"Successfully created '{path_or_stream}'")
+        else:
+            original_document_save(self, path_or_stream)
+    Document.save = patched_document_save
+except ImportError:
+    pass
 \`;
             
             await pyodide.runPythonAsync(preamble + '\\n' + code);
@@ -289,11 +345,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                     }
                     break;
                 case 'stdout':
-                    stdoutBuffer += data + '\n';
+                    stdoutBuffer += data + '\\n';
                     setOutput(stdoutBuffer.trim());
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\n';
+                    stderrBuffer += msgError + '\\n';
                     setError(stderrBuffer.trim());
                     break;
                 case 'plot':
@@ -310,8 +366,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         setOutput(<img src={`data:${mimetype};base64,${data}`} alt={filename} className="max-w-full h-auto bg-white rounded-lg" />);
                     } else {
                         downloadFile(filename, mimetype, data);
-                        stdoutBuffer += `Downloading ${filename}...\n`;
-                        setOutput(stdoutBuffer.trim());
                     }
                     break;
                 case 'success':
@@ -352,13 +406,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         let consoleOutput = '';
         const oldConsoleLog = console.log;
         console.log = (...args) => {
-            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
+            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\\n';
         };
         try {
             const result = (0, eval)(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
-                finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
+                finalOutput += `\\n// returns\\n${JSON.stringify(result, null, 2)}`;
             }
             const trimmedOutput = finalOutput.trim();
             setOutput(trimmedOutput);
@@ -557,8 +611,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
             <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
-                <div className="flex items-baseline space-x-2 min-w-0">
-                    <h3 className="font-semibold text-foreground text-base capitalize truncate">{lang}</h3>
+                <div className="flex items-center space-x-2 min-w-0">
+                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
                 </div>
                 <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>

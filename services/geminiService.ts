@@ -99,8 +99,15 @@ export const streamMessageToAI = async (
 
         while (true) {
             const { done, value } = await reader.read();
+            
+            if (value) {
+                buffer += decoder.decode(value, { stream: true });
+                processBuffer();
+            }
+
             if (done) {
-                // The stream is done. Process any remaining data in the buffer.
+                // The stream is done. There might be a final piece of data in the buffer
+                // that doesn't end with a newline.
                 if (buffer.trim()) {
                     try {
                         const update: StreamUpdate = JSON.parse(buffer);
@@ -113,9 +120,6 @@ export const streamMessageToAI = async (
                 }
                 break; // Exit the loop
             }
-
-            buffer += decoder.decode(value, { stream: true });
-            processBuffer();
         }
 
     } catch (error) {

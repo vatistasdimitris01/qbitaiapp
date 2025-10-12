@@ -492,7 +492,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading ? 'opacity-0' : 'opacity-100')}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>

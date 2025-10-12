@@ -355,8 +355,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const hasVisibleContent = useMemo(() => {
+        if (isUser) {
+            return !!messageText.trim() || (message.files && message.files.length > 0);
+        }
         return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim()) || (p.type === 'code' && p.code));
-    }, [contentParts]);
+    }, [contentParts, isUser, messageText, message.files]);
+
     const showTypingIndicator = !isUser && isLoading;
     
     const statusTexts: Record<string, string[]> = {
@@ -492,7 +496,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             )}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${(!isLoading && hasVisibleContent) ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>

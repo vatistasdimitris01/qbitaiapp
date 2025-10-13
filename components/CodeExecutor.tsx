@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, XIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, XIcon, Wand2Icon } from './icons';
 
 declare global {
     interface Window {
@@ -573,16 +573,19 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
       return (
         <div className="flex flex-col gap-2">
             {error ? (
-                <div className="space-y-2 output-block border border-red-500/50 bg-red-500/10 dark:bg-red-500/10">
-                    <pre className="text-sm error-text whitespace-pre-wrap">{error}</pre>
-                    {onFixRequest && (
-                        <button 
-                            onClick={() => onFixRequest(error)}
-                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mt-2"
-                        >
-                            Fix it
-                        </button>
-                    )}
+                <div className="output-block error">
+                    <div className="flex justify-between items-start gap-4">
+                        <pre className="text-sm error-text whitespace-pre-wrap flex-1">{error}</pre>
+                        {onFixRequest && (
+                            <button
+                                onClick={() => onFixRequest(error)}
+                                title="Fix code"
+                                className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"
+                            >
+                                <Wand2Icon className="size-5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
             ) : null}
 
@@ -597,7 +600,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             )}
             
             {showOutputBlock && (
-              <div className="text-sm output-block">
+              <div className="text-sm output-block success">
                 {typeof output === 'string' && output.trim() !== '' && <pre>{output.trim()}</pre>}
                 
                 {(downloadableFile || htmlBlobUrl) && (

@@ -212,7 +212,7 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
+const HeaderButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
     <button
         onClick={onClick}
         title={title}
@@ -241,8 +241,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
-
-    const lineCount = useMemo(() => code.split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -590,40 +588,38 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     );
 
     return (
-        <div className="not-prose my-4">
+        <div className="not-prose my-4 light-theme-code-block">
             <div className="bg-card border border-default rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-1.5">
-                    <span className="font-mono text-xs text-muted-foreground capitalize">{lang}</span>
+                <div className="flex items-center justify-between px-4 py-1.5 bg-gray-100 dark:bg-zinc-800">
+                    <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
                     <div className="flex items-center gap-1">
-                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
+                        <HeaderButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-                        </ActionButton>
+                        </HeaderButton>
                         
                         {isExecutable && (
                             status === 'executing' || status === 'loading-env' ? (
-                                <ActionButton onClick={handleStopCode} title="Stop execution">
+                                <HeaderButton onClick={handleStopCode} title="Stop execution">
                                     <div className="w-2.5 h-2.5 bg-foreground rounded-sm"></div>
-                                </ActionButton>
+                                </HeaderButton>
                             ) : (
-                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                <HeaderButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
-                                </ActionButton>
+                                </HeaderButton>
                             )
                         )}
                         
-                        <ActionButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
+                        <HeaderButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        </ActionButton>
+                        </HeaderButton>
                     </div>
                 </div>
 
                 <div className={`code-container ${isCollapsed ? 'collapsed' : ''}`}>
-                    <div className="min-h-0 overflow-hidden">
-                        <div className="px-4 pb-4">
-                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area">
-                                <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                            </pre>
-                        </div>
+                     <div className="min-h-0 overflow-hidden bg-white">
+                        <pre className="!m-0 p-4 overflow-x-auto">
+                            <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                        </pre>
                     </div>
                 </div>
             </div>

@@ -401,8 +401,24 @@ const App: React.FC = () => {
                             msg.id === aiMessageId ? { ...msg, content: (msg.content as string || '') + update.payload } : msg
                         );
                         break;
-                    case 'grounding':
+                    case 'searching':
                         setAiStatus('searching');
+                        const searchActionMessage: Message = {
+                            id: `searching-${aiMessageId}`,
+                            type: MessageType.AGENT_ACTION,
+                            content: `Searching for: "${update.payload}"`,
+                        };
+                         const aiMsgIdx = newMessages.findIndex(m => m.id === aiMessageId);
+                        if (aiMsgIdx > -1) {
+                            const existingSearchIndex = newMessages.findIndex(m => m.id === searchActionMessage.id);
+                            if (existingSearchIndex === -1) {
+                                newMessages.splice(aiMsgIdx, 0, searchActionMessage);
+                            } else {
+                                newMessages[existingSearchIndex] = searchActionMessage;
+                            }
+                        }
+                        break;
+                    case 'sources':
                         const sourcesMessage: Message = {
                             id: `sources-${aiMessageId}`,
                             type: MessageType.AI_SOURCES,
@@ -410,11 +426,17 @@ const App: React.FC = () => {
                         };
                         const aiMsgIndex = newMessages.findIndex(m => m.id === aiMessageId);
                         if (aiMsgIndex > -1) {
-                            const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
-                            if (existingSourcesIndex === -1) {
-                                newMessages.splice(aiMsgIndex, 0, sourcesMessage);
+                            // Replace agent action with sources
+                            const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
+                             if (agentActionIndex !== -1) {
+                                newMessages.splice(agentActionIndex, 1, sourcesMessage);
                             } else {
-                                newMessages[existingSourcesIndex] = sourcesMessage;
+                                const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
+                                if (existingSourcesIndex === -1) {
+                                    newMessages.splice(aiMsgIndex, 0, sourcesMessage);
+                                } else {
+                                    newMessages[existingSourcesIndex] = sourcesMessage;
+                                }
                             }
                         }
                         break;
@@ -511,18 +533,38 @@ const App: React.FC = () => {
                             content: (newMessages[targetMsgIndex].content as string) + update.payload
                         };
                         break;
-                    case 'grounding':
-                        setAiStatus('searching');
+                    case 'searching':
+                         setAiStatus('searching');
+                         const searchActionMessage: Message = {
+                            id: `searching-${messageIdToRegenerate}`,
+                            type: MessageType.AGENT_ACTION,
+                            content: `Searching for: "${update.payload}"`,
+                        };
+                         if (targetMsgIndex > -1) {
+                             const existingSearchIndex = newMessages.findIndex(m => m.id === searchActionMessage.id);
+                             if (existingSearchIndex === -1) {
+                                 newMessages.splice(targetMsgIndex, 0, searchActionMessage);
+                             } else {
+                                 newMessages[existingSearchIndex] = searchActionMessage;
+                             }
+                         }
+                        break;
+                    case 'sources':
                         const sourcesMessage: Message = { 
                             id: `sources-${messageIdToRegenerate}`, 
                             type: MessageType.AI_SOURCES, 
                             content: update.payload 
                         };
-                        const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
-                        if (existingSourcesIndex === -1) {
-                            newMessages.splice(targetMsgIndex, 0, sourcesMessage);
+                         const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
+                         if (agentActionIndex !== -1) {
+                            newMessages.splice(agentActionIndex, 1, sourcesMessage);
                         } else {
-                            newMessages[existingSourcesIndex] = sourcesMessage;
+                            const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
+                            if (existingSourcesIndex === -1) {
+                                newMessages.splice(targetMsgIndex, 0, sourcesMessage);
+                            } else {
+                                newMessages[existingSourcesIndex] = sourcesMessage;
+                            }
                         }
                         break;
                     case 'usage':

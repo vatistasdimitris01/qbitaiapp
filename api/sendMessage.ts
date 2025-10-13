@@ -1,7 +1,7 @@
 // FIX: Implemented the missing sendMessage API endpoint.
 // This Vercel Edge Function streams responses from the Google GenAI API.
 
-import { GoogleGenAI, Content } from "@google/genai";
+import { GoogleGenAI, Content, FunctionDeclaration, Type, Part } from "@google/genai";
 
 // Vercel Edge Function config
 export const config = {
@@ -24,6 +24,45 @@ interface LocationInfo {
     country: string;
 }
 
+const googleSearchTool: FunctionDeclaration = {
+  name: 'google_search',
+  description: 'Search Google for recent information, events, and topics. Use this for any user query that requires up-to-date information from the web.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: 'The search query to send to Google.'
+      }
+    },
+    required: ['query']
+  }
+};
+
+async function performGoogleSearch(query: string) {
+    const API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+    const ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+    if (!API_KEY || !ENGINE_ID) {
+        throw new Error("Google Search API Key or Engine ID is not configured.");
+    }
+    const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${ENGINE_ID}&q=${encodeURIComponent(query)}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Google Search API failed with status ${response.status}`);
+    }
+    const data = await response.json();
+    const items = data.items || [];
+    return items.slice(0, 5).map((item: any) => ({
+        web: {
+          title: item.title,
+          uri: item.link,
+          snippet: item.snippet,
+        }
+    }));
+}
+
+
 // The main handler for the API route
 export default async function handler(req: Request) {
     if (req.method !== 'POST') {
@@ -37,13 +76,11 @@ export default async function handler(req: Request) {
         const { history, message, attachments, personaInstruction, location } = await req.json();
 
         // As per guidelines, the API key MUST be from process.env.API_KEY
-        // Ensure API_KEY is set in your Vercel environment variables
         if (!process.env.API_KEY) {
             throw new Error("API_KEY environment variable is not set.");
         }
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        // Convert the conversation history from the client to the format required by the Gemini API.
         const geminiHistory: Content[] = (history as HistoryItem[]).map(msg => ({
             role: msg.author === 'user' ? 'user' : 'model',
             parts: [{ text: msg.text }],
@@ -54,8 +91,7 @@ export default async function handler(req: Request) {
             userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${message}`;
         }
 
-        // Prepare the parts for the user's current message, including any text and attachments.
-        const userMessageParts: any[] = [{ text: userMessageText }];
+        const userMessageParts: Part[] = [{ text: userMessageText }];
         if (attachments && (attachments as ApiAttachment[]).length > 0) {
             for (const attachment of attachments as ApiAttachment[]) {
                 userMessageParts.push({
@@ -67,118 +103,113 @@ export default async function handler(req: Request) {
             }
         }
         
-        // Combine history with the new user message to form the full conversation context.
-        const contents: Content[] = [
+        let contents: Content[] = [
             ...geminiHistory,
-            {
-                role: 'user',
-                parts: userMessageParts,
-            }
+            { role: 'user', parts: userMessageParts }
         ];
 
-        // Per guidelines, use gemini-2.5-flash
         const model = 'gemini-2.5-flash';
 
         const baseSystemInstruction = `You are a helpful and brilliant assistant.
 
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
-
+- **Web Search**: You have a tool named \`google_search\` that you can use to search the web for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should call this tool with a relevant search query.
+- **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query for the \`google_search\` tool. For general questions, ignore the location.
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
-
 - **CODE FORMATTING GUIDE**:
-    - **Inline Code**: For brief code elements, terminal commands, function names (\`print()\`), variable names (\`my_variable\`), or file names (\`hello.py\`), use single backticks. This is for embedding code within sentences. Example: "Run the script using \`python hello.py\`."
+    - **Inline Code**: For brief code elements, terminal commands, function names (\`print()\`), variable names (\`my_variable\`), or file names (\`hello.py\`), use single backticks.
     - **Code Execution**: By default, all fenced code blocks are treated as executable and will have a "Run" button.
-    - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, conceptual, or cannot be run in the sandboxed environment (e.g., code that requires external hardware or is just a structural example like a file tree), you MUST add the \`no-run\` keyword to the info string. This will replace the "Run" button with a non-clickable "Not executable" icon.
-        - **CORRECT USAGE:** \`\`\`bash no-run\` or \`\`\`json no-run title="Config Example"\`
-        - Use this for any language when the code isn't meant for execution. For plain text blocks (\`text\`), always include \`no-run\`.
-    - **Shell Command & Output Examples**: To show how to run a command and what its output looks like, use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output. This avoids creating multiple small, clunky blocks.
-        - **CORRECT USAGE:**
-        \`\`\`text no-run
-        $ python hello.py
-        Hello, Python!
-
-        $ python
-        Python 3.10.x (...)
-        >>> print("Hello from the interactive shell!")
-        Hello from the interactive shell!
-        >>> exit()
-        \`\`\`
-        - **INCORRECT USAGE (Do NOT do this):**
-        \`\`\`bash
-        python hello.py
-        \`\`\`
-        Then, in a separate block:
-        \`\`\`text
-        Hello, Python!
-        \`\`\`
-
+    - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, or conceptual, you MUST add the \`no-run\` keyword to the info string.
+    - **Shell Command & Output Examples**: Use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output.
 - **AUTONOMOUS EXECUTION & DISPLAY**:
-    - If the user gives a direct and simple command to create a file or plot (e.g., "make me an excel file of popular dog breeds", "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block, with no surrounding text.
-    - **For tasks that generate a file for the user**, you MUST also add the 'collapsed' keyword. This provides a cleaner experience, as the user is more interested in the downloaded file than the code that created it. Example: \`\`\`python autorun collapsed title="Dog Breeds.xlsx"\`.
-    - For more complex or educational requests (e.g., "how can I use python to generate a report?"), provide explanatory text along with one or more code blocks. Do NOT use 'autorun' or 'collapsed' in these cases.
-
-- **CRITICAL PYTHON SYNTAX RULES**: To prevent syntax errors, you MUST adhere to the following non-negotiable rules:
-    1.  **For ALL string literals, you MUST use triple quotes (\`"""..."""\`).**
-    2.  **For SINGLE-LINE strings, the opening and closing triple quotes MUST be on the SAME line.**
-        -   **CORRECT:** \`variable = """A single line string."""\`
-        -   **INCORRECT:** \`variable = """A single line string
-            """\`
-    3.  **For MULTI-LINE strings, ensure the closing triple quotes are on a new line.**
-    4.  **Ensure all brackets \`()\`, square brackets \`[]\`, and curly braces \`{}\` are properly opened and closed.** Pay special attention to multi-line data structures.
-    5.  **All variables MUST be defined before they are used.** This prevents \`NameError\`. Check your code carefully for undefined variables, especially list variables for table headers.
-    6.  Failure to follow these rules will result in invalid code. Adherence is mandatory.
-
-- **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library. Do NOT use \`pandas.to_excel()\`. When using \`openpyxl\`, you MUST define column headers as a Python list (e.g., \`headers = ["Column A", "Column B"]\`) and then add this list to the worksheet using \`worksheet.append(headers)\` BEFORE appending any data rows. This prevents \`NameError\`. Create a workbook, add data to worksheets, and save it using \`wb.save("filename.xlsx")\`. The environment will automatically handle the download.
-
-- After calling a file-saving function (like \`wb.save()\`, \`doc.save()\`, or \`pdf.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
-- **LOCATION-AWARE SEARCH**: You have access to the user's current location (city, country), which will be provided at the start of their prompt like this: [User's Location: City, Country]. When you use the Google Search tool, you MUST decide if the location is relevant. For local queries (e.g., "restaurants near me", "weather today", "local events"), incorporate the location into your search. For general knowledge questions (e.g., "what is the capital of France?"), you MUST ignore the location data to provide a global answer. Use this information to make your search results more accurate and context-aware.
+    - If the user gives a direct and simple command to create a file or plot (e.g., "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block.
+    - For tasks that generate a file for the user, you MUST also add the 'collapsed' keyword.
+- **CRITICAL PYTHON SYNTAX RULES**:
+    1.  For ALL string literals, you MUST use triple quotes (\`"""..."""\`).
+    2.  For SINGLE-LINE strings, opening and closing triple quotes MUST be on the SAME line.
+    3.  All variables MUST be defined before they are used.
+- **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library.
+- After calling a file-saving function (like \`wb.save()\`), do NOT add any print statements.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
-- When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user. You just need to call the standard save functions with a filename (e.g., \`wb.save('filename.xlsx')\`, \`doc.save('filename.docx')\`, \`pdf.output('filename.pdf')\`).`;
+- When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user.`;
 
         const finalSystemInstruction = personaInstruction
             ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`
             : baseSystemInstruction;
-
-        // Set up the streaming response to send data back to the client as it's generated.
+            
         const responseStream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
-                
-                const write = (data: object) => {
-                    controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
-                };
+                const write = (data: object) => controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
 
                 try {
-                    const stream = await ai.models.generateContentStream({
+                    // First call to check for tool use
+                    const firstStream = await ai.models.generateContentStream({
                         model: model,
                         contents: contents,
                         config: {
                             systemInstruction: finalSystemInstruction,
-                            tools: [{googleSearch: {}}],
+                            tools: [{ functionDeclarations: [googleSearchTool] }],
                         },
                     });
 
-                    let usageMetadataSent = false;
+                    let accumulatedFunctionCall: any = null;
+                    let textOutput = '';
 
-                    for await (const chunk of stream) {
-                        const text = chunk.text;
-                        if (text) {
-                            write({ type: 'chunk', payload: text });
+                    for await (const chunk of firstStream) {
+                        if (chunk.text) {
+                            textOutput += chunk.text;
                         }
-
-                        // Usage metadata is often available at the end. We send it once.
-                        if (chunk.usageMetadata && !usageMetadataSent) {
-                             write({ type: 'usage', payload: chunk.usageMetadata });
-                             usageMetadataSent = true;
-                        }
-                        
-                        const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
-                        if (groundingMetadata?.groundingChunks?.length) {
-                           write({ type: 'grounding', payload: groundingMetadata.groundingChunks });
+                        if (chunk.functionCalls) {
+                            // Assuming one function call for simplicity
+                            accumulatedFunctionCall = chunk.functionCalls[0];
                         }
                     }
-                    
+
+                    if (accumulatedFunctionCall) {
+                        const query = accumulatedFunctionCall.args.query;
+                        write({ type: 'searching', payload: query });
+
+                        const searchResults = await performGoogleSearch(query);
+                        write({ type: 'sources', payload: searchResults });
+
+                        const toolResponsePart: Part = {
+                            functionResponse: {
+                                name: 'google_search',
+                                response: { results: searchResults.map((r:any) => ({ title: r.web.title, link: r.web.uri, snippet: r.web.snippet })) },
+                            }
+                        };
+                        
+                        // Append the model's tool request and our tool response to the history
+                        contents.push({ role: 'model', parts: [{ functionCall: accumulatedFunctionCall }] });
+                        contents.push({ role: 'user', parts: [toolResponsePart] });
+
+                        // Second call to get the final answer based on search results
+                        const secondStream = await ai.models.generateContentStream({
+                            model: model,
+                            contents: contents,
+                            config: { systemInstruction: finalSystemInstruction }
+                        });
+                        
+                         let usageMetadataSent = false;
+                        for await (const chunk of secondStream) {
+                             if (chunk.text) {
+                                write({ type: 'chunk', payload: chunk.text });
+                            }
+                            if (chunk.usageMetadata && !usageMetadataSent) {
+                                write({ type: 'usage', payload: chunk.usageMetadata });
+                                usageMetadataSent = true;
+                            }
+                        }
+
+                    } else {
+                        // No tool use, just stream the text we got from the first call
+                        if (textOutput) {
+                            write({ type: 'chunk', payload: textOutput });
+                        }
+                    }
+
                     write({ type: 'end' });
                     controller.close();
                 } catch (error) {

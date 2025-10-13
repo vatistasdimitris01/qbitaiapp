@@ -134,19 +134,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             setTypedText(parsedResponseText);
             return;
         }
-
+    
+        // Only run the typewriter effect when the AI is in the 'generating' state.
+        if (aiStatus !== 'generating') {
+            // If we are thinking or searching, the text should be empty.
+            if(typedText !== '') setTypedText('');
+            return;
+        }
+    
         if (typedText.length < parsedResponseText.length) {
-            const typingSpeed = 15; // milliseconds per character
+            const typingSpeed = 10; // milliseconds per character
             const timeoutId = setTimeout(() => {
                 setTypedText(parsedResponseText.slice(0, typedText.length + 1));
             }, typingSpeed);
             return () => clearTimeout(timeoutId);
         }
-    }, [typedText, parsedResponseText, isLoading]);
+    }, [typedText, parsedResponseText, isLoading, aiStatus]);
 
 
     useEffect(() => {
-        if (aiStatus === 'thinking') {
+        if (aiStatus === 'thinking' || aiStatus === 'searching') {
             setIsThinkingOpen(true);
         }
     }, [aiStatus]);
@@ -154,7 +161,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
 
-        const textToRender = isLoading ? typedText : parsedResponseText;
+        const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
     
         type ContentPart = {
             type: 'text' | 'code';
@@ -207,7 +214,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             }
         });
 
-        if (isLoading) {
+        if (isLoading && aiStatus === 'generating') {
             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
             const lastPart = parts[parts.length - 1];
             if (lastPart && lastPart.type === 'text') {
@@ -218,7 +225,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     
         return parts;
-    }, [isLoading, typedText, parsedResponseText, message.type]);
+    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
 
     const hasRenderableContent = useMemo(() => {
       return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
@@ -319,7 +326,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     }, [contentParts, message.type, message.id, parsedResponseText]);
 
-    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
+    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || (message.type === MessageType.AGENT_ACTION) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const loadingTexts = useMemo(() => {
@@ -360,14 +367,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
                             aria-expanded={isThinkingOpen}
                         >
-                            <BrainIcon className="size-4" />
-                            <span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
+                            {message.type === MessageType.AI_SOURCES || message.type === MessageType.AGENT_ACTION ? <SearchIcon className="size-4" /> : <BrainIcon className="size-4" />}
+                            <span className="flex-1 text-left font-medium hidden sm:inline">{message.type === MessageType.AI_SOURCES ? t('chat.message.grounding') : message.type === MessageType.AGENT_ACTION ? 'Searching...' : t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
                                 {message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
                                     <GroundingDisplay chunks={message.content as GroundingChunk[]} t={t} />
+                                )}
+                                {message.type === MessageType.AGENT_ACTION && typeof message.content === 'string' && (
+                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
+                                        <p className="text-sm text-muted-foreground">{message.content}</p>
+                                    </div>
                                 )}
                                 {parsedThinkingText && (
                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">

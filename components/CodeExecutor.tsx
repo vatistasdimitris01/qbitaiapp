@@ -212,12 +212,12 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-const HeaderButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
+const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
     <button
         onClick={onClick}
         title={title}
         aria-label={title}
-        className="p-1.5 rounded-md text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
+        className="p-1 rounded-sm text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground transition-colors"
     >
         {children}
     </button>
@@ -241,6 +241,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
+
+    const lineCount = useMemo(() => code.split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -588,38 +590,40 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     );
 
     return (
-        <div className="not-prose my-4 light-theme-code-block">
+        <div className="not-prose my-4">
             <div className="bg-card border border-default rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-1.5 bg-gray-100 dark:bg-zinc-800">
+                <div className="flex items-center justify-between px-4 py-2 bg-token-surface-secondary/50 border-b border-default">
                     <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
-                    <div className="flex items-center gap-1">
-                        <HeaderButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
+                     <div className="flex items-center gap-0.5 bg-background p-0.5 rounded-md border border-default shadow-sm">
+                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-                        </HeaderButton>
+                        </ActionButton>
                         
                         {isExecutable && (
                             status === 'executing' || status === 'loading-env' ? (
-                                <HeaderButton onClick={handleStopCode} title="Stop execution">
-                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm"></div>
-                                </HeaderButton>
+                                <ActionButton onClick={handleStopCode} title="Stop execution">
+                                    <div className="w-3 h-3 bg-foreground rounded-sm"></div>
+                                </ActionButton>
                             ) : (
-                                <HeaderButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
-                                </HeaderButton>
+                                </ActionButton>
                             )
                         )}
                         
-                        <HeaderButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
+                        <ActionButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        </HeaderButton>
+                        </ActionButton>
                     </div>
                 </div>
 
                 <div className={`code-container ${isCollapsed ? 'collapsed' : ''}`}>
-                     <div className="min-h-0 overflow-hidden bg-white">
-                        <pre className="!m-0 p-4 overflow-x-auto">
-                            <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                        </pre>
+                    <div className="min-h-0 overflow-hidden">
+                        <div className="p-4 bg-background">
+                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area rounded-lg">
+                                <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                            </pre>
+                        </div>
                     </div>
                 </div>
             </div>

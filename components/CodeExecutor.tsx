@@ -209,10 +209,9 @@ const langExtensions: { [key: string]: string } = {
 };
 
 function usePrevious<T>(value: T): T | undefined {
-  // FIX: `useRef` without an initial value implicitly uses `undefined`.
-  // The generic type `T` might not include `undefined`, causing a type error.
-  // By using `T | undefined`, we ensure the type is compatible.
-  const ref = useRef<T | undefined>();
+  // FIX: Explicitly pass `undefined` to `useRef` to satisfy TypeScript's type inference
+  // for overloaded function signatures, resolving the "Expected 1 arguments, but got 0" error.
+  const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
     ref.current = value;
   });

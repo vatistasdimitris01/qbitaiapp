@@ -114,7 +114,8 @@ try:
     from fpdf import FPDF
     original_fpdf_output = FPDF.output
     def patched_fpdf_output(self, name='', dest='S'):
-        if name: # If a filename is provided, intercept it for download
+        # If a filename is provided, intercept it for download
+        if name: 
             pdf_output_bytes = original_fpdf_output(self, dest='S').encode('latin1')
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
@@ -214,7 +215,8 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
+// FIX: Changed component definition to not use React.FC to fix type inference issue.
+export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }: CodeExecutorProps) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -231,6 +233,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [view, setView] = useState<'code' | 'output'>('code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
+    // FIX: Added a state trigger for React execution to solve timing issue with ref.
+    const [reactExecTrigger, setReactExecTrigger] = useState(0);
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -398,15 +402,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         setView('output');
     }, [code, onExecutionComplete]);
     
-    const runReact = useCallback(() => {
-        setStatus('executing');
-        setHasRunOnce(true);
-        if (reactMountRef.current) {
+    // FIX: Refactored React execution to create the root once and reuse it, avoiding problematic unmount calls on re-renders.
+    useEffect(() => {
+        if (reactExecTrigger > 0 && reactMountRef.current) {
             try {
-                if (reactRootRef.current) {
-                    reactRootRef.current.unmount();
+                if (!reactRootRef.current) {
+                    reactRootRef.current = ReactDOM.createRoot(reactMountRef.current);
                 }
-                reactRootRef.current = ReactDOM.createRoot(reactMountRef.current);
                 
                 const wrappedCode = `let Component; ${code}; return Component;`;
                 const transpiledCode = window.Babel.transform(wrappedCode, { presets: ['react'] }).code;
@@ -414,8 +416,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 const ComponentToRender = getComponent(React);
 
                 if (typeof ComponentToRender === 'function') {
-                    reactRootRef.current.render(React.createElement(ComponentToRender));
-                    setOutput(<div ref={reactMountRef}></div>);
+                    const Component = ComponentToRender as React.ComponentType;
+                    reactRootRef.current.render(React.createElement(Component));
+                    setOutput(null); // The content is rendered into the ref, not stored in state
                     setStatus('success');
                     onExecutionComplete({ output: 'React component rendered.', error: '', type: 'string' });
                 } else {
@@ -428,8 +431,25 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             }
         }
+    }, [reactExecTrigger, code, onExecutionComplete]);
+    
+    // Add a separate effect for cleanup when the component unmounts
+    useEffect(() => {
+        return () => {
+            if (reactRootRef.current) {
+                reactRootRef.current.unmount();
+                reactRootRef.current = null;
+            }
+        }
+    }, []);
+
+    const runReact = useCallback(() => {
+        setStatus('executing');
+        setHasRunOnce(true);
         setView('output');
-    }, [code, onExecutionComplete]);
+        setReactExecTrigger(c => c + 1);
+    }, []);
+
 
     const handleRunCode = useCallback(async () => {
         setOutput('');
@@ -577,7 +597,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
                         (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
                              <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
                         ) : (lang === 'react' || lang === 'jsx') ? (
-                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}>{output}</div>
+                            // FIX: Removed {output} as React rendering is handled directly by ReactDOM.createRoot.
+                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}></div>
                         ) : typeof output === 'string' ? (
                             <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
                         ) : (
@@ -606,7 +627,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     
     const CodeDisplay = () => (
         <>
-            <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
+            <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area min-w-0">
                 <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
             </div>
             {(status === 'executing' || status === 'loading-env') && (

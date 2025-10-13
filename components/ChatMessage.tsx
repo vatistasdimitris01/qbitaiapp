@@ -96,7 +96,7 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
     
     useEffect(() => {
         if ((window as any).hljs) {
-            const safeLang = escapeHtml(lang === 'python-example' ? 'python' : lang);
+            const safeLang = escapeHtml(lang);
             try {
                 const highlighted = (window as any).hljs.highlight(code, { language: safeLang, ignoreIllegals: true }).value;
                 setHighlightedCode(highlighted);
@@ -242,7 +242,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                 const infoString = section.substring(0, firstNewlineIndex).trim();
                 const codeContent = section.substring(firstNewlineIndex + 1);
     
-                const infoMatch = infoString.match(/(\w+)?(?:[ ]?(autorun))?(?:[ ]?title="([^"]+)")?/);
+                const infoMatch = infoString.match(/(\S+)?(?:[ ]?(autorun))?(?:[ ]?title="([^"]+)")?/);
                 
                 parts.push({
                     type: 'code',
@@ -456,28 +456,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 }
                                 if (part.type === 'code' && part.code) {
                                     const lang = part.lang?.toLowerCase() || 'plaintext';
-                                    if (EXECUTABLE_LANGS.includes(lang)) {
+                                    const isExample = lang.endsWith('-example');
+                                    const baseLang = isExample ? lang.substring(0, lang.length - '-example'.length) : lang;
+                                    const isExecutable = EXECUTABLE_LANGS.includes(baseLang);
+
+                                    if (isExecutable && !isExample) {
                                         const key = `${message.id}_${index}`;
                                         return (
                                             <div key={index} className="not-prose my-4">
                                                 <CodeExecutor
                                                     code={part.code}
-                                                    lang={lang}
+                                                    lang={baseLang}
                                                     title={part.title}
                                                     autorun={part.autorun}
                                                     persistedResult={executionResults[key]}
                                                     onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
-                                                    onFixRequest={(execError) => onFixRequest(part.code!, lang, execError)}
+                                                    onFixRequest={(execError) => onFixRequest(part.code!, baseLang, execError)}
                                                     isLoading={isLoading}
                                                 />
                                             </div>
                                         );
                                     }
-                                     if (lang === 'mermaid') {
+                                     if (baseLang === 'mermaid') {
                                         return <div key={index} className="mermaid">{part.code}</div>;
                                     }
                                     return (
-                                       <StaticCodeBlock key={index} code={part.code} lang={lang} title={part.title} />
+                                       <StaticCodeBlock key={index} code={part.code} lang={baseLang} title={part.title} />
                                     );
                                 }
                                 return null;

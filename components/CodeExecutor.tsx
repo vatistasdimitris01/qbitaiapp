@@ -15,7 +15,7 @@ const pythonWorkerSource = `
     
     async function loadPyodideAndPackages() {
         // @ts-ignore
-        // FIX: The loadPyodide function in v0.26.1 and later does not accept an indexURL argument.
+        // The loadPyodide function can be called without arguments.
         pyodide = await loadPyodide();
         await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
         await pyodide.loadPackage('micropip');

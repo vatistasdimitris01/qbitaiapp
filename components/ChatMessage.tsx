@@ -91,6 +91,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const [typedText, setTypedText] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // Add refs for robust typing animation
+    const responseTextRef = useRef('');
+    const charIndexRef = useRef(0);
+    const typingTimeoutRef = useRef<number | null>(null);
+
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
     const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50;
 
@@ -120,32 +125,63 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
-    // Improved typewriter effect logic
+    // Update the ref whenever the response text changes. This doesn't re-trigger the typing effect.
     useEffect(() => {
+        responseTextRef.current = parsedResponseText;
+    }, [parsedResponseText]);
+
+    // New, more robust typewriter effect logic
+    useEffect(() => {
+        const cleanup = () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+        };
+
         if (!isLoading) {
-            setTypedText(parsedResponseText); // Snap to final text when loading is finished
+            cleanup();
+            setTypedText(responseTextRef.current);
+            charIndexRef.current = responseTextRef.current.length;
             return;
         }
+
         if (aiStatus !== 'generating') {
-            setTypedText(''); // Clear text for thinking/searching states
+            cleanup();
+            setTypedText('');
+            charIndexRef.current = 0;
             return;
         }
+        
+        const type = () => {
+            const currentTargetText = responseTextRef.current;
+            // Reset if target text changed underneath (e.g. regenerate)
+            const currentTypedText = currentTargetText.substring(0, charIndexRef.current);
+            if (!currentTargetText.startsWith(currentTypedText)) {
+                charIndexRef.current = 0;
+            }
+            
+            if (charIndexRef.current < currentTargetText.length) {
+                const nextChar = currentTargetText[charIndexRef.current];
+                
+                // Slower, variable delay for a more natural feel. Whitespace types faster.
+                const delay = (nextChar === ' ' || nextChar === '\n') ? 15 : 35 + (Math.random() - 0.5) * 20;
 
-        // Use an interval to smoothly type out the text
-        const typingSpeed = 5; // Faster typing speed in milliseconds per character
-        const intervalId = setInterval(() => {
-            setTypedText(currentTypedText => {
-                if (currentTypedText.length < parsedResponseText.length) {
-                    return parsedResponseText.slice(0, currentTypedText.length + 1);
-                } else {
-                    clearInterval(intervalId); // Stop when text is fully typed
-                    return currentTypedText;
-                }
-            });
-        }, typingSpeed);
+                charIndexRef.current++;
+                setTypedText(currentTargetText.substring(0, charIndexRef.current));
+                
+                typingTimeoutRef.current = window.setTimeout(type, delay);
+            } else {
+                // If we've caught up to the streamed text, check again soon for more content.
+                typingTimeoutRef.current = window.setTimeout(type, 100);
+            }
+        };
 
-        return () => clearInterval(intervalId); // Cleanup interval on re-render
-    }, [parsedResponseText, isLoading, aiStatus]);
+        cleanup(); // Clear any existing timer before starting a new one
+        type();
+
+        return cleanup; // Cleanup on unmount or when status changes
+    }, [isLoading, aiStatus]);
 
 
     useEffect(() => {

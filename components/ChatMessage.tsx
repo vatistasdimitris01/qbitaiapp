@@ -88,6 +88,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
+    const [typedText, setTypedText] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
@@ -119,6 +120,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
+    // Typewriter effect logic
+    useEffect(() => {
+        // On regeneration, the parsedResponseText becomes empty, so we should reset.
+        if (parsedResponseText === '') {
+            setTypedText('');
+        }
+    }, [parsedResponseText]);
+
+    useEffect(() => {
+        if (!isLoading) {
+            // When loading finishes, snap to the final text.
+            setTypedText(parsedResponseText);
+            return;
+        }
+
+        if (typedText.length < parsedResponseText.length) {
+            const typingSpeed = 15; // milliseconds per character
+            const timeoutId = setTimeout(() => {
+                setTypedText(parsedResponseText.slice(0, typedText.length + 1));
+            }, typingSpeed);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [typedText, parsedResponseText, isLoading]);
+
+
     useEffect(() => {
         if (aiStatus === 'thinking') {
             setIsThinkingOpen(true);
@@ -127,7 +153,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
-        const textToRender = parsedResponseText || '';
+
+        const textToRender = isLoading ? typedText : parsedResponseText;
     
         type ContentPart = {
             type: 'text' | 'code';
@@ -179,9 +206,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 });
             }
         });
+
+        if (isLoading) {
+            const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
+            const lastPart = parts[parts.length - 1];
+            if (lastPart && lastPart.type === 'text') {
+                lastPart.content = (lastPart.content || '') + cursorHtml;
+            } else {
+                parts.push({ type: 'text', content: cursorHtml });
+            }
+        }
     
         return parts;
-    }, [parsedResponseText, message.type]);
+    }, [isLoading, typedText, parsedResponseText, message.type]);
 
     const hasRenderableContent = useMemo(() => {
       return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
@@ -384,40 +421,40 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             )}
                         </>
                     ) : (
-                        <div ref={contentRef} className="prose prose-sm max-w-none w-full">
-                            {contentParts.map((part, index) => {
-                                if (part.type === 'text' && part.content) {
-                                    const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                                    return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
-                                }
-                                if (part.type === 'code' && part.code) {
-                                    const isExecutable = !part.noRun;
-                                    const key = `${message.id}_${index}`;
-                                    return (
-                                        <CodeExecutor
-                                            key={key}
-                                            code={part.code}
-                                            lang={part.lang!}
-                                            title={part.title}
-                                            isExecutable={isExecutable}
-                                            autorun={part.autorun}
-                                            initialCollapsed={part.collapsed}
-                                            persistedResult={executionResults[key]}
-                                            onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
-                                            onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
-                                            isLoading={isLoading}
-                                            t={t}
-                                        />
-                                    );
-                                }
-                                return null;
-                            })}
-                            
-                            {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') ? (
-                                <AITextLoading texts={loadingTexts} />
-                            ) : isLoading && parsedResponseText ? (
-                                <span className="typing-indicator cursor"></span>
-                            ) : null}
+                        <div className="w-fit max-w-full">
+                            <div ref={contentRef} className="prose prose-sm max-w-none">
+                                {contentParts.map((part, index) => {
+                                    if (part.type === 'text' && part.content) {
+                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                        return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                    }
+                                    if (part.type === 'code' && part.code) {
+                                        const isExecutable = !part.noRun;
+                                        const key = `${message.id}_${index}`;
+                                        return (
+                                            <CodeExecutor
+                                                key={key}
+                                                code={part.code}
+                                                lang={part.lang!}
+                                                title={part.title}
+                                                isExecutable={isExecutable}
+                                                autorun={part.autorun}
+                                                initialCollapsed={part.collapsed}
+                                                persistedResult={executionResults[key]}
+                                                onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
+                                                onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
+                                                isLoading={isLoading}
+                                                t={t}
+                                            />
+                                        );
+                                    }
+                                    return null;
+                                })}
+                                
+                                {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') && (
+                                    <AITextLoading texts={loadingTexts} />
+                                )}
+                            </div>
                         </div>
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>

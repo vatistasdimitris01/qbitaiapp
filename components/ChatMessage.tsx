@@ -451,6 +451,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                                     persistedResult={executionResults[key]}
                                                     onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
                                                     onFixRequest={(execError) => onFixRequest(part.code!, lang, execError)}
+                                                    isLoading={isLoading}
                                                 />
                                             </div>
                                         );

@@ -195,6 +195,7 @@ interface CodeExecutorProps {
     persistedResult?: ExecutionResult;
     onExecutionComplete: (result: ExecutionResult) => void;
     onFixRequest?: (error: string) => void;
+    isLoading?: boolean;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -205,12 +206,19 @@ const langExtensions: { [key: string]: string } = {
     python: 'py', javascript: 'js', js: 'js', html: 'html'
 };
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest }) => {
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
+
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
     const workerRef = useRef<Worker | null>(null);
-    const initialRunRef = useRef(true);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
@@ -220,9 +228,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     const [isCopied, setIsCopied] = useState(false);
     const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
     
-    // Default view is 'code' unless there is a persisted result to show
     const [view, setView] = useState<'code' | 'output'>('code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
+    const prevIsLoading = usePrevious(isLoading);
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -445,12 +453,42 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
         }
     }, [lang, htmlPreviewUrl, runPython, runJavaScript, runHtml, runReact, onExecutionComplete]);
     
+    // Effect to restore state from persisted result (e.g., from localStorage)
     useEffect(() => {
-        return () => {
-            if (workerRef.current) workerRef.current.terminate();
-            if (htmlPreviewUrl) URL.revokeObjectURL(htmlPreviewUrl);
-        };
-    }, [htmlPreviewUrl]);
+        if (persistedResult) {
+            const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
+            
+            if (savedError) {
+                setError(savedError);
+                setStatus('error');
+            } else {
+                if (savedOutput !== null) {
+                    if (type === 'image-base64') {
+                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                    } else if (type === 'plotly-json') {
+                        setOutput(savedOutput);
+                    } else {
+                        setOutput(savedOutput);
+                    }
+                }
+                setDownloadableFile(savedFile || null);
+                setStatus('success');
+            }
+            // If there's any result, switch to output view and mark as run
+            if (savedError || savedOutput !== null || savedFile) {
+                setView('output');
+                setHasRunOnce(true);
+            }
+        }
+    }, [persistedResult]);
+
+    // Effect to handle autorun when streaming is complete
+    useEffect(() => {
+        // Trigger autorun only when loading has finished, it's flagged for autorun, and it hasn't run from a persisted state
+        if (autorun && prevIsLoading && !isLoading && !persistedResult) {
+            handleRunCode();
+        }
+    }, [isLoading, prevIsLoading, autorun, persistedResult, handleRunCode]);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -480,45 +518,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, a
     }, [output, lang, view]);
     
     useEffect(() => {
-        if (persistedResult) {
-            const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
-            
-            if (savedError) {
-                setError(savedError);
-                setOutput('');
-                setDownloadableFile(null);
-                setStatus('error');
-            } else {
-                setError('');
-                if (savedOutput !== null) {
-                    if (type === 'image-base64') {
-                        setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                    } else if (type === 'plotly-json') {
-                        setOutput(savedOutput);
-                    } else {
-                        setOutput(savedOutput);
-                    }
-                } else {
-                    setOutput('');
-                }
-                setDownloadableFile(savedFile || null);
-                setStatus('success');
-            }
-
-            if (savedError || savedOutput !== null || savedFile) {
-                setView('output');
-                setHasRunOnce(true);
-            }
-        }
-    
-        if (initialRunRef.current) {
-            initialRunRef.current = false;
-            if (autorun && !persistedResult) {
-                handleRunCode();
-            }
-        }
-    }, [persistedResult, autorun, handleRunCode]);
-
+        return () => {
+            if (workerRef.current) workerRef.current.terminate();
+            if (htmlPreviewUrl) URL.revokeObjectURL(htmlPreviewUrl);
+        };
+    }, [htmlPreviewUrl]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code).then(() => {

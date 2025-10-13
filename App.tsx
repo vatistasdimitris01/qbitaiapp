@@ -590,6 +590,27 @@ ${error}
 `;
     handleSendMessage(message);
   };
+
+  const handleForkConversation = (fromMessageId: string) => {
+    if (!activeConversation) return;
+
+    const messageIndex = activeConversation.messages.findIndex(msg => msg.id === fromMessageId);
+    if (messageIndex === -1) return;
+
+    const forkedMessages = activeConversation.messages.slice(0, messageIndex + 1);
+
+    const newConversation: Conversation = {
+        id: `convo-${Date.now()}`,
+        title: t('sidebar.forkedChatTitle', { oldTitle: activeConversation.title }),
+        messages: forkedMessages,
+        createdAt: new Date().toISOString(),
+        personaId: activeConversation.personaId, // Carry over the persona
+    };
+
+    setConversations(prev => [newConversation, ...prev]);
+    setActiveConversationId(newConversation.id);
+    setIsSidebarOpen(false);
+  };
   
   const handleSelectConversation = (id: string) => {
       setActiveConversationId(id);
@@ -666,6 +687,7 @@ ${error}
                             key={msg.id}
                             message={msg}
                             onRegenerate={handleRegenerate}
+                            onFork={handleForkConversation}
                             isLoading={isCurrentlyLoading}
                             aiStatus={currentAiStatus}
                             onShowAnalysis={handleShowAnalysis}

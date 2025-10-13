@@ -63,7 +63,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if ((text.trim() || attachments.length > 0) && !isLoading) {
-            onSendMessage(text.trim(), attachments);
+            let messageToSend = text.trim();
+            if (!messageToSend && attachments.length > 0) {
+                messageToSend = "Refer to the following content:";
+            }
+            onSendMessage(messageToSend, attachments);
             setText('');
             setAttachments([]);
             if (textareaRef.current) {
@@ -95,7 +99,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                     className="hidden" 
                     multiple 
                     type="file" 
-                    accept="image/*" 
                     name="files" 
                     onChange={handleFileChange}
                 />

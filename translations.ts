@@ -20,6 +20,7 @@ export const translations = {
       open: 'Open sidebar',
       remove: 'Remove chat',
       confirmDelete: 'Are you sure you want to delete this chat?',
+      forkedChatTitle: 'Fork of "{oldTitle}"',
     },
     // Main Chat View
     chat: {
@@ -39,6 +40,7 @@ export const translations = {
         copy: 'Copy message',
         regenerate: 'Regenerate response',
         viewCode: 'View Code',
+        fork: 'Fork conversation',
       },
       status: {
         thinking: 'Thinking...',
@@ -158,6 +160,7 @@ export const translations = {
       open: 'Άνοιγμα πλευρικής γραμμής',
       remove: 'Αφαίρεση συνομιλίας',
       confirmDelete: 'Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτήν τη συνομιλία;',
+      forkedChatTitle: 'Διακλάδωση του "{oldTitle}"',
     },
     chat: {
       placeholder: 'Ξεκινήστε μια συνομιλία με το Qbit.',
@@ -176,6 +179,7 @@ export const translations = {
         copy: 'Αντιγραφή μηνύματος',
         regenerate: 'Εκ νέου δημιουργία απάντησης',
         viewCode: 'Προβολή Κώδικα',
+        fork: 'Διακλάδωση συνομιλίας',
       },
       status: {
         thinking: 'Σκέφτομαι...',
@@ -291,6 +295,7 @@ export const translations = {
       open: 'Abrir barra lateral',
       remove: 'Eliminar chat',
       confirmDelete: '¿Estás seguro de que quieres eliminar este chat?',
+      forkedChatTitle: 'Bifurcación de "{oldTitle}"',
     },
     chat: {
       placeholder: 'Inicia una conversación con Qbit.',
@@ -309,6 +314,7 @@ export const translations = {
         copy: 'Copiar mensaje',
         regenerate: 'Regenerar respuesta',
         viewCode: 'Ver Código',
+        fork: 'Bifurcar conversación',
       },
       status: {
         thinking: 'Pensando...',
@@ -424,6 +430,7 @@ export const translations = {
       open: 'Ouvrir la barre latérale',
       remove: 'Supprimer le chat',
       confirmDelete: 'Êtes-vous sûr de vouloir supprimer ce chat ?',
+      forkedChatTitle: 'Copie de "{oldTitle}"',
     },
     chat: {
       placeholder: 'Commencez une conversation avec Qbit.',
@@ -442,6 +449,7 @@ export const translations = {
         copy: 'Copier le message',
         regenerate: 'Régénérer la réponse',
         viewCode: 'Voir le Code',
+        fork: 'Dupliquer la conversation',
       },
       status: {
         thinking: 'Réflexion...',
@@ -557,6 +565,7 @@ export const translations = {
       open: 'Seitenleiste öffnen',
       remove: 'Chat entfernen',
       confirmDelete: 'Möchten Sie diesen Chat wirklich löschen?',
+      forkedChatTitle: 'Fork von "{oldTitle}"',
     },
     chat: {
       placeholder: 'Starten Sie ein Gespräch mit Qbit.',
@@ -575,6 +584,7 @@ export const translations = {
         copy: 'Nachricht kopieren',
         regenerate: 'Antwort neu generieren',
         viewCode: 'Code anzeigen',
+        fork: 'Konversation forken',
       },
       status: {
         thinking: 'Denke...',

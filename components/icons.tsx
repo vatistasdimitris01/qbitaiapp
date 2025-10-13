@@ -338,3 +338,24 @@ export const Wand2Icon: React.FC<IconProps> = ({ className }) => (
       <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L11.8 8.2a1.21 1.21 0 0 0 0 1.72l5.8 5.8a1.21 1.21 0 0 0 1.72 0l6.84-6.84a1.21 1.21 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v4"/><path d="M7 8H3"/><path d="M17 16H3"/><path d="M11 12H9"/>
     </svg>
 );
+
+export const GitForkIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="18" r="3" />
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="18" cy="6" r="3" />
+    <path d="M18 9v1.5c0 1.5-1.5 3-3 3h-1.5" />
+    <path d="M6 9v6c0 3 3 3 3 3h1.5" />
+  </svg>
+);

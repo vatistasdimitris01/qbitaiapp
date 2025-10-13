@@ -19,6 +19,11 @@ interface ApiAttachment {
     data: string; // base64 encoded
 }
 
+interface LocationInfo {
+    city: string;
+    country: string;
+}
+
 // The main handler for the API route
 export default async function handler(req: Request) {
     if (req.method !== 'POST') {
@@ -29,7 +34,7 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { history, message, attachments, personaInstruction } = await req.json();
+        const { history, message, attachments, personaInstruction, location } = await req.json();
 
         // As per guidelines, the API key MUST be from process.env.API_KEY
         // Ensure API_KEY is set in your Vercel environment variables
@@ -43,9 +48,14 @@ export default async function handler(req: Request) {
             role: msg.author === 'user' ? 'user' : 'model',
             parts: [{ text: msg.text }],
         }));
+        
+        let userMessageText = message;
+        if (location && (location as LocationInfo).city && (location as LocationInfo).country) {
+            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${message}`;
+        }
 
         // Prepare the parts for the user's current message, including any text and attachments.
-        const userMessageParts: any[] = [{ text: message }];
+        const userMessageParts: any[] = [{ text: userMessageText }];
         if (attachments && (attachments as ApiAttachment[]).length > 0) {
             for (const attachment of attachments as ApiAttachment[]) {
                 userMessageParts.push({
@@ -122,7 +132,7 @@ export default async function handler(req: Request) {
 - **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library. Do NOT use \`pandas.to_excel()\`. When using \`openpyxl\`, you MUST define column headers as a Python list (e.g., \`headers = ["Column A", "Column B"]\`) and then add this list to the worksheet using \`worksheet.append(headers)\` BEFORE appending any data rows. This prevents \`NameError\`. Create a workbook, add data to worksheets, and save it using \`wb.save("filename.xlsx")\`. The environment will automatically handle the download.
 
 - After calling a file-saving function (like \`wb.save()\`, \`doc.save()\`, or \`pdf.output()\`), do NOT add any print statements confirming the file creation. The user interface will handle download notifications automatically.
-- When asked for information that might be recent or requires web access, use the search tool to find up-to-date answers. Always cite the sources provided by the search tool.
+- **LOCATION-AWARE SEARCH**: You have access to the user's current location (city, country), which will be provided at the start of their prompt like this: [User's Location: City, Country]. When you use the Google Search tool, you MUST decide if the location is relevant. For local queries (e.g., "restaurants near me", "weather today", "local events"), incorporate the location into your search. For general knowledge questions (e.g., "what is the capital of France?"), you MUST ignore the location data to provide a global answer. Use this information to make your search results more accurate and context-aware.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
 - When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user. You just need to call the standard save functions with a filename (e.g., \`wb.save('filename.xlsx')\`, \`doc.save('filename.docx')\`, \`pdf.output('filename.pdf')\`).`;
 

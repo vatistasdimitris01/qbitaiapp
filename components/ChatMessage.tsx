@@ -3,7 +3,7 @@ import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
@@ -18,6 +18,7 @@ type ExecutionResult = {
 interface ChatMessageProps {
     message: Message;
     onRegenerate: (messageId: string) => void;
+    onFork: (messageId: string) => void;
     isLoading: boolean;
     aiStatus: AIStatus;
     onShowAnalysis: (code: string, lang: string) => void;
@@ -71,6 +72,9 @@ const escapeHtml = (html: string) => {
 };
 
 const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
+const isVideoFile = (mimeType: string) => mimeType.startsWith('video/');
+const isAudioFile = (mimeType: string) => mimeType.startsWith('audio/');
+
 
 // Helper to get string content from MessageContent
 const getTextFromMessage = (content: MessageContent): string => {
@@ -80,13 +84,14 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, t }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
-    const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50 && !message.files?.length;
+    const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50;
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
@@ -186,8 +191,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const handleCopy = () => {
         const textToCopy = isUser ? messageText : parsedResponseText;
         if (textToCopy) {
-            navigator.clipboard.writeText(textToCopy);
-            // You might want to add a visual confirmation here
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            });
         }
     };
 
@@ -339,40 +346,43 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                 )}
                 <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                     {isUser ? (
-                         <div className={`
-                            w-fit max-w-full
-                            ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
-                            bg-user-message text-foreground
-                        `}>
-                            <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
-                                {hasAttachments && (
-                                    <div className="flex flex-wrap justify-start gap-2 mb-2">
-                                        {message.files?.map((file, index) =>
-                                            isImageFile(file.type) ? (
-                                                <img
-                                                    key={index}
-                                                    src={file.dataUrl}
-                                                    alt={file.name}
-                                                    className="w-32 h-32 object-cover rounded-lg border border-default"
-                                                />
-                                            ) : (
-                                                <div
-                                                    key={index}
-                                                    className="w-32 h-32 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg"
-                                                    title={file.name}
-                                                >
-                                                    <FileTextIcon className="size-8 text-muted-foreground mb-1" />
-                                                    <span className="text-xs text-muted-foreground break-all truncate">
-                                                        {file.name}
-                                                    </span>
-                                                </div>
-                                            )
-                                        )}
+                        <>
+                           {messageText && (
+                                <div className={`
+                                    w-fit max-w-full
+                                    ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
+                                    bg-user-message text-foreground
+                                `}>
+                                    <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
+                                        <p className="whitespace-pre-wrap">{messageText}</p>
                                     </div>
-                                )}
-                                <p className="whitespace-pre-wrap">{messageText}</p>
-                            </div>
-                        </div>
+                                </div>
+                            )}
+
+                            {hasAttachments && (
+                                <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
+                                    {message.files?.map((file, index) => (
+                                        <div key={index} className="w-48 flex-shrink-0">
+                                            {isImageFile(file.type) ? (
+                                                <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
+                                            ) : isVideoFile(file.type) ? (
+                                                <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
+                                            ) : isAudioFile(file.type) ? (
+                                                <div className="p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg">
+                                                    <audio src={file.dataUrl} controls className="w-full" />
+                                                    <p className="text-xs text-muted-foreground break-all truncate mt-1" title={file.name}>{file.name}</p>
+                                                </div>
+                                            ) : (
+                                                <div className="w-full h-24 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}>
+                                                    <FileTextIcon className="size-8 text-muted-foreground mb-1" />
+                                                    <span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div ref={contentRef} className="prose prose-sm max-w-none w-full">
                             {contentParts.map((part, index) => {
@@ -412,12 +422,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
-                           <CopyIcon className="size-4" />
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>
                         {!isUser && (
                             <>
                                 <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
                                     <RefreshCwIcon className="size-4" />
+                                </IconButton>
+                                <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}>
+                                    <GitForkIcon className="size-4" />
                                 </IconButton>
                                 {pythonCodeBlocks.length > 0 && (
                                     <IconButton

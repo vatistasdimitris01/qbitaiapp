@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Conversation, Persona, MessageType } from '../types';
 import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon } from './icons';
@@ -89,7 +90,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
   
   const handleDeletePersona = (id: string) => {
-    if (window.confirm(t('personaConfirmDelete'))) {
+    if (window.confirm(t('settings.personalization.confirmDelete'))) {
         setPersonas(personas.filter(p => p.id !== id));
     }
   };
@@ -130,7 +131,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center sm:p-4" onClick={onClose}>
       <div className="bg-token-surface shadow-xl w-full max-w-4xl h-full sm:h-[600px] sm:max-h-[85vh] flex flex-col overflow-hidden sm:rounded-2xl" onClick={e => e.stopPropagation()}>
         <header className="flex items-center justify-between py-2.5 pl-6 pr-2 border-b border-token flex-shrink-0">
-          <h2 className="text-token-primary text-lg font-semibold">{t('modalTitle')}</h2>
+          <h2 className="text-token-primary text-lg font-semibold">{t('settings.header')}</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-token-surface-secondary">
             <XIcon className="size-5 text-token-secondary" />
           </button>
@@ -139,38 +140,38 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
            {/* Desktop Sidebar */}
            <div className="hidden md:block w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
-              <TabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
-              <TabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
-              <TabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
+              <TabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
+              <TabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
+              <TabButton tab="Usage" label={t('settings.tabs.usage')} icon={<BarChartIcon className="size-5" />} />
           </div>
 
           {/* Mobile Top Nav */}
           <div className="block md:hidden border-b border-token">
               <div className="flex items-center justify-around">
-                  <MobileTabButton tab="General" label={t('tabGeneral')} icon={<SettingsIcon className="size-5" />} />
-                  <MobileTabButton tab="Personalization" label={t('tabPersonalization')} icon={<SquarePenIcon className="size-5" />} />
-                  <MobileTabButton tab="Usage" label={t('tabUsage')} icon={<BarChartIcon className="size-5" />} />
+                  <MobileTabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
+                  <MobileTabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
+                  <MobileTabButton tab="Usage" label={t('settings.tabs.usage')} icon={<BarChartIcon className="size-5" />} />
               </div>
           </div>
 
           <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-8">
             {activeTab === 'General' && (
               <section>
-                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabGeneral')}</h3>
-                <p className="text-sm text-token-secondary mb-6">Customize the application's appearance and language.</p>
+                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.general.title')}</h3>
+                <p className="text-sm text-token-secondary mb-6">{t('settings.general.description')}</p>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-token-primary">{t('theme')}</label>
+                    <label className="text-sm font-medium text-token-primary">{t('settings.general.theme')}</label>
                     <div className="flex items-center gap-2">
                       {(['light', 'dark', 'system'] as const).map(th => (
                         <button key={th} onClick={() => setTheme(th)} className={`px-4 py-2 text-sm rounded-md capitalize transition-colors ${theme === th ? 'bg-gray-900 text-white dark:bg-white dark:text-black' : 'bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800'}`}>
-                          {t(`theme${th.charAt(0).toUpperCase() + th.slice(1)}`)}
+                          {t(`settings.general.themes.${th}`)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="language-select" className="text-sm font-medium text-token-primary">{t('language')}</label>
+                    <label htmlFor="language-select" className="text-sm font-medium text-token-primary">{t('settings.general.language')}</label>
                     <select
                       id="language-select"
                       value={language}
@@ -190,29 +191,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             
             {activeTab === 'Personalization' && (
               <section>
-                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabPersonalization')}</h3>
-                 <p className="text-sm text-token-secondary mb-6">Tailor the AI's personality for this conversation.</p>
+                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.personalization.title')}</h3>
+                 <p className="text-sm text-token-secondary mb-6">{t('settings.personalization.description')}</p>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label htmlFor="persona-select" className="text-sm font-medium text-token-primary">{t('personas')}</label>
-                    <p className="text-xs text-token-secondary">Apply a persona to the current conversation.</p>
+                    <label htmlFor="persona-select" className="text-sm font-medium text-token-primary">{t('settings.personalization.personas')}</label>
+                    <p className="text-xs text-token-secondary">{t('settings.personalization.apply')}</p>
                     <select id="persona-select" value={activeConversation?.personaId || 'default'} onChange={handlePersonaChange} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary">
-                      <option value="default">{t('personaSelect')} (Default)</option>
+                      <option value="default">{t('settings.personalization.selectDefault')}</option>
                       {personas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div className="border-t border-token pt-6 space-y-4">
-                    <h3 className="font-semibold text-token-primary">{t('personaManage')}</h3>
+                    <h3 className="font-semibold text-token-primary">{t('settings.personalization.manage')}</h3>
                     {personas.map(p => (
                         <div key={p.id} className="flex items-center justify-between p-3 rounded-md bg-token-surface-secondary">
                             <span className="text-token-primary font-medium">{p.name}</span>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingPersona(p)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{t('edit')}</button>
+                                <button onClick={() => setEditingPersona(p)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{t('settings.personalization.edit')}</button>
                                 <button onClick={() => handleDeletePersona(p.id)}><Trash2Icon className="size-4 text-red-500 hover:text-red-700" /></button>
                             </div>
                         </div>
                     ))}
-                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 rounded-md border border-dashed border-token hover:bg-token-surface-secondary">{t('personaAdd')}</button>
+                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 rounded-md border border-dashed border-token hover:bg-token-surface-secondary">{t('settings.personalization.add')}</button>
                   </div>
                 </div>
               </section>
@@ -220,13 +221,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             
             {activeTab === 'Usage' && (
               <section>
-                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('tabUsage')}</h3>
-                <p className="text-sm text-token-secondary mb-6">Usage statistics for the current conversation.</p>
+                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.usage.title')}</h3>
+                <p className="text-sm text-token-secondary mb-6">{t('settings.usage.description')}</p>
                 <div className="space-y-4">
                     <div className="w-full rounded-lg border border-token bg-token-surface-secondary text-token-primary shadow-sm text-sm overflow-hidden">
                         <div className="w-full space-y-2 p-4">
                             <div className="flex items-center justify-between gap-3 text-xs">
-                                <p className="font-semibold">Token Usage</p>
+                                <p className="font-semibold">{t('settings.usage.tokenUsage')}</p>
                                 <p className="font-mono text-token-secondary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)}</p>
                             </div>
                             <div className="space-y-2">
@@ -237,16 +238,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         <div className="w-full p-4 border-t border-token space-y-1">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-token-secondary">Input</span>
+                                <span className="text-token-secondary">{t('settings.usage.input')}</span>
                                 <span>{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-token-secondary">Output</span>
+                                <span className="text-token-secondary">{t('settings.usage.output')}</span>
                                 <span>{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
                             </div>
                         </div>
                         <div className="flex w-full items-center justify-between gap-3 bg-token-surface p-4 text-sm font-semibold">
-                            <span className="text-token-secondary">Total cost</span>
+                            <span className="text-token-secondary">{t('settings.usage.totalCost')}</span>
                             <span>${usageStats.totalCost.toFixed(4)}</span>
                         </div>
                     </div>
@@ -275,13 +276,13 @@ const PersonaEditor: React.FC<{persona: Persona, onSave: (p: Persona) => void, o
          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-token-surface rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
                  <div className="p-6 space-y-4">
-                    <h3 className="text-lg font-semibold text-token-primary">{persona.name ? t('edit') + ' Persona' : t('personaAdd')}</h3>
-                    <input type="text" placeholder={t('personaName')} value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
-                    <textarea placeholder={t('personaInstruction')} value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                    <h3 className="text-lg font-semibold text-token-primary">{persona.name ? t('settings.personaEditor.editTitle') : t('settings.personaEditor.addTitle')}</h3>
+                    <input type="text" placeholder={t('settings.personaEditor.name')} value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                    <textarea placeholder={t('settings.personaEditor.instruction')} value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
                  </div>
                  <div className="flex justify-end gap-2 p-4 border-t border-token bg-token-surface-secondary/50 rounded-b-lg">
-                     <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-token-surface border border-token text-token-primary hover:bg-token-surface-secondary">{t('personaCancel')}</button>
-                     <button onClick={handleSave} className="px-4 py-2 text-sm rounded-md bg-gray-800 text-white dark:bg-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-200">{t('personaSave')}</button>
+                     <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-token-surface border border-token text-token-primary hover:bg-token-surface-secondary">{t('settings.personaEditor.cancel')}</button>
+                     <button onClick={handleSave} className="px-4 py-2 text-sm rounded-md bg-gray-800 text-white dark:bg-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-200">{t('settings.personaEditor.save')}</button>
                  </div>
             </div>
         </div>

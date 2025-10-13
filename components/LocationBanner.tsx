@@ -83,10 +83,10 @@ const LocationBanner: React.FC<LocationBannerProps> = ({ onLocationUpdate, t }) 
 
   return (
     <div className="bg-token-surface-secondary text-token-text-secondary text-sm text-center p-2 flex items-center justify-center gap-4 relative">
-      <p>{t('locationMessage')}</p>
+      <p>{t('location.message')}</p>
       <div className="flex items-center gap-2">
         <button onClick={handleAllow} className="bg-background text-foreground font-semibold px-3 py-1 rounded-md hover:opacity-90 border border-default">
-          {t('allow')}
+          {t('location.allow')}
         </button>
         <button onClick={handleDismiss} className="hover:bg-foreground/10 p-1 rounded-full">
           <XIcon className="size-4" />

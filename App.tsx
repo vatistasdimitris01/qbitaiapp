@@ -77,16 +77,16 @@ const TextHoverEffect: React.FC<TextHoverEffectProps> = ({ text, className }) =>
   );
 };
 
-const Loader: React.FC = () => {
+const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
-      <TextHoverEffect text="Qbit" />
+      <TextHoverEffect text={t('loader.text')} />
       <div className="flex items-center mt-12 text-muted-foreground text-sm">
         <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <span>Preparing environment...</span>
+        <span>{t('loader.subtext')}</span>
       </div>
     </div>
   );
@@ -223,6 +223,8 @@ const App: React.FC = () => {
     } else {
         handleNewChat();
     }
+  // handleNewChat depends on `t`, which changes, but we only want to run this once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist state to localStorage whenever it changes
@@ -265,7 +267,7 @@ const App: React.FC = () => {
 
   // SEO: Update document title based on active conversation
   useEffect(() => {
-    if (activeConversation && activeConversation.title && activeConversation.title !== t('newChat')) {
+    if (activeConversation && activeConversation.title && activeConversation.title !== t('sidebar.newChat')) {
       document.title = `Qbit - ${activeConversation.title}`;
     } else {
       document.title = 'Qbit - AI Chat Assistant';
@@ -290,7 +292,7 @@ const App: React.FC = () => {
   const handleNewChat = () => {
     const newConversation: Conversation = {
         id: `convo-${Date.now()}`,
-        title: t('newChat'),
+        title: t('sidebar.newChat'),
         messages: [],
         createdAt: new Date().toISOString(),
     };
@@ -315,7 +317,7 @@ const App: React.FC = () => {
            // Create a new chat if the last one was deleted
            const newConversation: Conversation = {
               id: `convo-${Date.now()}`,
-              title: t('newChat'),
+              title: t('sidebar.newChat'),
               messages: [],
               createdAt: new Date().toISOString(),
            };
@@ -340,7 +342,7 @@ const App: React.FC = () => {
     if (isLoading || (!trimmedText && attachments.length === 0)) return;
 
     const messageText = trimmedText === '' && attachments.length > 0
-        ? t('describeFiles').replace('{count}', attachments.length.toString())
+        ? t('chat.input.placeholderWithFiles').replace('{count}', attachments.length.toString())
         : trimmedText;
 
     const userMessage: Message = {
@@ -595,16 +597,16 @@ ${error}
   };
 
   if (!isAppReady) {
-    return <Loader />;
+    return <Loader t={t} />;
   }
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
       {showUpdateBanner && (
         <div className="absolute top-0 left-0 right-0 bg-blue-500 text-white text-sm text-center p-2 flex items-center justify-center gap-4 z-[100]">
-            <p>A new version is available!</p>
+            <p>{t('updateBanner.text')}</p>
             <button onClick={handleUpdate} className="bg-white text-blue-500 font-semibold px-3 py-1 rounded-md hover:opacity-90">
-                Refresh
+                {t('updateBanner.button')}
             </button>
         </div>
       )}
@@ -613,7 +615,7 @@ ${error}
       <button
         onClick={() => setIsSidebarOpen(true)}
         className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        aria-label={t('openSidebar')}
+        aria-label={t('sidebar.open')}
       >
         <LayoutGridIcon className="size-5" />
       </button>
@@ -622,7 +624,7 @@ ${error}
       <button
         onClick={handleNewChat}
         className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        aria-label={t('newChat')}
+        aria-label={t('sidebar.newChat')}
       >
         <SquarePenIcon className="size-5" />
       </button>
@@ -670,11 +672,12 @@ ${error}
                             executionResults={executionResults}
                             onStoreExecutionResult={handleStoreExecutionResult}
                             onFixRequest={handleFixCodeRequest}
+                            t={t}
                         />;
               })
             ) : (
                <div className="text-center text-muted pt-16">
-                 {t('startConversation')}
+                 {t('chat.placeholder')}
                </div>
             )}
           </div>
@@ -705,6 +708,7 @@ ${error}
             code={analysisModalContent.code}
             lang={analysisModalContent.lang}
             onClose={() => setAnalysisModalContent(null)}
+            t={t}
         />
       )}
     </div>

@@ -5,7 +5,7 @@ import { FileAttachment } from '../types';
 interface ChatInputProps {
     onSendMessage: (message: string, attachments: FileAttachment[]) => void;
     isLoading: boolean;
-    t: (key: string) => string;
+    t: (key: string, params?: Record<string, string>) => string;
     onAbortGeneration: () => void;
 }
 
@@ -84,8 +84,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
     };
 
     const placeholder = attachments.length > 0 
-        ? t('describeFiles').replace('{count}', attachments.length.toString())
-        : t('askAnything');
+        ? t('chat.input.placeholderWithFiles', { count: attachments.length.toString() })
+        : t('chat.input.placeholder');
 
     return (
         <div className="flex flex-col gap-0 justify-center w-full relative items-center">
@@ -113,7 +113,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                                         type="button"
                                         onClick={() => handleRemoveFile(index)}
                                         className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
-                                        aria-label={`Remove ${file.name}`}
+                                        aria-label={t('chat.input.removeFile', { filename: file.name })}
                                     >
                                         <XIcon className="size-4" />
                                     </button>
@@ -136,7 +136,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                         ></textarea>
                     </div>
                     <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
-                        <button type="button" aria-label="Attach" onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
+                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
                             <PaperclipIcon className="text-muted" />
                         </button>
                         <div className="ml-auto relative">
@@ -144,7 +144,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                                 <button
                                     type="button"
                                     onClick={onAbortGeneration}
-                                    aria-label="Stop generation"
+                                    aria-label={t('chat.input.stop')}
                                     className="inline-flex items-center justify-center rounded-xl h-12 w-12 sm:h-11 sm:w-11 bg-white dark:bg-card border border-default shadow-md"
                                     style={{ transform: 'translateY(-2px)' }}
                                 >
@@ -155,7 +155,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                             ) : (
                                 <button
                                     type="submit"
-                                    aria-label="Submit"
+                                    aria-label={t('chat.input.submit')}
                                     className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
                                     style={{ transform: 'translateY(-2px)' }}
                                     disabled={(!text.trim() && attachments.length === 0)}
@@ -168,7 +168,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                 </div>
             </form>
              <p className="text-xs text-center text-muted mt-2">
-                {t('disclaimer')}
+                {t('chat.input.disclaimer')}
             </p>
         </div>
     );

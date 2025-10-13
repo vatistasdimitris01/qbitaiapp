@@ -24,6 +24,7 @@ interface ChatMessageProps {
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
     onFixRequest: (code: string, lang: string, error: string) => void;
+    t: (key: string) => string;
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
@@ -32,7 +33,7 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'a
     </button>
 );
 
-const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) => {
+const GroundingDisplay: React.FC<{ chunks: GroundingChunk[], t: (key: string) => string }> = ({ chunks, t }) => {
     return (
         <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
             <div className="flex gap-2 text-sm text-muted-foreground">
@@ -40,7 +41,7 @@ const GroundingDisplay: React.FC<{ chunks: GroundingChunk[] }> = ({ chunks }) =>
                     <SearchIcon className="size-4" />
                 </div>
                 <div className="flex-1 space-y-2">
-                    <div>Used Google Search and found the following sources:</div>
+                    <div>{t('chat.message.grounding')}</div>
                     <div className="flex flex-wrap items-center gap-2">
                         {chunks.map((chunk, i) => (
                             <a
@@ -79,7 +80,7 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -277,26 +278,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
-    const statusTexts: Record<string, string[]> = {
-        thinking: [
-            "Thinking...",
-            "Processing request...",
-            "Analyzing data...",
-            "Consulting sources...",
-        ],
-        searching: [
-            "Searching the web...",
-            "Finding sources...",
-            "Consulting Google...",
-        ],
-        generating: [
-            "Generating response...",
-            "Composing message...",
-            "Formatting output...",
-        ],
-    };
+    const loadingTexts = useMemo(() => {
+      switch(aiStatus) {
+        case 'thinking': return [
+          t('chat.status.thinking'),
+          t('chat.status.processing'),
+          t('chat.status.analyzing'),
+          t('chat.status.consulting'),
+        ];
+        case 'searching': return [
+          t('chat.status.searching'),
+          t('chat.status.finding'),
+          t('chat.status.consultingGoogle'),
+        ];
+        case 'generating': return [
+          t('chat.status.generating'),
+          t('chat.status.composing'),
+          t('chat.status.formatting'),
+        ];
+        default: return [t('chat.status.thinking')];
+      }
+    }, [aiStatus, t]);
 
-    const loadingTexts = statusTexts[aiStatus] || statusTexts.thinking;
 
     if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) {
       return null;
@@ -314,13 +317,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                             aria-expanded={isThinkingOpen}
                         >
                             <BrainIcon className="size-4" />
-                            <span className="flex-1 text-left font-medium hidden sm:inline">Chain of Thought</span>
+                            <span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
                                 {message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
-                                    <GroundingDisplay chunks={message.content as GroundingChunk[]} />
+                                    <GroundingDisplay chunks={message.content as GroundingChunk[]} t={t} />
                                 )}
                                 {parsedThinkingText && (
                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
@@ -393,6 +396,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                             onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
                                             onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
                                             isLoading={isLoading}
+                                            t={t}
                                         />
                                     );
                                 }
@@ -407,18 +411,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                         </div>
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
-                        <IconButton onClick={handleCopy} aria-label="Copy message">
+                        <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
                            <CopyIcon className="size-4" />
                         </IconButton>
                         {!isUser && (
                             <>
-                                <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label="Regenerate response">
+                                <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
                                     <RefreshCwIcon className="size-4" />
                                 </IconButton>
                                 {pythonCodeBlocks.length > 0 && (
                                     <IconButton
                                         onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
-                                        aria-label="View Code"
+                                        aria-label={t('chat.message.viewCode')}
                                     >
                                         <CodeXmlIcon className="size-5" />
                                     </IconButton>

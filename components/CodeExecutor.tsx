@@ -199,6 +199,7 @@ interface CodeExecutorProps {
     onExecutionComplete: (result: ExecutionResult) => void;
     onFixRequest?: (error: string) => void;
     isLoading?: boolean;
+    t: (key: string, params?: Record<string, string>) => string;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -234,7 +235,7 @@ const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode;
 );
 
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, isLoading = false, t }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -322,7 +323,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     } else if (stdoutBuffer.trim()) {
                         resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
                     } else if (currentRunDownloadableFile) {
-                        const msg = `File '${currentRunDownloadableFile.filename}' created successfully.`;
+                        const msg = t('code.fileSuccess', {filename: currentRunDownloadableFile.filename});
                         setOutput(msg);
                         resultToPersist = { output: msg, error: '', type: 'string' };
                     } else {
@@ -356,7 +357,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             cleanup();
         };
-    }, [code, onExecutionComplete]);
+    }, [code, onExecutionComplete, t]);
     
     const runJavaScript = useCallback(() => {
         setStatus('executing');
@@ -396,8 +397,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
 
             const newWindow = window.open(url, '_blank');
             const message = newWindow
-                ? 'Preview opened in a new tab.'
-                : 'Popup blocked. Use the button below to open the preview.';
+                ? t('code.previewNewTab')
+                : t('code.previewBlocked');
 
             setOutput(message);
             setStatus('success');
@@ -409,7 +410,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             setStatus('error');
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
-    }, [code, onExecutionComplete]);
+    }, [code, onExecutionComplete, t]);
     
     useEffect(() => {
         if (reactExecTrigger > 0 && reactMountRef.current) {
@@ -428,7 +429,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     reactRootRef.current.render(React.createElement(Component));
                     setOutput(null);
                     setStatus('success');
-                    onExecutionComplete({ output: 'React component rendered.', error: '', type: 'string' });
+                    onExecutionComplete({ output: t('code.reactSuccess'), error: '', type: 'string' });
                 } else {
                     throw new Error("No 'Component' variable was exported from the code.");
                 }
@@ -439,7 +440,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             }
         }
-    }, [reactExecTrigger, code, onExecutionComplete]);
+    }, [reactExecTrigger, code, onExecutionComplete, t]);
     
     useEffect(() => {
         return () => {
@@ -471,12 +472,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             case 'html': runHtml(); break;
             case 'react': case 'jsx': runReact(); break;
             default:
-                const errorMsg = `Language "${lang}" is not supported by the executor.`;
+                const errorMsg = t('code.langNotSupported', { lang });
                 setError(errorMsg);
                 setStatus('error');
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
-    }, [lang, runPython, runJavaScript, runHtml, runReact, onExecutionComplete]);
+    }, [lang, runPython, runJavaScript, runHtml, runReact, onExecutionComplete, t]);
     
     useEffect(() => {
         if (persistedResult) {
@@ -534,10 +535,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 }
             } catch (e) {
                 console.error("Failed to render Plotly chart:", e);
-                setError("Failed to render interactive chart.");
+                setError(t('code.chartError'));
             }
         }
-    }, [output, lang, isExecutable, hasRunOnce]);
+    }, [output, lang, isExecutable, hasRunOnce, t]);
     
     useEffect(() => {
         return () => {
@@ -559,7 +560,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             workerRef.current = null;
         }
         setStatus('idle');
-        setError('Execution stopped by user.');
+        setError(t('code.stopped'));
         setOutput('');
     };
     
@@ -579,7 +580,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         {onFixRequest && (
                             <button
                                 onClick={() => onFixRequest(error)}
-                                title="Fix code"
+                                title={t('code.fixCode')}
                                 className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"
                             >
                                 <Wand2Icon className="size-5" />
@@ -611,7 +612,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
                       >
                         <DownloadIcon className="size-3.5 mr-1.5" />
-                        Download again
+                        {t('code.downloadAgain')}
                       </button>
                     )}
                     {htmlBlobUrl && (
@@ -620,7 +621,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
                       >
                         <EyeIcon className="size-3.5 mr-1.5" />
-                        Open in new tab
+                        {t('code.openInNewTab')}
                       </button>
                     )}
                   </div>
@@ -637,27 +638,27 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 <div className="flex items-center justify-between px-4 py-2 bg-token-surface-secondary/50 border-b border-default">
                     <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
                      <div className="flex items-center gap-0.5 bg-background p-0.5 rounded-md border border-default shadow-sm">
-                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
+                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
                         </ActionButton>
                         
                         {isExecutable ? (
                             status === 'executing' || status === 'loading-env' ? (
-                                <ActionButton onClick={handleStopCode} title="Stop execution">
+                                <ActionButton onClick={handleStopCode} title={t('code.stop')}>
                                     <div className="w-3 h-3 bg-foreground rounded-sm"></div>
                                 </ActionButton>
                             ) : (
-                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')}>
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
                                 </ActionButton>
                             )
                         ) : (
-                            <DisabledActionButton title="Not executable">
+                            <DisabledActionButton title={t('code.notExecutable')}>
                                 <XIcon className="size-4" />
                             </DisabledActionButton>
                         )}
                         
-                        <ActionButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
+                        <ActionButton onClick={handleCopy} title={isCopied ? t('code.copied') : t('code.copy')}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </ActionButton>
                     </div>
@@ -678,7 +679,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 {isExecutable && (status === 'executing' || status === 'loading-env') && (
                      <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
                         <LoadingSpinner />
-                        <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
+                        <span>{status === 'loading-env' ? t('code.loading') : t('code.executing')}</span>
                     </div>
                 )}
 

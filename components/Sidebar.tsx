@@ -36,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (window.confirm(t('confirmDeleteChat'))) {
+    if (window.confirm(t('sidebar.confirmDelete'))) {
       onDeleteConversation(id);
     }
   };
@@ -54,9 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex items-center justify-between px-3 py-2 h-[57px] border-b border-sidebar">
         <div className="flex items-center gap-2">
             <img src="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" alt="Qbit Logo" className="w-7 h-7" />
-            <h2 className="text-lg font-semibold text-sidebar-active-fg tracking-tight">Qbit</h2>
+            <h2 className="text-lg font-semibold text-sidebar-active-fg tracking-tight">{t('sidebar.header')}</h2>
         </div>
-        <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg" title={t('closeSidebar')}>
+        <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg" title={t('sidebar.close')}>
           <LayoutGridIcon className="transition-transform duration-500 ease-in-out rotate-180" />
         </button>
       </div>
@@ -65,14 +65,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3">
           <button onClick={onNewChat} className="w-full flex items-center gap-3 px-3 py-2 bg-sidebar-active text-sidebar-active-fg hover:opacity-90 rounded-lg transition-opacity shadow-sm">
             <SquarePenIcon className="size-4" />
-            <span className="font-medium text-sm truncate">{t('newChat')}</span>
+            <span className="font-medium text-sm truncate">{t('sidebar.newChat')}</span>
           </button>
         </div>
         <div className="px-3 pb-3">
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-sidebar-muted-fg" />
             <input 
-              placeholder={t('searchConversations')} 
+              placeholder={t('sidebar.search')} 
               className="w-full pl-9 pr-3 py-2 bg-transparent border border-sidebar rounded-lg text-sm text-sidebar-fg placeholder-sidebar-muted-fg outline-none focus:bg-sidebar-active focus:border-sidebar-active transition-colors" 
               type="text"
               value={searchTerm}
@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
-          <h3 className="px-2 text-xs font-semibold text-sidebar-muted-fg mb-2">{t('recentChats')}</h3>
+          <h3 className="px-2 text-xs font-semibold text-sidebar-muted-fg mb-2">{t('sidebar.recent')}</h3>
           <div className="space-y-1">
             {filteredConversations.map(convo => (
               <div key={convo.id} className="relative group">
@@ -90,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="font-medium text-sm truncate">{convo.title}</div>
                   </div>
                 </button>
-                <button onClick={(e) => handleDelete(e, convo.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-sidebar-active/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" title={t('removeChat')}>
+                <button onClick={(e) => handleDelete(e, convo.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-sidebar-active/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" title={t('sidebar.remove')}>
                   <Trash2Icon className="size-3.5 text-sidebar-muted-fg hover:text-sidebar-fg" />
                 </button>
               </div>
@@ -102,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3 border-t border-sidebar">
         <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 text-sidebar-fg hover:bg-sidebar-active hover:text-sidebar-active-fg rounded-lg transition-colors">
           <SettingsIcon className="size-4" />
-          <span className="text-sm">{t('settings')}</span>
+          <span className="text-sm">{t('sidebar.settings')}</span>
         </button>
       </div>
     </div>

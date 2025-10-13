@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { XIcon, CopyIcon } from './icons';
 
@@ -6,9 +7,10 @@ interface CodeAnalysisModalProps {
     code: string;
     lang: string;
     onClose: () => void;
+    t: (key: string) => string;
 }
 
-const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClose }) => {
+const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClose, t }) => {
     const [isCopied, setIsCopied] = useState(false);
     const [highlightedCode, setHighlightedCode] = useState('');
 
@@ -54,11 +56,11 @@ const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClo
                 onClick={e => e.stopPropagation()}
             >
                 <header className="flex items-center justify-between p-4 border-b border-default flex-shrink-0">
-                    <h2 className="text-lg font-semibold text-foreground">Analysis</h2>
+                    <h2 className="text-lg font-semibold text-foreground">{t('analysis.header')}</h2>
                     <button
                         onClick={onClose}
                         className="p-1.5 rounded-full hover:bg-token-surface-secondary text-muted-foreground"
-                        aria-label="Close analysis"
+                        aria-label={t('analysis.close')}
                     >
                         <XIcon className="size-5" />
                     </button>
@@ -69,11 +71,11 @@ const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClo
                     <div className="flex items-center gap-4">
                         <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
                             <input type="checkbox" className="toggle-switch" defaultChecked />
-                            <span className="text-xs">Always show details</span>
+                            <span className="text-xs">{t('analysis.alwaysShow')}</span>
                         </label>
                         <button onClick={handleCopy} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
                             <CopyIcon className="size-4" />
-                            <span className="text-xs">{isCopied ? 'Copied!' : 'Copy code'}</span>
+                            <span className="text-xs">{isCopied ? t('analysis.copied') : t('analysis.copy')}</span>
                         </button>
                     </div>
                 </div>

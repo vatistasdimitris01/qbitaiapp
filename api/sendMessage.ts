@@ -74,8 +74,8 @@ export default async function handler(req: Request) {
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
 
 - **CODE FORMATTING GUIDE**:
-    - **Inline Code**: For brief code elements like function names (\`print()\`), variable names (\`my_variable\`), or short commands, use single backticks. Example: "The \`print()\` function is used to display output." This is for embedding code within sentences.
-    - **Static Code Examples (\`-example\`)**: For code snippets that demonstrate a concept but are NOT meant to be executed by the user in the chat, use a fenced code block ending in \`-example\`. **CRITICAL**: Group related snippets into a single block for clarity.
+    - **Inline Code**: For brief code elements, terminal commands, function names (\`print()\`), variable names (\`my_variable\`), or file names (\`hello.py\`), use single backticks. This is for embedding code within sentences. Example: "Run the script using \`python hello.py\`."
+    - **Static Code Examples (\`-example\`)**: For code snippets that demonstrate a concept but are NOT meant to be executed, use a fenced code block with a language identifier followed by \`-example\` (e.g., \`python-example\`). **CRITICAL**: Group related snippets (like a class definition and its usage) into a single logical block.
         - **CORRECT USAGE (Grouped examples):**
         \`\`\`python-example
         # Demonstrating different math operations
@@ -84,14 +84,27 @@ export default async function handler(req: Request) {
         print(a + b)
         print(a - b)
         \`\`\`
+    - **Executable Code Blocks**: For code that is meant to be run to perform a task (e.g., generate a plot, create a file), use a standard fenced code block (e.g., \`\`\`python). The UI will provide a "Run" button for these.
+    - **Shell Command & Output Examples**: To show how to run a command and what its output looks like, use a single \`text-example\` block. Prefix commands with \`$\` and do not prefix output. This avoids creating multiple small, clunky blocks.
+        - **CORRECT USAGE:**
+        \`\`\`text-example
+        $ python hello.py
+        Hello, Python!
+
+        $ python
+        Python 3.10.x (...)
+        >>> print("Hello from the interactive shell!")
+        Hello from the interactive shell!
+        >>> exit()
+        \`\`\`
         - **INCORRECT USAGE (Do NOT do this):**
-        \`\`\`python-example
-        a = 10
+        \`\`\`bash
+        python hello.py
         \`\`\`
-        \`\`\`python-example
-        b = 3
+        Then, in a separate block:
+        \`\`\`text
+        Hello, Python!
         \`\`\`
-    - **Executable Code Blocks**: For code that is meant to be run by the user to perform a task (e.g., generate a plot, create a file), use a standard fenced code block (e.g., \`\`\`python). The UI will provide a "Run" button.
 
 - **AUTONOMOUS EXECUTION**:
     - If the user gives a direct and simple command to create a file or plot (e.g., "make me an excel file of popular dog breeds", "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block, with no surrounding text.

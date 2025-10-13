@@ -3,7 +3,7 @@ import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, DownloadIcon, CheckIcon
+    BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
@@ -28,14 +28,6 @@ interface ChatMessageProps {
 
 // Language identifiers that should be rendered with the CodeExecutor component
 const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'html', 'react', 'jsx'];
-
-// File extensions for different languages for the download functionality
-const langExtensions: { [key: string]: string } = {
-    python: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts',
-    html: 'html', react: 'jsx', jsx: 'jsx', shell: 'sh', bash: 'sh',
-    java: 'java', csharp: 'cs', cpp: 'cpp', css: 'css', json: 'json',
-    markdown: 'md',
-};
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
@@ -89,87 +81,6 @@ const getTextFromMessage = (content: MessageContent): string => {
     }
     return ''; // Other content types are handled as structured data.
 }
-
-const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }> = ({ code, lang, title }) => {
-    const [highlightedCode, setHighlightedCode] = useState('');
-    const [isCopied, setIsCopied] = useState(false);
-    
-    useEffect(() => {
-        if ((window as any).hljs) {
-            const safeLang = escapeHtml(lang);
-            try {
-                const highlighted = (window as any).hljs.highlight(code, { language: safeLang, ignoreIllegals: true }).value;
-                setHighlightedCode(highlighted);
-            } catch (e) {
-                setHighlightedCode(escapeHtml(code)); // Fallback to plain text
-            }
-        } else {
-            setHighlightedCode(escapeHtml(code));
-        }
-    }, [code, lang]);
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(code).then(() => {
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        });
-    };
-    
-    const handleDownload = () => {
-        const extension = langExtensions[lang.toLowerCase()] || 'txt';
-        const filename = `${title?.replace(/\s+/g, '_') || 'code'}.${extension}`;
-        const blob = new Blob([code], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
-    return (
-        <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            {/* PC View */}
-            <div className="hidden sm:block">
-                <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
-                    <div className="flex items-center space-x-2 min-w-0">
-                        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm font-medium">
-                        <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isCopied ? "Copied code" : "Copy code"}>
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                            <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
-                        </button>
-                        <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Download code">
-                            <DownloadIcon className="size-4" />
-                            <span className="hidden sm:inline">Download</span>
-                        </button>
-                    </div>
-                </header>
-                <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
-                    <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
-                </div>
-            </div>
-            {/* Mobile-only view */}
-            <div className="block sm:hidden">
-                <div className="flex items-center justify-between mb-3">
-                     <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
-                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
-                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span>{isCopied ? 'Copied!' : 'Copy'}</span>
-                     </button>
-                </div>
-                <button onClick={handleDownload} className="w-full flex items-center justify-center gap-2 py-3 bg-token-surface-secondary text-token-primary rounded-lg text-sm font-medium hover:bg-border border border-default">
-                    <DownloadIcon className="size-4" />
-                    <span>Download file</span>
-                </button>
-            </div>
-        </div>
-    );
-};
-
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest }) => {
     const isUser = message.type === MessageType.USER;
@@ -377,6 +288,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const loadingTexts = statusTexts[aiStatus] || statusTexts.thinking;
 
+    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) {
+      return null;
+    }
+
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className="group flex flex-col w-full max-w-3xl">
@@ -456,37 +371,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     const lang = part.lang?.toLowerCase() || 'plaintext';
                                     const isExample = lang.endsWith('-example');
                                     const baseLang = isExample ? lang.substring(0, lang.length - '-example'.length) : lang;
-                                    const isExecutable = EXECUTABLE_LANGS.includes(baseLang);
-
-                                    if (isExecutable && !isExample) {
-                                        const key = `${message.id}_${index}`;
-                                        return (
-                                            <div key={index} className="not-prose my-4">
-                                                <CodeExecutor
-                                                    code={part.code}
-                                                    lang={baseLang}
-                                                    title={part.title}
-                                                    autorun={part.autorun}
-                                                    persistedResult={executionResults[key]}
-                                                    onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
-                                                    onFixRequest={(execError) => onFixRequest(part.code!, baseLang, execError)}
-                                                    isLoading={isLoading}
-                                                />
-                                            </div>
-                                        );
-                                    }
-                                     if (baseLang === 'mermaid') {
-                                        return <div key={index} className="mermaid">{part.code}</div>;
-                                    }
+                                    
+                                    const key = `${message.id}_${index}`;
                                     return (
-                                       <StaticCodeBlock key={index} code={part.code} lang={baseLang} title={part.title} />
+                                        <CodeExecutor
+                                            key={key}
+                                            code={part.code}
+                                            lang={baseLang}
+                                            title={part.title}
+                                            isExecutable={EXECUTABLE_LANGS.includes(baseLang) && !isExample}
+                                            autorun={part.autorun}
+                                            persistedResult={executionResults[key]}
+                                            onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
+                                            onFixRequest={(execError) => onFixRequest(part.code!, baseLang, execError)}
+                                            isLoading={isLoading}
+                                        />
                                     );
                                 }
                                 return null;
                             })}
-
-                            {isLoading && !hasRenderableContent && <AITextLoading texts={loadingTexts} />}
-                            {isLoading && hasRenderableContent && <span className="typing-indicator cursor"></span>}
+                            
+                            {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') ? (
+                                <AITextLoading texts={loadingTexts} />
+                            ) : isLoading && parsedResponseText ? (
+                                <span className="typing-indicator cursor"></span>
+                            ) : null}
                         </div>
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>

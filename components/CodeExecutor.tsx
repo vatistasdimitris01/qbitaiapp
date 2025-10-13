@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, EyeIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon } from './icons';
 
 declare global {
     interface Window {
@@ -193,6 +193,7 @@ interface CodeExecutorProps {
     code: string;
     lang: string;
     title?: string;
+    isExecutable: boolean;
     autorun?: boolean;
     persistedResult?: ExecutionResult;
     onExecutionComplete: (result: ExecutionResult) => void;
@@ -203,15 +204,13 @@ interface CodeExecutorProps {
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
 type OutputContent = string | React.ReactNode;
 
-// File extensions for different languages for the download functionality
 const langExtensions: { [key: string]: string } = {
-    python: 'py', javascript: 'js', js: 'js', html: 'html'
+    python: 'py', javascript: 'js', js: 'js', html: 'html', react: 'jsx', jsx: 'jsx',
+    typescript: 'ts', shell: 'sh', bash: 'sh', java: 'java', csharp: 'cs',
+    cpp: 'cpp', css: 'css', json: 'json', markdown: 'md',
 };
 
 function usePrevious<T>(value: T): T | undefined {
-  // FIX: Correctly initialize useRef by providing an initial value. The generic
-  // version of useRef requires an initial value when a type is provided, so we
-  // provide `undefined` and update the ref's type to `T | undefined` to match.
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
     ref.current = value;
@@ -219,8 +218,7 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-// FIX: Changed component definition to not use React.FC to fix type inference issue.
-export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }: CodeExecutorProps) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -232,13 +230,13 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
     const [downloadableFile, setDownloadableFile] = useState<DownloadableFile | null>(null);
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
-    const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
     
-    const [view, setView] = useState<'code' | 'output'>('code');
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
-    // FIX: Added a state trigger for React execution to solve timing issue with ref.
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
+
+    const lineCount = useMemo(() => code.split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -301,7 +299,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                     break;
                 case 'success':
                     setStatus('success');
-                    setView('output');
                     let resultToPersist: ExecutionResult;
                     if (finalResult) {
                         resultToPersist = { ...finalResult, error: '' };
@@ -325,7 +322,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                     const errorMsg = msgError || stderrBuffer.trim();
                     setError(errorMsg);
                     setStatus('error');
-                    setView('output');
                     const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
                     if (currentRunDownloadableFile) {
                         errorResult.downloadableFile = currentRunDownloadableFile;
@@ -340,7 +336,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             const errorMsg = `Worker error: ${err.message}`;
             setError(errorMsg);
             setStatus('error');
-            setView('output');
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             cleanup();
         };
@@ -355,7 +350,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
         };
         try {
-            // FIX: Use an indirect eval to ensure global scope and avoid potential environment issues.
             const result = (0, eval)(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
@@ -364,13 +358,11 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             const trimmedOutput = finalOutput.trim();
             setOutput(trimmedOutput);
             setStatus('success');
-            setView('output');
             onExecutionComplete({ output: trimmedOutput, error: '', type: 'string' });
         } catch (err: any) {
             const errorMsg = err.toString();
             setError(errorMsg);
             setStatus('error');
-            setView('output');
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         } finally {
             console.log = oldConsoleLog;
@@ -383,7 +375,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         try {
             const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
-            setHtmlPreviewUrl(url);
 
             const newWindow = window.open(url, '_blank');
             if (newWindow) {
@@ -395,7 +386,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 setError(errorMsg);
                 setStatus('error');
                 URL.revokeObjectURL(url);
-                setHtmlPreviewUrl(null);
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
             }
         } catch (err: any) {
@@ -404,10 +394,8 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             setStatus('error');
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
-        setView('output');
     }, [code, onExecutionComplete]);
     
-    // FIX: Refactored React execution to create the root once and reuse it, avoiding problematic unmount calls on re-renders.
     useEffect(() => {
         if (reactExecTrigger > 0 && reactMountRef.current) {
             try {
@@ -423,7 +411,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 if (typeof ComponentToRender === 'function') {
                     const Component = ComponentToRender as React.ComponentType;
                     reactRootRef.current.render(React.createElement(Component));
-                    setOutput(null); // The content is rendered into the ref, not stored in state
+                    setOutput(null);
                     setStatus('success');
                     onExecutionComplete({ output: 'React component rendered.', error: '', type: 'string' });
                 } else {
@@ -438,7 +426,6 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         }
     }, [reactExecTrigger, code, onExecutionComplete]);
     
-    // Add a separate effect for cleanup when the component unmounts
     useEffect(() => {
         return () => {
             if (reactRootRef.current) {
@@ -451,20 +438,14 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
     const runReact = useCallback(() => {
         setStatus('executing');
         setHasRunOnce(true);
-        setView('output');
         setReactExecTrigger(c => c + 1);
     }, []);
-
 
     const handleRunCode = useCallback(async () => {
         setOutput('');
         setError('');
         setDownloadableFile(null);
-        if (lang.toLowerCase() !== 'html' && htmlPreviewUrl) {
-            URL.revokeObjectURL(htmlPreviewUrl);
-            setHtmlPreviewUrl(null);
-        }
-
+        
         switch (lang.toLowerCase()) {
             case 'python': await runPython(); break;
             case 'javascript': case 'js': runJavaScript(); break;
@@ -476,9 +457,8 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 setStatus('error');
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
-    }, [lang, htmlPreviewUrl, runPython, runJavaScript, runHtml, runReact, onExecutionComplete]);
+    }, [lang, runPython, runJavaScript, runHtml, runReact, onExecutionComplete]);
     
-    // Effect to restore state from persisted result (e.g., from localStorage)
     useEffect(() => {
         if (persistedResult) {
             const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
@@ -499,17 +479,13 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 setDownloadableFile(savedFile || null);
                 setStatus('success');
             }
-            // If there's any result, switch to output view and mark as run
             if (savedError || savedOutput !== null || savedFile) {
-                setView('output');
                 setHasRunOnce(true);
             }
         }
     }, [persistedResult]);
 
-    // Effect to handle autorun when streaming is complete
     useEffect(() => {
-        // Trigger autorun only when loading has finished, it's flagged for autorun, and it hasn't run from a persisted state
         if (autorun && prevIsLoading && !isLoading && !persistedResult) {
             handleRunCode();
         }
@@ -529,7 +505,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
     }, [code, lang]);
 
     useEffect(() => {
-        if (lang === 'python' && plotlyRef.current && typeof output === 'string' && output.startsWith('{')) {
+        if (isExecutable && hasRunOnce && lang === 'python' && plotlyRef.current && typeof output === 'string' && output.startsWith('{')) {
             try {
                 const spec = JSON.parse(output);
                 if (window.Plotly) {
@@ -540,14 +516,13 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 setError("Failed to render interactive chart.");
             }
         }
-    }, [output, lang, view]);
+    }, [output, lang, isExecutable, hasRunOnce]);
     
     useEffect(() => {
         return () => {
             if (workerRef.current) workerRef.current.terminate();
-            if (htmlPreviewUrl) URL.revokeObjectURL(htmlPreviewUrl);
         };
-    }, [htmlPreviewUrl]);
+    }, []);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code).then(() => {
@@ -576,17 +551,15 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             workerRef.current = null;
         }
         setStatus('idle');
-        setError('');
+        setError('Execution stopped by user.');
         setOutput('');
-        setView('code');
     };
     
     const OutputDisplay = () => (
-        <div className="pt-4">
-            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Output</h4>
+        <div className="pt-2 flex flex-col gap-2 h-full">
             {error ? (
-                <div className="space-y-2">
-                    <pre className="text-sm text-red-500 dark:text-red-400 whitespace-pre-wrap bg-red-500/10 p-3 rounded-md">{error}</pre>
+                <div className="space-y-2 output-block border border-red-500/50">
+                    <pre className="text-sm error-text whitespace-pre-wrap">{error}</pre>
                     {onFixRequest && (
                         <button 
                             onClick={() => onFixRequest(error)}
@@ -602,121 +575,84 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                         (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
                              <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
                         ) : (lang === 'react' || lang === 'jsx') ? (
-                            // FIX: Removed {output} as React rendering is handled directly by ReactDOM.createRoot.
                             <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}></div>
                         ) : typeof output === 'string' ? (
-                            <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
+                           <div className="text-sm output-block">
+                             <pre>{output.trim()}</pre>
+                           </div>
                         ) : (
                             <div>{output}</div>
                         )
                     )}
                      
                     {downloadableFile && (
-                        <div className="mt-2 p-3 bg-background dark:bg-black/50 rounded-lg flex items-center justify-between gap-4">
-                            <p className="text-sm text-foreground flex-1 min-w-0">
+                        <div className="output-block">
+                           <p className="text-sm flex-1 min-w-0">
                                 Generated file: <span className="font-semibold truncate">{downloadableFile.filename}</span>
                             </p>
-                            <button 
-                                onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
-                                className="flex items-center gap-1.5 bg-token-surface-secondary text-token-primary rounded-md text-sm font-medium hover:bg-border px-3 py-1.5 border border-default whitespace-nowrap"
-                            >
-                                <DownloadIcon className="size-4" />
-                                <span>Re-download</span>
-                            </button>
                         </div>
                     )}
                 </>
             )}
         </div>
     );
-    
-    const CodeDisplay = () => (
-        <>
-            <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area min-w-0">
-                <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
+
+    return (
+        <div className="relative not-prose my-4 -mx-4 sm:mx-0 group">
+            <div className="flex flex-row px-4 py-2 h-10 items-center rounded-t-xl bg-token-surface-secondary border border-default">
+                <span className="font-mono text-xs text-muted-foreground">{lang}</span>
             </div>
-            {(status === 'executing' || status === 'loading-env') && (
-                 <div className="flex items-center text-sm text-muted-foreground mt-4">
+
+            <div className="absolute top-1.5 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="flex flex-row gap-0.5">
+                    <button onClick={() => setIsCollapsed(!isCollapsed)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs">
+                        {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+                        <span className="hidden sm:block">{isCollapsed ? 'Expand' : 'Collapse'}</span>
+                    </button>
+                    {isExecutable && (
+                        status === 'executing' || status === 'loading-env' ? (
+                             <button onClick={handleStopCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label="Stop execution">
+                                <div className="w-2.5 h-2.5 bg-foreground rounded-sm sm:mr-2"></div>
+                                <span className="hidden sm:inline">Stop</span>
+                            </button>
+                        ) : (
+                            <button onClick={handleRunCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
+                                <span className="hidden sm:block">{hasRunOnce ? 'Run Again' : 'Run'}</span>
+                            </button>
+                        )
+                    )}
+                    <button onClick={handleCopy} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={isCopied ? 'Copied' : 'Copy code'}>
+                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                        <span className="hidden sm:block">{isCopied ? 'Copied' : 'Copy'}</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className={`shiki not-prose relative font-mono text-sm border-x border-default overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+                <pre className="!m-0 !p-4 !rounded-none overflow-x-auto code-block-area">
+                    <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                </pre>
+            </div>
+            
+            {isCollapsed && (
+                <div className="hidden-lines-footer">
+                    {lineCount} hidden lines
+                </div>
+            )}
+            
+            {isExecutable && hasRunOnce && !isCollapsed && (
+                <div className="p-4 border border-t-0 border-default rounded-b-xl">
+                    <OutputDisplay />
+                </div>
+            )}
+
+             {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
+                 <div className="flex items-center text-sm text-muted-foreground p-4 border border-t-0 border-default rounded-b-xl">
                     <LoadingSpinner />
                     <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
                 </div>
             )}
-        </>
-    );
-    
-    const renderButtons = () => {
-        const isRunnable = ['python', 'javascript', 'js', 'react', 'jsx', 'html'].includes(lang.toLowerCase());
-        if (!isRunnable) return null;
-
-        if (status === 'executing' || status === 'loading-env') {
-            return (
-                <button onClick={handleStopCode} className="bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center transition-colors text-sm font-medium h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Stop execution">
-                    <div className="w-2.5 h-2.5 bg-white rounded-sm sm:mr-2"></div>
-                    <span className="hidden sm:inline">Stop</span>
-                </button>
-            );
-        }
-        if (!hasRunOnce) {
-            return (
-                 <button onClick={handleRunCode} className="bg-black text-white rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Run code">
-                    <PlayIcon className="size-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Run code</span>
-                </button>
-            );
-        }
-        // hasRunOnce is true from here
-        return (
-            <div className="flex items-center gap-2 sm:gap-2">
-                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary rounded-full text-sm font-medium hover:bg-border flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label={view === 'code' ? 'Show Output' : 'Show Code'}>
-                    <EyeIcon className="size-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">{view === 'code' ? 'Output' : 'Code'}</span>
-                </button>
-                <button onClick={handleRunCode} className="bg-black text-white rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Run Again">
-                    <RefreshCwIcon className="size-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Run Again</span>
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-             {/* PC View */}
-            <div className="hidden sm:block">
-                <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
-                    <div className="flex items-center space-x-2 min-w-0">
-                        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
-                    </div>
-                    <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
-                        <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                            <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
-                        </button>
-                        <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label="Download code">
-                            <DownloadIcon className="size-4" />
-                            <span className="hidden sm:inline">Download</span>
-                        </button>
-                        {renderButtons()}
-                    </div>
-                </header>
-                
-                {view === 'code' ? <CodeDisplay /> : <OutputDisplay />}
-            </div>
-
-            {/* Mobile View */}
-            <div className="block sm:hidden">
-                <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
-                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span>{isCopied ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                </div>
-                <button onClick={handleDownload} className="w-full flex items-center justify-center gap-2 py-3 bg-token-surface-secondary text-token-primary rounded-lg text-sm font-medium hover:bg-border border border-default">
-                    <DownloadIcon className="size-4" />
-                    <span>Download file</span>
-                </button>
-            </div>
         </div>
     );
 };

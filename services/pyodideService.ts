@@ -1,11 +1,9 @@
 
-
 let pyodidePromise: Promise<any> | null = null;
 
 declare global {
     interface Window { 
-        // FIX: The config object for loadPyodide is optional.
-        loadPyodide: (config?: { indexURL?: string }) => Promise<any>;
+        loadPyodide: (config: { indexURL: string }) => Promise<any>;
         Plotly: any;
     }
 }
@@ -19,8 +17,9 @@ export const getPyodide = () => {
                     await new Promise(res => setTimeout(res, 100));
                 }
 
-                // The loadPyodide function can be called without arguments.
-                const pyodide = await window.loadPyodide();
+                const pyodide = await window.loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
+                });
                 await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
                 await pyodide.loadPackage('micropip');
                 const micropip = pyodide.pyimport('micropip');

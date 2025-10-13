@@ -15,8 +15,7 @@ const pythonWorkerSource = `
     
     async function loadPyodideAndPackages() {
         // @ts-ignore
-        // The loadPyodide function can be called without arguments.
-        pyodide = await loadPyodide();
+        pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
         await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
@@ -116,8 +115,8 @@ try:
     original_fpdf_output = FPDF.output
     def patched_fpdf_output(self, name='', dest='S'):
         # If a filename is provided, intercept it for download
-        if name:
-            pdf_output_bytes = original_fpdf_output(self, dest='S')
+        if name: 
+            pdf_output_bytes = original_fpdf_output(self, dest='S').encode('latin1')
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
             print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
@@ -209,30 +208,14 @@ const langExtensions: { [key: string]: string } = {
 };
 
 function usePrevious<T>(value: T): T | undefined {
-  // FIX: Explicitly pass `undefined` to `useRef` to satisfy TypeScript's type inference
-  // for overloaded function signatures, resolving the "Expected 1 arguments, but got 0" error.
-  const ref = useRef<T | undefined>(undefined);
+  const ref = useRef<T>();
   useEffect(() => {
     ref.current = value;
   });
   return ref.current;
 }
 
-const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768); // md breakpoint
-
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    return isMobile;
-};
-
+// FIX: Changed component definition to not use React.FC to fix type inference issue.
 export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }: CodeExecutorProps) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
@@ -250,8 +233,8 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
     const [view, setView] = useState<'code' | 'output'>('code');
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
+    // FIX: Added a state trigger for React execution to solve timing issue with ref.
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
-    const isMobile = useIsMobile();
 
     const runPython = useCallback(async () => {
         setStatus('loading-env');
@@ -419,6 +402,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         setView('output');
     }, [code, onExecutionComplete]);
     
+    // FIX: Refactored React execution to create the root once and reuse it, avoiding problematic unmount calls on re-renders.
     useEffect(() => {
         if (reactExecTrigger > 0 && reactMountRef.current) {
             try {
@@ -434,7 +418,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 if (typeof ComponentToRender === 'function') {
                     const Component = ComponentToRender as React.ComponentType;
                     reactRootRef.current.render(React.createElement(Component));
-                    setOutput(null); 
+                    setOutput(null); // The content is rendered into the ref, not stored in state
                     setStatus('success');
                     onExecutionComplete({ output: 'React component rendered.', error: '', type: 'string' });
                 } else {
@@ -449,6 +433,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         }
     }, [reactExecTrigger, code, onExecutionComplete]);
     
+    // Add a separate effect for cleanup when the component unmounts
     useEffect(() => {
         return () => {
             if (reactRootRef.current) {
@@ -488,6 +473,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         }
     }, [lang, htmlPreviewUrl, runPython, runJavaScript, runHtml, runReact, onExecutionComplete]);
     
+    // Effect to restore state from persisted result (e.g., from localStorage)
     useEffect(() => {
         if (persistedResult) {
             const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
@@ -508,6 +494,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 setDownloadableFile(savedFile || null);
                 setStatus('success');
             }
+            // If there's any result, switch to output view and mark as run
             if (savedError || savedOutput !== null || savedFile) {
                 setView('output');
                 setHasRunOnce(true);
@@ -515,7 +502,9 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
         }
     }, [persistedResult]);
 
+    // Effect to handle autorun when streaming is complete
     useEffect(() => {
+        // Trigger autorun only when loading has finished, it's flagged for autorun, and it hasn't run from a persisted state
         if (autorun && prevIsLoading && !isLoading && !persistedResult) {
             handleRunCode();
         }
@@ -608,6 +597,7 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                         (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
                              <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
                         ) : (lang === 'react' || lang === 'jsx') ? (
+                            // FIX: Removed {output} as React rendering is handled directly by ReactDOM.createRoot.
                             <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}></div>
                         ) : typeof output === 'string' ? (
                             <div className="text-sm text-foreground whitespace-pre-wrap">{output.trim()}</div>
@@ -669,14 +659,13 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
                 </button>
             );
         }
+        // hasRunOnce is true from here
         return (
             <div className="flex items-center gap-2 sm:gap-2">
-                {(!isMobile || !hasRunOnce) && (
-                    <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary rounded-full text-sm font-medium hover:bg-border flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label={view === 'code' ? 'Show Output' : 'Show Code'}>
-                        <EyeIcon className="size-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">{view === 'code' ? 'Output' : 'Code'}</span>
-                    </button>
-                )}
+                <button onClick={() => setView(v => v === 'code' ? 'output' : 'code')} className="bg-token-surface-secondary text-token-primary rounded-full text-sm font-medium hover:bg-border flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label={view === 'code' ? 'Show Output' : 'Show Code'}>
+                    <EyeIcon className="size-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">{view === 'code' ? 'Output' : 'Code'}</span>
+                </button>
                 <button onClick={handleRunCode} className="bg-black text-white rounded-full text-sm font-medium hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 sm:py-2" aria-label="Run Again">
                     <RefreshCwIcon className="size-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Run Again</span>

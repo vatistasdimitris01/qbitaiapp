@@ -214,7 +214,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
         const textToRender = parsedResponseText || '';
-        if (!textToRender) return [];
     
         type ContentPart = {
             type: 'text' | 'code';
@@ -256,6 +255,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
     
         return parts;
     }, [parsedResponseText, message.type]);
+
+    const hasRenderableContent = useMemo(() => {
+      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
+    }, [contentParts]);
 
 
     const handleCopy = () => {
@@ -352,11 +355,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
 
     const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
-    
-    const hasVisibleContent = useMemo(() => {
-        return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim()) || (p.type === 'code' && p.code));
-    }, [contentParts]);
-    const showTypingIndicator = !isUser && isLoading;
     
     const statusTexts: Record<string, string[]> = {
         thinking: [
@@ -486,17 +484,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                 }
                                 return null;
                             })}
-                           {showTypingIndicator && (
-                                <div className="pt-2">
-                                    {hasVisibleContent
-                                        ? <span className="typing-indicator cursor"></span>
-                                        : <AITextLoading texts={loadingTexts} />
-                                    }
-                                </div>
-                            )}
+
+                            {isLoading && !hasRenderableContent && <AITextLoading texts={loadingTexts} />}
+                            {isLoading && hasRenderableContent && <span className="typing-indicator cursor"></span>}
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasVisibleContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label="Copy message">
                            <CopyIcon className="size-4" />
                         </IconButton>

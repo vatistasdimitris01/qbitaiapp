@@ -1,4 +1,5 @@
 
+
 let pyodidePromise: Promise<any> | null = null;
 
 declare global {
@@ -17,9 +18,9 @@ export const getPyodide = () => {
                     await new Promise(res => setTimeout(res, 100));
                 }
 
-                const pyodide = await window.loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
-                });
+                // FIX: The loadPyodide function in v0.26.1 and later does not accept an indexURL argument.
+                // The URL is determined automatically from where pyodide.js is loaded.
+                const pyodide = await window.loadPyodide();
                 await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
                 await pyodide.loadPackage('micropip');
                 const micropip = pyodide.pyimport('micropip');

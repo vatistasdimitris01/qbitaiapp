@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
@@ -29,16 +28,6 @@ interface ChatMessageProps {
 
 // Language identifiers for non-python executable code
 const EXECUTABLE_LANGS_NON_PYTHON = ['javascript', 'js', 'html', 'react', 'jsx'];
-
-// Python libraries available in the execution environment
-const EXECUTABLE_PYTHON_LIBRARIES = [
-    'numpy', 'matplotlib', 'pandas', 'sklearn', 'sympy', 'PIL', 
-    'bs4', 'scipy', 'cv2', 'requests', 'plotly', 'fpdf', 
-    'seaborn', 'openpyxl', 'docx'
-];
-
-// This regex will match "import <lib>" or "from <lib>" at the start of a line.
-const pythonImportRegex = new RegExp(`^\\s*(?:import|from)\\s+(?:${EXECUTABLE_PYTHON_LIBRARIES.join('|')})`, 'm');
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
@@ -387,8 +376,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     
                                     let isExecutable;
                                     if (baseLang === 'python') {
-                                        // A python block is executable if it isn't an example and it imports a supported library.
-                                        isExecutable = !isExample && pythonImportRegex.test(part.code);
+                                        // A python block is executable if it isn't an example.
+                                        isExecutable = !isExample;
                                     } else {
                                         isExecutable = EXECUTABLE_LANGS_NON_PYTHON.includes(baseLang) && !isExample;
                                     }

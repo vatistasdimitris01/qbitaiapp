@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon } from './icons';
 
 declare global {
     interface Window {
@@ -235,6 +234,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [output, setOutput] = useState<OutputContent>('');
     const [error, setError] = useState<string>('');
     const [downloadableFile, setDownloadableFile] = useState<DownloadableFile | null>(null);
+    const [htmlBlobUrl, setHtmlBlobUrl] = useState<string | null>(null);
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     
@@ -382,19 +382,17 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         try {
             const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
+            setHtmlBlobUrl(url);
 
             const newWindow = window.open(url, '_blank');
-            if (newWindow) {
-                setOutput('Preview opened in a new tab.');
-                setStatus('success');
-                onExecutionComplete({ output: 'Preview opened in a new tab.', error: '', type: 'string' });
-            } else {
-                const errorMsg = 'Could not open a new tab. Please disable your popup blocker for this site.';
-                setError(errorMsg);
-                setStatus('error');
-                URL.revokeObjectURL(url);
-                onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
-            }
+            const message = newWindow
+                ? 'Preview opened in a new tab.'
+                : 'Popup blocked. Use the button below to open the preview.';
+
+            setOutput(message);
+            setStatus('success');
+            onExecutionComplete({ output: message, error: '', type: 'string' });
+            
         } catch (err: any) {
             const errorMsg = 'Execution failed: ' + (err.message || String(err));
             setError(errorMsg);
@@ -452,6 +450,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         setOutput('');
         setError('');
         setDownloadableFile(null);
+        setHtmlBlobUrl(oldUrl => {
+            if (oldUrl) URL.revokeObjectURL(oldUrl);
+            return null;
+        });
         
         switch (lang.toLowerCase()) {
             case 'python': await runPython(); break;
@@ -483,8 +485,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         setOutput(savedOutput);
                     }
                 }
-                setDownloadableFile(savedFile || null);
                 setStatus('success');
+            }
+            if (savedFile) {
+                setDownloadableFile(savedFile);
             }
             if (savedError || savedOutput !== null || savedFile) {
                 setHasRunOnce(true);
@@ -528,8 +532,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     useEffect(() => {
         return () => {
             if (workerRef.current) workerRef.current.terminate();
+            if (htmlBlobUrl) URL.revokeObjectURL(htmlBlobUrl);
         };
-    }, []);
+    }, [htmlBlobUrl]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(code).then(() => {
@@ -548,7 +553,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         setOutput('');
     };
     
-    const OutputDisplay = () => (
+    const OutputDisplay = () => {
+      const showOutputBlock = !error && (
+        (typeof output === 'string' && output.trim() !== '') ||
+        downloadableFile ||
+        htmlBlobUrl
+      );
+    
+      return (
         <div className="flex flex-col gap-2">
             {error ? (
                 <div className="space-y-2 output-block border border-red-500/50 bg-red-500/10 dark:bg-red-500/10">
@@ -556,39 +568,55 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     {onFixRequest && (
                         <button 
                             onClick={() => onFixRequest(error)}
-                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mt-2"
                         >
                             Fix it
                         </button>
                     )}
                 </div>
-            ) : (
-                <>
-                    {output && (
-                        (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
-                             <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2"></div>
-                        ) : (lang === 'react' || lang === 'jsx') ? (
-                            <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}></div>
-                        ) : typeof output === 'string' ? (
-                           <div className="text-sm output-block">
-                             <pre>{output.trim()}</pre>
-                           </div>
-                        ) : (
-                            <div>{output}</div>
-                        )
+            ) : null}
+
+            {!error && output && typeof output !== 'string' && (
+              <div>{output}</div> // For image
+            )}
+            {!error && output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
+              <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
+            )}
+            {!error && output && (lang === 'react' || lang === 'jsx') && (
+              <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
+            )}
+            
+            {showOutputBlock && (
+              <div className="text-sm output-block">
+                {typeof output === 'string' && output.trim() !== '' && <pre>{output.trim()}</pre>}
+                
+                {(downloadableFile || htmlBlobUrl) && (
+                  <div className={`flex items-center gap-2 ${typeof output === 'string' && output.trim() !== '' ? 'mt-2 pt-2 border-t border-token' : ''}`}>
+                    {downloadableFile && (
+                      <button
+                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                        className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                      >
+                        <DownloadIcon className="size-3.5 mr-1.5" />
+                        Download again
+                      </button>
                     )}
-                     
-                    {downloadableFile && !output && (
-                        <div className="output-block">
-                           <p className="text-sm flex-1 min-w-0">
-                                File created: <span className="font-semibold truncate">{downloadableFile.filename}</span>
-                            </p>
-                        </div>
+                    {htmlBlobUrl && (
+                      <button
+                        onClick={() => window.open(htmlBlobUrl, '_blank')}
+                        className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                      >
+                        <EyeIcon className="size-3.5 mr-1.5" />
+                        Open in new tab
+                      </button>
                     )}
-                </>
+                  </div>
+                )}
+              </div>
             )}
         </div>
-    );
+      );
+    };
 
     return (
         <div className="not-prose my-4">

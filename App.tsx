@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
@@ -32,10 +31,12 @@ type ExecutionResult = {
   output: string | null;
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
+  downloadableFile?: { filename: string; mimetype: string; data: string; };
 };
 
 
 const App: React.FC = () => {
+  const [isAppReady, setIsAppReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -121,12 +122,18 @@ const App: React.FC = () => {
 
   // Pre-load Pyodide environment on app startup
   useEffect(() => {
+    // Don't pre-load if app is already considered ready (e.g. from a quick refresh)
+    if (isAppReady) return;
+
     getPyodide().then(() => {
         console.log('Pyodide environment pre-loaded and ready.');
+        setIsAppReady(true);
     }).catch(e => {
         console.error('Failed to pre-load Pyodide environment:', e);
+        // Load app anyway, code execution might fail but chat is still usable.
+        setIsAppReady(true);
     });
-  }, []);
+  }, [isAppReady]);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -529,6 +536,22 @@ ${error}
       setActiveConversationId(id);
       setIsSidebarOpen(false); // Close sidebar after selecting a conversation
   };
+
+  if (!isAppReady) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
+            <img src="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" alt="Qbit Logo" className="w-16 h-16 mb-4" />
+            <h1 className="text-2xl font-semibold tracking-tight">Qbit</h1>
+            <div className="flex items-center mt-6 text-muted-foreground text-sm">
+                <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Preparing environment...</span>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">

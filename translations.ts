@@ -25,6 +25,7 @@ export const translations = {
     // Main Chat View
     chat: {
       placeholder: 'Start a conversation with Qbit.',
+      scrollToBottom: 'Scroll to bottom',
       input: {
         placeholder: 'Ask Anything',
         placeholderWithFiles: 'Describe {count} file(s)...',
@@ -164,6 +165,7 @@ export const translations = {
     },
     chat: {
       placeholder: 'Ξεκινήστε μια συνομιλία με το Qbit.',
+      scrollToBottom: 'Κύλιση προς τα κάτω',
       input: {
         placeholder: 'Ρωτήστε οτιδήποτε',
         placeholderWithFiles: 'Περιγράψτε {count} αρχείο(α)...',
@@ -299,6 +301,7 @@ export const translations = {
     },
     chat: {
       placeholder: 'Inicia una conversación con Qbit.',
+      scrollToBottom: 'Desplazarse hacia abajo',
       input: {
         placeholder: 'Pregunta lo que sea',
         placeholderWithFiles: 'Describe {count} archivo(s)...',
@@ -434,6 +437,7 @@ export const translations = {
     },
     chat: {
       placeholder: 'Commencez une conversation avec Qbit.',
+      scrollToBottom: 'Faire défiler vers le bas',
       input: {
         placeholder: "Demandez n'importe quoi",
         placeholderWithFiles: 'Décrivez {count} fichier(s)...',
@@ -569,6 +573,7 @@ export const translations = {
     },
     chat: {
       placeholder: 'Starten Sie ein Gespräch mit Qbit.',
+      scrollToBottom: 'Nach unten scrollen',
       input: {
         placeholder: 'Fragen Sie irgendetwas',
         placeholderWithFiles: 'Beschreiben Sie {count} Datei(en)...',

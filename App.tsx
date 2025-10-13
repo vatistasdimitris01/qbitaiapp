@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 // FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -12,7 +12,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
-import { LayoutGridIcon, SquarePenIcon } from './components/icons';
+import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -113,6 +113,7 @@ const App: React.FC = () => {
   
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
 
   const mainContentRef = useRef<HTMLElement>(null);
@@ -274,20 +275,41 @@ const App: React.FC = () => {
     }
   }, [activeConversation, t]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback((behavior: 'auto' | 'smooth' = 'auto') => {
     if (mainContentRef.current) {
-        requestAnimationFrame(() => {
-          if (mainContentRef.current) {
-            mainContentRef.current.scrollTop = mainContentRef.current.scrollHeight;
-          }
+        mainContentRef.current.scrollTo({
+            top: mainContentRef.current.scrollHeight,
+            behavior,
         });
     }
+  }, []);
+
+  const handleScrollToBottomClick = () => {
+    scrollToBottom('smooth');
   };
 
+  const handleScroll = useCallback(() => {
+      const main = mainContentRef.current;
+      if (main) {
+          const threshold = 400; // A bit more than a single message height
+          const isNearBottom = main.scrollHeight - main.scrollTop - main.clientHeight < threshold;
+          setShowScrollToBottom(!isNearBottom);
+      }
+  }, []);
+
   useEffect(() => {
-    // A small delay helps ensure content is rendered before scrolling.
-    setTimeout(scrollToBottom, 100);
-  }, [activeConversation?.messages?.slice(-1)[0]?.content, isLoading]);
+      const main = mainContentRef.current;
+      main?.addEventListener('scroll', handleScroll, { passive: true });
+      return () => main?.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  // Auto-scroll logic for streaming AI responses
+  useEffect(() => {
+    if (isLoading && !showScrollToBottom) {
+        scrollToBottom('smooth');
+    }
+  }, [activeConversation?.messages?.slice(-1)[0]?.content, isLoading, showScrollToBottom, scrollToBottom]);
+
 
   const handleNewChat = () => {
     const newConversation: Conversation = {
@@ -372,6 +394,9 @@ const App: React.FC = () => {
               }
             : c
     ));
+    // Ensure the view scrolls down to show the user's new message immediately.
+    setTimeout(() => scrollToBottom('smooth'), 0);
+
     setIsLoading(true);
     setAiStatus('thinking');
 
@@ -506,6 +531,7 @@ const App: React.FC = () => {
             c.id === activeConversationId ? { ...c, messages: messagesForUi } : c
         )
     );
+    setTimeout(() => scrollToBottom('smooth'), 0);
 
     const currentPersona = personas.find(p => p.id === activeConversation.personaId);
     
@@ -715,7 +741,7 @@ ${error}
       )}
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full">
+      <div className="flex-1 flex flex-col h-full relative">
         <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
         
         <main ref={mainContentRef} className="flex-1 overflow-y-auto">
@@ -748,6 +774,15 @@ ${error}
         </main>
         
         <div className="mt-auto pt-4">
+           {showScrollToBottom && (
+              <button
+                  onClick={handleScrollToBottomClick}
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up"
+                  aria-label={t('chat.scrollToBottom')}
+              >
+                  <ChevronDownIcon className="size-6" />
+              </button>
+          )}
           <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
               <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
           </footer>

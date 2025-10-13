@@ -120,36 +120,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
-    // Typewriter effect logic
-    useEffect(() => {
-        // On regeneration, the parsedResponseText becomes empty, so we should reset.
-        if (parsedResponseText === '') {
-            setTypedText('');
-        }
-    }, [parsedResponseText]);
-
+    // Improved typewriter effect logic
     useEffect(() => {
         if (!isLoading) {
-            // When loading finishes, snap to the final text.
-            setTypedText(parsedResponseText);
+            setTypedText(parsedResponseText); // Snap to final text when loading is finished
             return;
         }
-    
-        // Only run the typewriter effect when the AI is in the 'generating' state.
         if (aiStatus !== 'generating') {
-            // If we are thinking or searching, the text should be empty.
-            if(typedText !== '') setTypedText('');
+            setTypedText(''); // Clear text for thinking/searching states
             return;
         }
-    
-        if (typedText.length < parsedResponseText.length) {
-            const typingSpeed = 10; // milliseconds per character
-            const timeoutId = setTimeout(() => {
-                setTypedText(parsedResponseText.slice(0, typedText.length + 1));
-            }, typingSpeed);
-            return () => clearTimeout(timeoutId);
-        }
-    }, [typedText, parsedResponseText, isLoading, aiStatus]);
+
+        // Use an interval to smoothly type out the text
+        const typingSpeed = 5; // Faster typing speed in milliseconds per character
+        const intervalId = setInterval(() => {
+            setTypedText(currentTypedText => {
+                if (currentTypedText.length < parsedResponseText.length) {
+                    return parsedResponseText.slice(0, currentTypedText.length + 1);
+                } else {
+                    clearInterval(intervalId); // Stop when text is fully typed
+                    return currentTypedText;
+                }
+            });
+        }, typingSpeed);
+
+        return () => clearInterval(intervalId); // Cleanup interval on re-render
+    }, [parsedResponseText, isLoading, aiStatus]);
 
 
     useEffect(() => {
@@ -214,7 +210,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             }
         });
 
-        if (isLoading && aiStatus === 'generating') {
+        if (isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
             const lastPart = parts[parts.length - 1];
             if (lastPart && lastPart.type === 'text') {

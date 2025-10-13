@@ -204,12 +204,6 @@ interface CodeExecutorProps {
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
 type OutputContent = string | React.ReactNode;
 
-const langExtensions: { [key: string]: string } = {
-    python: 'py', javascript: 'js', js: 'js', html: 'html', react: 'jsx', jsx: 'jsx',
-    typescript: 'ts', shell: 'sh', bash: 'sh', java: 'java', csharp: 'cs',
-    cpp: 'cpp', css: 'css', json: 'json', markdown: 'md',
-};
-
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
@@ -217,6 +211,18 @@ function usePrevious<T>(value: T): T | undefined {
   });
   return ref.current;
 }
+
+const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
+    <button
+        onClick={onClick}
+        title={title}
+        aria-label={title}
+        className="p-1.5 rounded-md text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
+    >
+        {children}
+    </button>
+);
+
 
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
@@ -531,20 +537,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         });
     };
     
-    const handleDownload = () => {
-        const extension = langExtensions[lang.toLowerCase()] || 'txt';
-        const filename = `${title?.replace(/\s+/g, '_') || 'code'}.${extension}`;
-        const blob = new Blob([code], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
     const handleStopCode = () => {
         if (workerRef.current) {
             workerRef.current.terminate();
@@ -558,7 +550,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const OutputDisplay = () => (
         <div className="flex flex-col gap-2">
             {error ? (
-                <div className="space-y-2 output-block border border-red-500/50">
+                <div className="space-y-2 output-block border border-red-500/50 bg-red-500/10 dark:bg-red-500/10">
                     <pre className="text-sm error-text whitespace-pre-wrap">{error}</pre>
                     {onFixRequest && (
                         <button 
@@ -585,10 +577,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         )
                     )}
                      
-                    {downloadableFile && (
+                    {downloadableFile && !output && (
                         <div className="output-block">
                            <p className="text-sm flex-1 min-w-0">
-                                Generated file: <span className="font-semibold truncate">{downloadableFile.filename}</span>
+                                File created: <span className="font-semibold truncate">{downloadableFile.filename}</span>
                             </p>
                         </div>
                     )}
@@ -598,61 +590,57 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     );
 
     return (
-        <div className="not-prose my-4 space-y-2">
-            <div className="relative group bg-card border border-default rounded-xl overflow-hidden">
-                <div className="flex flex-row px-4 py-2 h-10 items-center bg-token-surface-secondary border-b border-default">
+        <div className="not-prose my-4">
+            <div className="bg-card border border-default rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-1.5 bg-token-surface-secondary border-b border-default">
                     <span className="font-mono text-xs text-muted-foreground">{lang}</span>
-                </div>
-
-                <div className="absolute top-1.5 right-2 z-10">
-                    <div className="flex flex-row gap-0.5">
-                        <button onClick={() => setIsCollapsed(!isCollapsed)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs">
+                    <div className="flex items-center gap-1">
+                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-                            <span className="hidden sm:block">{isCollapsed ? 'Expand' : 'Collapse'}</span>
-                        </button>
+                        </ActionButton>
+                        
                         {isExecutable && (
                             status === 'executing' || status === 'loading-env' ? (
-                                <button onClick={handleStopCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label="Stop execution">
-                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm sm:mr-2"></div>
-                                    <span className="hidden sm:inline">Stop</span>
-                                </button>
+                                <ActionButton onClick={handleStopCode} title="Stop execution">
+                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm"></div>
+                                </ActionButton>
                             ) : (
-                                <button onClick={handleRunCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? 'Run Again' : 'Run code'}>
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
-                                    <span className="hidden sm:block">{hasRunOnce ? 'Run Again' : 'Run'}</span>
-                                </button>
+                                </ActionButton>
                             )
                         )}
-                        <button onClick={handleCopy} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={isCopied ? 'Copied' : 'Copy code'}>
+                        
+                        <ActionButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                            <span className="hidden sm:block">{isCopied ? 'Copied' : 'Copy'}</span>
-                        </button>
+                        </ActionButton>
                     </div>
                 </div>
 
-                <div className={`shiki not-prose relative font-mono text-sm overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+                <div className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
                     <pre className="!m-0 !p-4 overflow-x-auto code-block-area">
                         <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
                     </pre>
                 </div>
-                
-                {isCollapsed && (
-                    <div className="hidden-lines-footer">
+                 {isCollapsed && lineCount > 0 && (
+                    <div className="px-4 py-2 text-xs text-muted-foreground italic bg-token-surface-secondary border-t border-default">
                         {lineCount} hidden lines
                     </div>
                 )}
             </div>
             
-            {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
-                 <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
-                    <LoadingSpinner />
-                    <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
-                </div>
-            )}
+            <div className="mt-2 space-y-2">
+                {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
+                     <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
+                        <LoadingSpinner />
+                        <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
+                    </div>
+                )}
 
-            {isExecutable && hasRunOnce && !isCollapsed && (status === 'success' || status === 'error') && (
-                <OutputDisplay />
-            )}
+                {isExecutable && hasRunOnce && !isCollapsed && (status === 'success' || status === 'error') && (
+                    <OutputDisplay />
+                )}
+            </div>
         </div>
     );
 };

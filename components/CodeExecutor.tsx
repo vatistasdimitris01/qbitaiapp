@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, XIcon } from './icons';
 
 declare global {
     interface Window {
@@ -221,6 +221,16 @@ const ActionButton: React.FC<{ onClick: () => void; title: string; children: Rea
     >
         {children}
     </button>
+);
+
+const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
+    <div
+        title={title}
+        aria-label={title}
+        className="p-1 rounded-sm text-muted-foreground/50 cursor-not-allowed"
+    >
+        {children}
+    </div>
 );
 
 
@@ -461,7 +471,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             case 'html': runHtml(); break;
             case 'react': case 'jsx': runReact(); break;
             default:
-                const errorMsg = `Language "${lang}" is not executable.`;
+                const errorMsg = `Language "${lang}" is not supported by the executor.`;
                 setError(errorMsg);
                 setStatus('error');
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
@@ -628,7 +638,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
                         </ActionButton>
                         
-                        {isExecutable && (
+                        {isExecutable ? (
                             status === 'executing' || status === 'loading-env' ? (
                                 <ActionButton onClick={handleStopCode} title="Stop execution">
                                     <div className="w-3 h-3 bg-foreground rounded-sm"></div>
@@ -638,6 +648,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
                                 </ActionButton>
                             )
+                        ) : (
+                            <DisabledActionButton title="Not executable">
+                                <XIcon className="size-4" />
+                            </DisabledActionButton>
                         )}
                         
                         <ActionButton onClick={handleCopy} title={isCopied ? 'Copied!' : 'Copy code'}>

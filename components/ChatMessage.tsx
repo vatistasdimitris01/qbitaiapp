@@ -26,9 +26,6 @@ interface ChatMessageProps {
     onFixRequest: (code: string, lang: string, error: string) => void;
 }
 
-// Language identifiers for non-python executable code
-const EXECUTABLE_LANGS_NON_PYTHON = ['javascript', 'js', 'html', 'react', 'jsx'];
-
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
         {children}
@@ -134,6 +131,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             code?: string;
             autorun?: boolean;
             collapsed?: boolean;
+            noRun?: boolean;
         };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
@@ -153,14 +151,24 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                 const infoString = section.substring(0, firstNewlineIndex).trim();
                 const codeContent = section.substring(firstNewlineIndex + 1);
     
-                const infoMatch = infoString.match(/(\S+)?(?:[ ]?(autorun))?(?:[ ]?(collapsed))?(?:[ ]?title="([^"]+)")?/);
+                const titleMatch = infoString.match(/title="([^"]+)"/);
+                const title = titleMatch ? titleMatch[1] : undefined;
+
+                const infoStringWithoutTitle = title ? infoString.replace(titleMatch[0], '') : infoString;
+                const infoParts = infoStringWithoutTitle.trim().split(/\s+/);
+                const lang = infoParts[0] || 'plaintext';
+                const keywords = new Set(infoParts.slice(1));
+
+                const isLegacyExample = lang.endsWith('-example');
+                const baseLang = isLegacyExample ? lang.substring(0, lang.length - '-example'.length) : lang;
                 
                 parts.push({
                     type: 'code',
-                    lang: infoMatch?.[1] || 'plaintext',
-                    autorun: !!infoMatch?.[2],
-                    collapsed: !!infoMatch?.[3],
-                    title: infoMatch?.[4],
+                    lang: baseLang,
+                    autorun: keywords.has('autorun'),
+                    collapsed: keywords.has('collapsed'),
+                    noRun: keywords.has('no-run') || isLegacyExample,
+                    title: title,
                     code: codeContent,
                 });
             }
@@ -370,31 +378,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                 }
                                 if (part.type === 'code' && part.code) {
-                                    const lang = part.lang?.toLowerCase() || 'plaintext';
-                                    const isExample = lang.endsWith('-example');
-                                    const baseLang = isExample ? lang.substring(0, lang.length - '-example'.length) : lang;
-                                    
-                                    let isExecutable;
-                                    if (baseLang === 'python') {
-                                        // A python block is executable if it isn't an example.
-                                        isExecutable = !isExample;
-                                    } else {
-                                        isExecutable = EXECUTABLE_LANGS_NON_PYTHON.includes(baseLang) && !isExample;
-                                    }
-
+                                    const isExecutable = !part.noRun;
                                     const key = `${message.id}_${index}`;
                                     return (
                                         <CodeExecutor
                                             key={key}
                                             code={part.code}
-                                            lang={baseLang}
+                                            lang={part.lang!}
                                             title={part.title}
                                             isExecutable={isExecutable}
                                             autorun={part.autorun}
                                             initialCollapsed={part.collapsed}
                                             persistedResult={executionResults[key]}
                                             onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
-                                            onFixRequest={(execError) => onFixRequest(part.code!, baseLang, execError)}
+                                            onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
                                             isLoading={isLoading}
                                         />
                                     );

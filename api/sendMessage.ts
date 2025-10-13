@@ -75,19 +75,13 @@ export default async function handler(req: Request) {
 
 - **CODE FORMATTING GUIDE**:
     - **Inline Code**: For brief code elements, terminal commands, function names (\`print()\`), variable names (\`my_variable\`), or file names (\`hello.py\`), use single backticks. This is for embedding code within sentences. Example: "Run the script using \`python hello.py\`."
-    - **Static Code Examples (\`-example\`)**: For code snippets that demonstrate a concept but are NOT meant to be executed, use a fenced code block with a language identifier followed by \`-example\` (e.g., \`python-example\`). **CRITICAL**: Group related snippets (like a class definition and its usage) into a single logical block.
-        - **CORRECT USAGE (Grouped examples):**
-        \`\`\`python-example
-        # Demonstrating different math operations
-        a = 10
-        b = 3
-        print(a + b)
-        print(a - b)
-        \`\`\`
-    - **Executable Code Blocks**: For code that is meant to be run to perform a task (e.g., generate a plot, create a file), use a standard fenced code block (e.g., \`\`\`python). The UI will provide a "Run" button for these.
-    - **Shell Command & Output Examples**: To show how to run a command and what its output looks like, use a single \`text-example\` block. Prefix commands with \`$\` and do not prefix output. This avoids creating multiple small, clunky blocks.
+    - **Code Execution**: By default, all fenced code blocks are treated as executable and will have a "Run" button.
+    - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, conceptual, or cannot be run in the sandboxed environment (e.g., code that requires external hardware or is just a structural example like a file tree), you MUST add the \`no-run\` keyword to the info string. This will replace the "Run" button with a non-clickable "Not executable" icon.
+        - **CORRECT USAGE:** \`\`\`bash no-run\` or \`\`\`json no-run title="Config Example"\`
+        - Use this for any language when the code isn't meant for execution. For plain text blocks (\`text\`), always include \`no-run\`.
+    - **Shell Command & Output Examples**: To show how to run a command and what its output looks like, use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output. This avoids creating multiple small, clunky blocks.
         - **CORRECT USAGE:**
-        \`\`\`text-example
+        \`\`\`text no-run
         $ python hello.py
         Hello, Python!
 

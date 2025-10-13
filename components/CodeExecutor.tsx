@@ -556,7 +556,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     };
     
     const OutputDisplay = () => (
-        <div className="pt-2 flex flex-col gap-2 h-full">
+        <div className="flex flex-col gap-2">
             {error ? (
                 <div className="space-y-2 output-block border border-red-500/50">
                     <pre className="text-sm error-text whitespace-pre-wrap">{error}</pre>
@@ -598,60 +598,60 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     );
 
     return (
-        <div className="relative not-prose my-4 -mx-4 sm:mx-0 group">
-            <div className="flex flex-row px-4 py-2 h-10 items-center rounded-t-xl bg-token-surface-secondary border border-default">
-                <span className="font-mono text-xs text-muted-foreground">{lang}</span>
-            </div>
-
-            <div className="absolute top-1.5 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="flex flex-row gap-0.5">
-                    <button onClick={() => setIsCollapsed(!isCollapsed)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs">
-                        {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-                        <span className="hidden sm:block">{isCollapsed ? 'Expand' : 'Collapse'}</span>
-                    </button>
-                    {isExecutable && (
-                        status === 'executing' || status === 'loading-env' ? (
-                             <button onClick={handleStopCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label="Stop execution">
-                                <div className="w-2.5 h-2.5 bg-foreground rounded-sm sm:mr-2"></div>
-                                <span className="hidden sm:inline">Stop</span>
-                            </button>
-                        ) : (
-                            <button onClick={handleRunCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={hasRunOnce ? 'Run Again' : 'Run code'}>
-                                {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
-                                <span className="hidden sm:block">{hasRunOnce ? 'Run Again' : 'Run'}</span>
-                            </button>
-                        )
-                    )}
-                    <button onClick={handleCopy} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={isCopied ? 'Copied' : 'Copy code'}>
-                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span className="hidden sm:block">{isCopied ? 'Copied' : 'Copy'}</span>
-                    </button>
+        <div className="not-prose my-4 space-y-2">
+            <div className="relative group bg-card border border-default rounded-xl overflow-hidden">
+                <div className="flex flex-row px-4 py-2 h-10 items-center bg-token-surface-secondary border-b border-default">
+                    <span className="font-mono text-xs text-muted-foreground">{lang}</span>
                 </div>
-            </div>
 
-            <div className={`shiki not-prose relative font-mono text-sm border-x border-default overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
-                <pre className="!m-0 !p-4 !rounded-none overflow-x-auto code-block-area">
-                    <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                </pre>
+                <div className="absolute top-1.5 right-2 z-10">
+                    <div className="flex flex-row gap-0.5">
+                        <button onClick={() => setIsCollapsed(!isCollapsed)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs">
+                            {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+                            <span className="hidden sm:block">{isCollapsed ? 'Expand' : 'Collapse'}</span>
+                        </button>
+                        {isExecutable && (
+                            status === 'executing' || status === 'loading-env' ? (
+                                <button onClick={handleStopCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label="Stop execution">
+                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm sm:mr-2"></div>
+                                    <span className="hidden sm:inline">Stop</span>
+                                </button>
+                            ) : (
+                                <button onClick={handleRunCode} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={hasRunOnce ? 'Run Again' : 'Run code'}>
+                                    {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
+                                    <span className="hidden sm:block">{hasRunOnce ? 'Run Again' : 'Run'}</span>
+                                </button>
+                            )
+                        )}
+                        <button onClick={handleCopy} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-100 [&_svg]:shrink-0 select-none text-muted-foreground hover:text-foreground bg-card hover:bg-background h-8 rounded-xl px-3 text-xs" aria-label={isCopied ? 'Copied' : 'Copy code'}>
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                            <span className="hidden sm:block">{isCopied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className={`shiki not-prose relative font-mono text-sm overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+                    <pre className="!m-0 !p-4 overflow-x-auto code-block-area">
+                        <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                    </pre>
+                </div>
+                
+                {isCollapsed && (
+                    <div className="hidden-lines-footer">
+                        {lineCount} hidden lines
+                    </div>
+                )}
             </div>
             
-            {isCollapsed && (
-                <div className="hidden-lines-footer">
-                    {lineCount} hidden lines
-                </div>
-            )}
-            
-            {isExecutable && hasRunOnce && !isCollapsed && (
-                <div className="p-4 border border-t-0 border-default rounded-b-xl">
-                    <OutputDisplay />
-                </div>
-            )}
-
-             {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
-                 <div className="flex items-center text-sm text-muted-foreground p-4 border border-t-0 border-default rounded-b-xl">
+            {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
+                 <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
                     <LoadingSpinner />
                     <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
                 </div>
+            )}
+
+            {isExecutable && hasRunOnce && !isCollapsed && (status === 'success' || status === 'error') && (
+                <OutputDisplay />
             )}
         </div>
     );

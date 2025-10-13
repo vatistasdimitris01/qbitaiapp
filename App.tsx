@@ -35,6 +35,63 @@ type ExecutionResult = {
 };
 
 
+// Loader component and its dependencies
+interface TextHoverEffectProps {
+  text: string;
+  className?: string;
+}
+
+const TextHoverEffect: React.FC<TextHoverEffectProps> = ({ text, className }) => {
+  const [activeLetterIndex, setActiveLetterIndex] = useState<number | null>(null);
+  const letters = useMemo(() => text.split(''), [text]);
+
+  useEffect(() => {
+    let index = 0;
+    const intervalId = setInterval(() => {
+      setActiveLetterIndex(index);
+      index = (index + 1) % letters.length;
+    }, 300);
+    
+    // Set initial active letter to start the animation
+    setActiveLetterIndex(0);
+
+    return () => clearInterval(intervalId);
+  }, [letters.length]);
+
+  return (
+    <div className={`flex justify-center items-center ${className}`}>
+      {letters.map((letter, i) => (
+        <span
+          key={i}
+          className="text-4xl sm:text-6xl md:text-8xl font-bold transition-all duration-300 ease-in-out"
+          style={{
+            color: i === activeLetterIndex ? 'var(--foreground)' : 'var(--muted-foreground)',
+            opacity: i === activeLetterIndex ? 1 : 0.5,
+            transform: i === activeLetterIndex ? 'scale(1.1)' : 'scale(1)',
+          }}
+        >
+          {letter}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const Loader: React.FC = () => {
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
+      <TextHoverEffect text="Qbit" />
+      <div className="flex items-center mt-12 text-muted-foreground text-sm">
+        <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Preparing environment...</span>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -538,19 +595,7 @@ ${error}
   };
 
   if (!isAppReady) {
-    return (
-        <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
-            <img src="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" alt="Qbit Logo" className="w-16 h-16 mb-4" />
-            <h1 className="text-2xl font-semibold tracking-tight">Qbit</h1>
-            <div className="flex items-center mt-6 text-muted-foreground text-sm">
-                <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Preparing environment...</span>
-            </div>
-        </div>
-    );
+    return <Loader />;
   }
 
   return (

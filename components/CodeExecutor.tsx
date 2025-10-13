@@ -672,14 +672,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             </div>
             
             <div className="mt-2 space-y-2">
-                {isExecutable && (status === 'executing' || status === 'loading-env') && !isCollapsed && (
+                {isExecutable && (status === 'executing' || status === 'loading-env') && (
                      <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
                         <LoadingSpinner />
                         <span>{status === 'loading-env' ? 'Loading environment...' : 'Executing...'}</span>
                     </div>
                 )}
 
-                {isExecutable && hasRunOnce && !isCollapsed && (status === 'success' || status === 'error') && (
+                {isExecutable && hasRunOnce && (status === 'success' || status === 'error') && (
                     <OutputDisplay />
                 )}
             </div>

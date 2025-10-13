@@ -243,13 +243,37 @@ const App: React.FC = () => {
     localStorage.setItem('personas', JSON.stringify(personas));
   }, [personas]);
 
+  // Handles theme changes, including listening for system preferences
   useEffect(() => {
     localStorage.setItem('theme', theme);
-     if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const applyTheme = () => {
+      const isDark = theme === 'dark' || (theme === 'system' && mediaQuery.matches);
+      if (isDark) {
         document.documentElement.classList.add('dark');
-    } else {
+      } else {
         document.documentElement.classList.remove('dark');
-    }
+      }
+    };
+
+    // Apply the theme immediately
+    applyTheme();
+
+    // Listener for system theme changes
+    const handleSystemThemeChange = () => {
+      if (theme === 'system') {
+        applyTheme();
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+
+    // Cleanup listener on component unmount or when theme changes
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    };
   }, [theme]);
   
   useEffect(() => {

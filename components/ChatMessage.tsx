@@ -132,7 +132,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
 
         // Use an interval to smoothly type out the text
-        const typingSpeed = 5; // Faster typing speed in milliseconds per character
+        const typingSpeed = 30; // Slower typing speed in milliseconds per character
         const intervalId = setInterval(() => {
             setTypedText(currentTypedText => {
                 if (currentTypedText.length < parsedResponseText.length) {

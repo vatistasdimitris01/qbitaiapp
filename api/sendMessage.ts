@@ -132,6 +132,7 @@ export default async function handler(req: Request) {
 - **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library.
 - After calling a file-saving function (like \`wb.save()\`), do NOT add any print statements.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
+- **Web Scraping with \`requests\`**: Due to browser security (CORS), direct requests to external websites will fail. To scrape a website, you MUST prepend its URL with a CORS proxy. For example, to fetch 'https://example.com', you should request 'https://corsproxy.io/?https://example.com'. Always use this proxy for web scraping tasks.
 - When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user.`;
 
         const finalSystemInstruction = personaInstruction

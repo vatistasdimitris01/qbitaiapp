@@ -592,8 +592,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     return (
         <div className="not-prose my-4">
             <div className="bg-card border border-default rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-1.5 bg-token-surface-secondary border-b border-default">
-                    <span className="font-mono text-xs text-muted-foreground">{lang}</span>
+                <div className="flex items-center justify-between px-4 py-1.5">
+                    <span className="font-mono text-xs text-muted-foreground capitalize">{lang}</span>
                     <div className="flex items-center gap-1">
                         <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? 'Expand code' : 'Collapse code'}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
@@ -617,16 +617,15 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     </div>
                 </div>
 
-                <div className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
-                    <pre className="!m-0 !p-4 overflow-x-auto code-block-area">
-                        <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                    </pre>
-                </div>
-                 {isCollapsed && lineCount > 0 && (
-                    <div className="px-4 py-2 text-xs text-muted-foreground italic bg-token-surface-secondary border-t border-default">
-                        {lineCount} hidden lines
+                <div className={`code-container ${isCollapsed ? 'collapsed' : ''}`}>
+                    <div className="min-h-0 overflow-hidden">
+                        <div className="px-4 pb-4">
+                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area">
+                                <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                            </pre>
+                        </div>
                     </div>
-                )}
+                </div>
             </div>
             
             <div className="mt-2 space-y-2">

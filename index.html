@@ -213,15 +213,6 @@ margin-bottom: 1.6em;
 border-radius: 0.5rem;
 padding: 0.8em 1em;
 }
-.prose code {
-background-color: #f3f4f6;
-padding: 0.2em 0.4em;
-margin: 0;
-border-radius: 0.25rem;
-font-family: monospace;
-font-size: 0.9em;
-}
-.dark .prose code { background-color: #374151; }
 .prose pre > code {
 background-color: transparent;
 border-width: 0;
@@ -233,8 +224,21 @@ font-size: inherit;
 font-family: inherit;
 line-height: inherit;
 }
+.prose code:not(pre > code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875rem;
+    padding: 0.1rem 0.3rem;
+    margin: 0 0.1rem;
+    border-radius: 0.25rem;
+    background-color: rgba(251, 146, 60, 0.1);
+    color: #f97316;
+}
+.dark .prose code:not(pre > code) {
+    background-color: rgba(253, 186, 116, 0.1);
+    color: #fed7aa;
+}
 .prose code:not(pre > code)::before, .prose code:not(pre > code)::after {
-content: "`";
+    content: none;
 }
 .prose blockquote {
 border-left: 4px solid var(--border);

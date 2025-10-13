@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
@@ -26,8 +27,18 @@ interface ChatMessageProps {
     onFixRequest: (code: string, lang: string, error: string) => void;
 }
 
-// Language identifiers that should be rendered with the CodeExecutor component
-const EXECUTABLE_LANGS = ['python', 'javascript', 'js', 'html', 'react', 'jsx'];
+// Language identifiers for non-python executable code
+const EXECUTABLE_LANGS_NON_PYTHON = ['javascript', 'js', 'html', 'react', 'jsx'];
+
+// Python libraries available in the execution environment
+const EXECUTABLE_PYTHON_LIBRARIES = [
+    'numpy', 'matplotlib', 'pandas', 'sklearn', 'sympy', 'PIL', 
+    'bs4', 'scipy', 'cv2', 'requests', 'plotly', 'fpdf', 
+    'seaborn', 'openpyxl', 'docx'
+];
+
+// This regex will match "import <lib>" or "from <lib>" at the start of a line.
+const pythonImportRegex = new RegExp(`^\\s*(?:import|from)\\s+(?:${EXECUTABLE_PYTHON_LIBRARIES.join('|')})`, 'm');
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
@@ -133,6 +144,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
             title?: string;
             code?: string;
             autorun?: boolean;
+            collapsed?: boolean;
         };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
@@ -152,13 +164,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                 const infoString = section.substring(0, firstNewlineIndex).trim();
                 const codeContent = section.substring(firstNewlineIndex + 1);
     
-                const infoMatch = infoString.match(/(\S+)?(?:[ ]?(autorun))?(?:[ ]?title="([^"]+)")?/);
+                const infoMatch = infoString.match(/(\S+)?(?:[ ]?(autorun))?(?:[ ]?(collapsed))?(?:[ ]?title="([^"]+)")?/);
                 
                 parts.push({
                     type: 'code',
                     lang: infoMatch?.[1] || 'plaintext',
                     autorun: !!infoMatch?.[2],
-                    title: infoMatch?.[3],
+                    collapsed: !!infoMatch?.[3],
+                    title: infoMatch?.[4],
                     code: codeContent,
                 });
             }
@@ -372,6 +385,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                     const isExample = lang.endsWith('-example');
                                     const baseLang = isExample ? lang.substring(0, lang.length - '-example'.length) : lang;
                                     
+                                    let isExecutable;
+                                    if (baseLang === 'python') {
+                                        // A python block is executable if it isn't an example and it imports a supported library.
+                                        isExecutable = !isExample && pythonImportRegex.test(part.code);
+                                    } else {
+                                        isExecutable = EXECUTABLE_LANGS_NON_PYTHON.includes(baseLang) && !isExample;
+                                    }
+
                                     const key = `${message.id}_${index}`;
                                     return (
                                         <CodeExecutor
@@ -379,8 +400,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, isLoad
                                             code={part.code}
                                             lang={baseLang}
                                             title={part.title}
-                                            isExecutable={EXECUTABLE_LANGS.includes(baseLang) && !isExample}
+                                            isExecutable={isExecutable}
                                             autorun={part.autorun}
+                                            initialCollapsed={part.collapsed}
                                             persistedResult={executionResults[key]}
                                             onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
                                             onFixRequest={(execError) => onFixRequest(part.code!, baseLang, execError)}

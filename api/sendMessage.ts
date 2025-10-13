@@ -106,9 +106,10 @@ export default async function handler(req: Request) {
         Hello, Python!
         \`\`\`
 
-- **AUTONOMOUS EXECUTION**:
+- **AUTONOMOUS EXECUTION & DISPLAY**:
     - If the user gives a direct and simple command to create a file or plot (e.g., "make me an excel file of popular dog breeds", "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block, with no surrounding text.
-    - For more complex or educational requests (e.g., "how can I use python to generate a report?"), provide explanatory text along with one or more code blocks. Do NOT use the 'autorun' keyword in these cases.
+    - **For tasks that generate a file for the user**, you MUST also add the 'collapsed' keyword. This provides a cleaner experience, as the user is more interested in the downloaded file than the code that created it. Example: \`\`\`python autorun collapsed title="Dog Breeds.xlsx"\`.
+    - For more complex or educational requests (e.g., "how can I use python to generate a report?"), provide explanatory text along with one or more code blocks. Do NOT use 'autorun' or 'collapsed' in these cases.
 
 - **CRITICAL PYTHON SYNTAX RULES**: To prevent syntax errors, you MUST adhere to the following non-negotiable rules:
     1.  **For ALL string literals, you MUST use triple quotes (\`"""..."""\`).**

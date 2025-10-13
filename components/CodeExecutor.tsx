@@ -195,6 +195,7 @@ interface CodeExecutorProps {
     title?: string;
     isExecutable: boolean;
     autorun?: boolean;
+    initialCollapsed?: boolean;
     persistedResult?: ExecutionResult;
     onExecutionComplete: (result: ExecutionResult) => void;
     onFixRequest?: (error: string) => void;
@@ -224,7 +225,7 @@ const ActionButton: React.FC<{ onClick: () => void; title: string; children: Rea
 );
 
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, isLoading = false }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
@@ -237,7 +238,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [highlightedCode, setHighlightedCode] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
@@ -565,7 +566,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 <>
                     {output && (
                         (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ? (
-                             <div ref={plotlyRef} className="rounded-xl bg-white p-2"></div>
+                             <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2"></div>
                         ) : (lang === 'react' || lang === 'jsx') ? (
                             <div className="p-3 border border-default rounded-md bg-background" ref={reactMountRef}></div>
                         ) : typeof output === 'string' ? (

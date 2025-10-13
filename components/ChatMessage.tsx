@@ -131,23 +131,40 @@ const StaticCodeBlock: React.FC<{ code: string; lang: string; title?: string; }>
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
-                <div className="flex items-center space-x-2 min-w-0">
-                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
+            {/* PC View */}
+            <div className="hidden sm:block">
+                <header className="flex flex-wrap items-center justify-between gap-2 pb-4">
+                    <div className="flex items-center space-x-2 min-w-0">
+                        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
+                    </div>
+                    <div className="flex items-center space-x-4 text-sm font-medium">
+                        <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isCopied ? "Copied code" : "Copy code"}>
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                            <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                        <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Download code">
+                            <DownloadIcon className="size-4" />
+                            <span className="hidden sm:inline">Download</span>
+                        </button>
+                    </div>
+                </header>
+                <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
+                    <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
                 </div>
-                <div className="flex items-center space-x-4 text-sm font-medium">
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isCopied ? "Copied code" : "Copy code"}>
+            </div>
+            {/* Mobile-only view */}
+            <div className="block sm:hidden">
+                <div className="flex items-center justify-between mb-3">
+                     <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
+                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Download code">
-                        <DownloadIcon className="size-4" />
-                        <span className="hidden sm:inline">Download</span>
-                    </button>
+                        <span>{isCopied ? 'Copied!' : 'Copy'}</span>
+                     </button>
                 </div>
-            </header>
-            <div className="font-mono text-xs sm:text-sm leading-relaxed pt-2 bg-background dark:bg-black/50 p-3 sm:p-4 rounded-lg overflow-x-auto code-block-area">
-                <pre><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
+                <button onClick={handleDownload} className="w-full flex items-center justify-center gap-2 py-3 bg-token-surface-secondary text-token-primary rounded-lg text-sm font-medium hover:bg-border border border-default">
+                    <DownloadIcon className="size-4" />
+                    <span>Download file</span>
+                </button>
             </div>
         </div>
     );

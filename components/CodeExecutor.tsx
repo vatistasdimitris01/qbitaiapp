@@ -116,7 +116,7 @@ try:
     def patched_fpdf_output(self, name='', dest='S'):
         # If a filename is provided, intercept it for download
         if name: 
-            pdf_output_bytes = original_fpdf_output(self, dest='S').encode('latin1')
+            pdf_output_bytes = original_fpdf_output(self, dest='S')
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
             print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
@@ -351,7 +351,8 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
             consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
         };
         try {
-            const result = (0, eval)(code);
+            // FIX: Changed indirect eval to a more explicit window.eval to ensure global scope and avoid potential environment issues.
+            const result = window.eval(code);
             let finalOutput = consoleOutput;
             if (result !== undefined) {
                 finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
@@ -676,24 +677,42 @@ export const CodeExecutor = ({ code, lang, title, autorun, persistedResult, onEx
 
     return (
         <div className="not-prose my-4 w-full max-w-3xl bg-card p-3 sm:p-6 rounded-3xl border border-default shadow-sm font-sans">
-            <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
-                <div className="flex items-center space-x-2 min-w-0">
+             {/* PC View */}
+            <div className="hidden sm:block">
+                <header className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                    <div className="flex items-center space-x-2 min-w-0">
+                        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
+                    </div>
+                    <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
+                        <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                            <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                        <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label="Download code">
+                            <DownloadIcon className="size-4" />
+                            <span className="hidden sm:inline">Download</span>
+                        </button>
+                        {renderButtons()}
+                    </div>
+                </header>
+                
+                {view === 'code' ? <CodeDisplay /> : <OutputDisplay />}
+            </div>
+
+            {/* Mobile View */}
+            <div className="block sm:hidden">
+                <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{lang}</p>
-                </div>
-                <div className="flex items-center justify-end flex-grow gap-2 sm:gap-4">
                     <button onClick={handleCopy} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label={isCopied ? 'Copied' : 'Copy code'}>
                         {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        <span className={`hidden sm:inline ${isCopied ? 'text-green-500' : ''}`}>{isCopied ? 'Copied!' : 'Copy'}</span>
+                        <span>{isCopied ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    <button onClick={handleDownload} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium" aria-label="Download code">
-                        <DownloadIcon className="size-4" />
-                        <span className="hidden sm:inline">Download</span>
-                    </button>
-                    {renderButtons()}
                 </div>
-            </header>
-            
-            {view === 'code' ? <CodeDisplay /> : <OutputDisplay />}
+                <button onClick={handleDownload} className="w-full flex items-center justify-center gap-2 py-3 bg-token-surface-secondary text-token-primary rounded-lg text-sm font-medium hover:bg-border border border-default">
+                    <DownloadIcon className="size-4" />
+                    <span>Download file</span>
+                </button>
+            </div>
         </div>
     );
 };

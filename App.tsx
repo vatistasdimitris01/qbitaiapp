@@ -10,7 +10,6 @@ import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
-import { getPyodide } from './services/pyodideService';
 import { translations } from './translations';
 import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
 
@@ -35,65 +34,7 @@ type ExecutionResult = {
 };
 
 
-// Loader component and its dependencies
-interface TextHoverEffectProps {
-  text: string;
-  className?: string;
-}
-
-const TextHoverEffect: React.FC<TextHoverEffectProps> = ({ text, className }) => {
-  const [activeLetterIndex, setActiveLetterIndex] = useState<number | null>(null);
-  const letters = useMemo(() => text.split(''), [text]);
-
-  useEffect(() => {
-    let index = 0;
-    const intervalId = setInterval(() => {
-      setActiveLetterIndex(index);
-      index = (index + 1) % letters.length;
-    }, 300);
-    
-    // Set initial active letter to start the animation
-    setActiveLetterIndex(0);
-
-    return () => clearInterval(intervalId);
-  }, [letters.length]);
-
-  return (
-    <div className={`flex justify-center items-center ${className}`}>
-      {letters.map((letter, i) => (
-        <span
-          key={i}
-          className="text-4xl sm:text-6xl md:text-8xl font-bold transition-all duration-300 ease-in-out"
-          style={{
-            color: i === activeLetterIndex ? 'var(--foreground)' : 'var(--muted-foreground)',
-            opacity: i === activeLetterIndex ? 1 : 0.5,
-            transform: i === activeLetterIndex ? 'scale(1.1)' : 'scale(1)',
-          }}
-        >
-          {letter}
-        </span>
-      ))}
-    </div>
-  );
-};
-
-const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
-  return (
-    <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
-      <TextHoverEffect text={t('loader.text')} />
-      <div className="flex items-center mt-12 text-muted-foreground text-sm">
-        <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span>{t('loader.subtext')}</span>
-      </div>
-    </div>
-  );
-};
-
 const App: React.FC = () => {
-  const [isAppReady, setIsAppReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -177,21 +118,6 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Pre-load Pyodide environment on app startup
-  useEffect(() => {
-    // Don't pre-load if app is already considered ready (e.g. from a quick refresh)
-    if (isAppReady) return;
-
-    getPyodide().then(() => {
-        console.log('Pyodide environment pre-loaded and ready.');
-        setIsAppReady(true);
-    }).catch(e => {
-        console.error('Failed to pre-load Pyodide environment:', e);
-        // Load app anyway, code execution might fail but chat is still usable.
-        setIsAppReady(true);
-    });
-  }, [isAppReady]);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -708,10 +634,6 @@ ${error}
       setActiveConversationId(id);
       setIsSidebarOpen(false); // Close sidebar after selecting a conversation
   };
-
-  if (!isAppReady) {
-    return <Loader t={t} />;
-  }
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">

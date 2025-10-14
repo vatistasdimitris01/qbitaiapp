@@ -83,8 +83,10 @@ export default async function handler(req: Request) {
     - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, or conceptual, you MUST add the \`no-run\` keyword to the info string.
     - **Shell Command & Output Examples**: Use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output.
 - **AUTONOMOUS EXECUTION & DISPLAY**:
-    - If the user gives a direct and simple command to create a file or plot (e.g., "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block.
-    - For tasks that generate a file for the user, you MUST also add the 'collapsed' keyword.
+    - For direct, simple commands from the user to create a plot, chart, or file (e.g., "plot a sine wave", "create an excel file with sales data"), your response MUST consist of only a single code block.
+    - This code block MUST include the \`autorun\` keyword in its info string (e.g., \`\`\`python autorun).
+    - Do NOT add any explanatory text before or after the code block in these direct command cases.
+    - For tasks that generate a downloadable file, you MUST also add the 'collapsed' keyword.
 - **CRITICAL PYTHON SYNTAX RULES**:
     1.  For ALL string literals, you MUST use triple quotes (\`"""..."""\`).
     2.  For SINGLE-LINE strings, opening and closing triple quotes MUST be on the SAME line.

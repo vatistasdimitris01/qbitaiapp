@@ -193,7 +193,8 @@ export default async function handler(req: Request) {
                         };
                         
                         contents.push({ role: 'model', parts: [{ functionCall: accumulatedFunctionCall }] });
-                        contents.push({ role: 'user', parts: [toolResponsePart] });
+                        // FIX: The role for a function response must be 'tool'. Using 'user' can cause the model to ignore the tool output.
+                        contents.push({ role: 'tool', parts: [toolResponsePart] });
 
                         // Second call to get the final answer based on search results
                         const secondStream = await ai.models.generateContentStream({

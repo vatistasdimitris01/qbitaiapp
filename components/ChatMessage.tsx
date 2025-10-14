@@ -96,6 +96,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const charIndexRef = useRef(0);
     const typingTimeoutRef = useRef<number | null>(null);
 
+    if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
+        return (
+            <div className="flex w-full my-4 justify-start animate-fade-in-up">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm px-2">
+                    <SearchIcon className="size-4 flex-shrink-0" />
+                    <span className="font-normal">{message.content}</span>
+                </div>
+            </div>
+        );
+    }
+
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
     const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50;
 
@@ -358,7 +369,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     }, [contentParts, message.type, message.id, parsedResponseText]);
 
-    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || (message.type === MessageType.AGENT_ACTION) || hasThinkingTag || parsedThinkingText);
+    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const loadingTexts = useMemo(() => {
@@ -399,19 +410,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
                             aria-expanded={isThinkingOpen}
                         >
-                            {message.type === MessageType.AI_SOURCES || message.type === MessageType.AGENT_ACTION ? <SearchIcon className="size-4" /> : <BrainIcon className="size-4" />}
-                            <span className="flex-1 text-left font-medium hidden sm:inline">{message.type === MessageType.AI_SOURCES ? t('chat.message.grounding') : message.type === MessageType.AGENT_ACTION ? 'Searching...' : t('chat.message.thinking')}</span>
+                            {message.type === MessageType.AI_SOURCES ? <SearchIcon className="size-4" /> : <BrainIcon className="size-4" />}
+                            <span className="flex-1 text-left font-medium hidden sm:inline">{message.type === MessageType.AI_SOURCES ? t('chat.message.grounding') : t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
                                 {message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
                                     <GroundingDisplay chunks={message.content as GroundingChunk[]} t={t} />
-                                )}
-                                {message.type === MessageType.AGENT_ACTION && typeof message.content === 'string' && (
-                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
-                                        <p className="text-sm text-muted-foreground">{message.content}</p>
-                                    </div>
                                 )}
                                 {parsedThinkingText && (
                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">

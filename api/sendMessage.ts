@@ -156,14 +156,17 @@ export default async function handler(req: Request) {
 
                     let accumulatedFunctionCall: any = null;
                     let textOutput = '';
+                    let usageMetadata: any = null;
 
                     for await (const chunk of firstStream) {
                         if (chunk.text) {
                             textOutput += chunk.text;
                         }
                         if (chunk.functionCalls) {
-                            // Assuming one function call for simplicity
                             accumulatedFunctionCall = chunk.functionCalls[0];
+                        }
+                        if (chunk.usageMetadata) {
+                            usageMetadata = chunk.usageMetadata;
                         }
                     }
 
@@ -174,14 +177,17 @@ export default async function handler(req: Request) {
                         const searchResults = await performGoogleSearch(query);
                         write({ type: 'sources', payload: searchResults });
 
+                        const searchSummary = searchResults.length > 0
+                            ? searchResults.map((r: any, index: number) => `[${index + 1}] Title: ${r.web.title}\nSnippet: ${r.web.snippet || 'No snippet available.'}\nURL: ${r.web.uri}`).join('\n\n')
+                            : "No results found for the query.";
+
                         const toolResponsePart: Part = {
                             functionResponse: {
                                 name: 'google_search',
-                                response: { results: searchResults.map((r:any) => ({ title: r.web.title, link: r.web.uri, snippet: r.web.snippet })) },
+                                response: { summary: searchSummary },
                             }
                         };
                         
-                        // Append the model's tool request and our tool response to the history
                         contents.push({ role: 'model', parts: [{ functionCall: accumulatedFunctionCall }] });
                         contents.push({ role: 'user', parts: [toolResponsePart] });
 
@@ -189,10 +195,11 @@ export default async function handler(req: Request) {
                         const secondStream = await ai.models.generateContentStream({
                             model: model,
                             contents: contents,
+                            // CRITICAL FIX: Do not provide tools in the second call to prevent recursion.
                             config: { systemInstruction: finalSystemInstruction }
                         });
                         
-                         let usageMetadataSent = false;
+                        let usageMetadataSent = false;
                         for await (const chunk of secondStream) {
                              if (chunk.text) {
                                 write({ type: 'chunk', payload: chunk.text });
@@ -207,6 +214,9 @@ export default async function handler(req: Request) {
                         // No tool use, just stream the text we got from the first call
                         if (textOutput) {
                             write({ type: 'chunk', payload: textOutput });
+                        }
+                        if (usageMetadata) {
+                            write({ type: 'usage', payload: usageMetadata });
                         }
                     }
 

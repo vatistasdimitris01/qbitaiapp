@@ -113,7 +113,7 @@ export default async function handler(req: Request) {
         const baseSystemInstruction = `You are a helpful and brilliant assistant.
 
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
-- **Web Search**: You have a tool named \`google_search\` that you can use to search the web for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should call this tool with a relevant search query.
+- **Web Search**: You have a tool named \`google_search\` that you can use to search the web for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should call this tool with a relevant search query. When you receive the search results, synthesize the information to formulate a comprehensive answer.
 - **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query for the \`google_search\` tool. For general questions, ignore the location.
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
@@ -177,15 +177,19 @@ export default async function handler(req: Request) {
                         const searchResults = await performGoogleSearch(query);
                         write({ type: 'sources', payload: searchResults });
 
-                        const searchSummary = searchResults.length > 0
-                            ? searchResults.map((r: any, index: number) => `[${index + 1}] Title: ${r.web.title}\nSnippet: ${r.web.snippet || 'No snippet available.'}\nURL: ${r.web.uri}`).join('\n\n')
-                            : "No results found for the query.";
-
+                        // FIX: Changed tool response to be a structured JSON object instead of a pre-formatted string.
+                        // This is more robust and less likely to confuse the model.
                         const toolResponsePart: Part = {
                             functionResponse: {
                                 name: 'google_search',
-                                response: { summary: searchSummary },
-                            }
+                                response: {
+                                    results: searchResults.map((result: any) => ({
+                                        title: result.web.title,
+                                        link: result.web.uri,
+                                        snippet: result.web.snippet,
+                                    })),
+                                },
+                            },
                         };
                         
                         contents.push({ role: 'model', parts: [{ functionCall: accumulatedFunctionCall }] });
@@ -195,7 +199,7 @@ export default async function handler(req: Request) {
                         const secondStream = await ai.models.generateContentStream({
                             model: model,
                             contents: contents,
-                            // CRITICAL FIX: Do not provide tools in the second call to prevent recursion.
+                            // CRITICAL: Do not provide tools in the second call to prevent recursion.
                             config: { systemInstruction: finalSystemInstruction }
                         });
                         

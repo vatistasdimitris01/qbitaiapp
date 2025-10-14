@@ -10,7 +10,7 @@ declare global {
 }
 
 const pythonWorkerSource = `
-    importScripts("https://cdn.jsdelivr/net/pyodide/v0.26.1/full/pyodide.js");
+    importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
     let pyodide = null;
     
     async function loadPyodideAndPackages() {
@@ -146,19 +146,7 @@ except ImportError:
     pass
 \`;
             
-            const result = await pyodide.runPythonAsync(preamble + '\\n' + code);
-            if (result !== undefined && result !== null) {
-                let resultStr;
-                if (typeof result.toString === 'function') {
-                    resultStr = result.toString();
-                } else {
-                    resultStr = String(result);
-                }
-                // Avoid sending back pyodide's internal None representation or coroutines
-                if (resultStr && !resultStr.includes('<coroutine object') && resultStr.trim() !== 'None') {
-                    self.postMessage({ type: 'result', data: resultStr });
-                }
-            }
+            await pyodide.runPythonAsync(preamble + '\\n' + code);
             self.postMessage({ type: 'success' });
         } catch (error) {
             self.postMessage({ type: 'error', error: error.message });
@@ -211,7 +199,7 @@ interface CodeExecutorProps {
     onExecutionComplete: (result: ExecutionResult) => void;
     onFixRequest?: (error: string) => void;
     isLoading?: boolean;
-    t: (key: string, params?: Record<string, string>) => void;
+    t: (key: string, params?: Record<string, string>) => string;
 }
 
 type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
@@ -247,8 +235,6 @@ const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode;
 );
 
 
-// FIX: Removed numerous erroneous console.log() wrappers from function calls, 
-// state setters, and JSX expressions throughout the component to resolve type errors.
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, isLoading = false, t }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
@@ -307,17 +293,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     }
                     break;
                 case 'stdout':
-                    stdoutBuffer += data + '\\n';
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\\n');
+                    stdoutBuffer += data + '\n';
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\n');
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\\n';
+                    stderrBuffer += msgError + '\n';
                     setError(stderrBuffer.trim());
-                    break;
-                case 'result':
-                    const resultText = data + '\\n';
-                    stdoutBuffer += resultText;
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + resultText);
                     break;
                 case 'plot':
                     if (plotType === 'plotly') {

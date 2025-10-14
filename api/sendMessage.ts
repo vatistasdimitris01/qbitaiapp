@@ -1,6 +1,7 @@
+// FIX: Implemented the missing sendMessage API endpoint.
 // This Vercel Edge Function streams responses from the Google GenAI API.
 
-import { GoogleGenAI, Content, Part } from "@google/genai";
+import { GoogleGenAI, Content, FunctionDeclaration, Type, Part } from "@google/genai";
 
 // Vercel Edge Function config
 export const config = {
@@ -22,6 +23,45 @@ interface LocationInfo {
     city: string;
     country: string;
 }
+
+const googleSearchTool: FunctionDeclaration = {
+  name: 'google_search',
+  description: 'Search Google for recent information, events, and topics. Use this for any user query that requires up-to-date information from the web.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: 'The search query to send to Google.'
+      }
+    },
+    required: ['query']
+  }
+};
+
+async function performGoogleSearch(query: string) {
+    const API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+    const ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+    if (!API_KEY || !ENGINE_ID) {
+        throw new Error("Google Search API Key or Engine ID is not configured.");
+    }
+    const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${ENGINE_ID}&q=${encodeURIComponent(query)}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Google Search API failed with status ${response.status}`);
+    }
+    const data = await response.json();
+    const items = data.items || [];
+    return items.slice(0, 5).map((item: any) => ({
+        web: {
+          title: item.title,
+          uri: item.link,
+          snippet: item.snippet,
+        }
+    }));
+}
+
 
 // The main handler for the API route
 export default async function handler(req: Request) {
@@ -63,7 +103,7 @@ export default async function handler(req: Request) {
             }
         }
         
-        const contents: Content[] = [
+        let contents: Content[] = [
             ...geminiHistory,
             { role: 'user', parts: userMessageParts }
         ];
@@ -73,8 +113,8 @@ export default async function handler(req: Request) {
         const baseSystemInstruction = `You are a helpful and brilliant assistant.
 
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
-- **Web Search**: For any user query that requires up-to-date information from the web (e.g., current events, weather, recent data), your built-in Google Search tool will be automatically used.
-- **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query. For general questions, ignore the location.
+- **Web Search**: You have a tool named \`google_search\` that you can use to search the web for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should call this tool with a relevant search query.
+- **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query for the \`google_search\` tool. For general questions, ignore the location.
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
 - **CODE FORMATTING GUIDE**:
@@ -83,10 +123,8 @@ export default async function handler(req: Request) {
     - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, or conceptual, you MUST add the \`no-run\` keyword to the info string.
     - **Shell Command & Output Examples**: Use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output.
 - **AUTONOMOUS EXECUTION & DISPLAY**:
-    - For direct, simple commands from the user to create a plot, chart, or file (e.g., "plot a sine wave", "create an excel file with sales data"), your response MUST consist of only a single code block.
-    - This code block MUST include the \`autorun\` keyword in its info string (e.g., \`\`\`python autorun).
-    - Do NOT add any explanatory text before or after the code block in these direct command cases.
-    - For tasks that generate a downloadable file, you MUST also add the 'collapsed' keyword.
+    - If the user gives a direct and simple command to create a file or plot (e.g., "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block.
+    - For tasks that generate a file for the user, you MUST also add the 'collapsed' keyword.
 - **CRITICAL PYTHON SYNTAX RULES**:
     1.  For ALL string literals, you MUST use triple quotes (\`"""..."""\`).
     2.  For SINGLE-LINE strings, opening and closing triple quotes MUST be on the SAME line.
@@ -106,44 +144,78 @@ export default async function handler(req: Request) {
                 const write = (data: object) => controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
 
                 try {
-                    const stream = await ai.models.generateContentStream({
+                    // First call to check for tool use
+                    const firstStream = await ai.models.generateContentStream({
                         model: model,
                         contents: contents,
                         config: {
                             systemInstruction: finalSystemInstruction,
-                            tools: [{googleSearch: {}}],
+                            tools: [{ functionDeclarations: [googleSearchTool] }],
                         },
                     });
 
-                    let sourcesSent = false;
-                    let usageMetadataSent = false;
-                    
-                    for await (const chunk of stream) {
+                    let accumulatedFunctionCall: any = null;
+                    let textOutput = '';
+
+                    for await (const chunk of firstStream) {
                         if (chunk.text) {
-                            write({ type: 'chunk', payload: chunk.text });
+                            textOutput += chunk.text;
                         }
+                        if (chunk.functionCalls) {
+                            // Assuming one function call for simplicity
+                            accumulatedFunctionCall = chunk.functionCalls[0];
+                        }
+                    }
+
+                    if (accumulatedFunctionCall) {
+                        const query = accumulatedFunctionCall.args.query;
+                        write({ type: 'searching', payload: query });
+
+                        const searchResults = await performGoogleSearch(query);
+                        write({ type: 'sources', payload: searchResults });
+
+                        const toolResponsePart: Part = {
+                            functionResponse: {
+                                name: 'google_search',
+                                response: { results: searchResults.map((r:any) => ({ title: r.web.title, link: r.web.uri, snippet: r.web.snippet })) },
+                            }
+                        };
                         
-                        const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
-                        if (groundingMetadata?.groundingChunks && !sourcesSent) {
-                            const sources = groundingMetadata.groundingChunks;
-                            if (sources.length > 0) {
-                                write({ type: 'sources', payload: sources });
-                                sourcesSent = true;
+                        // Append the model's tool request and our tool response to the history
+                        contents.push({ role: 'model', parts: [{ functionCall: accumulatedFunctionCall }] });
+                        contents.push({ role: 'user', parts: [toolResponsePart] });
+
+                        // Second call to get the final answer based on search results
+                        const secondStream = await ai.models.generateContentStream({
+                            model: model,
+                            contents: contents,
+                            config: { systemInstruction: finalSystemInstruction }
+                        });
+                        
+                         let usageMetadataSent = false;
+                        for await (const chunk of secondStream) {
+                             if (chunk.text) {
+                                write({ type: 'chunk', payload: chunk.text });
+                            }
+                            if (chunk.usageMetadata && !usageMetadataSent) {
+                                write({ type: 'usage', payload: chunk.usageMetadata });
+                                usageMetadataSent = true;
                             }
                         }
-                        
-                        if (chunk.usageMetadata && !usageMetadataSent) {
-                            write({ type: 'usage', payload: chunk.usageMetadata });
-                            usageMetadataSent = true; // Only send usage once
+
+                    } else {
+                        // No tool use, just stream the text we got from the first call
+                        if (textOutput) {
+                            write({ type: 'chunk', payload: textOutput });
                         }
                     }
 
                     write({ type: 'end' });
+                    controller.close();
                 } catch (error) {
                     console.error("Error during Gemini stream processing:", error);
                     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
                     write({ type: 'error', payload: errorMessage });
-                } finally {
                     controller.close();
                 }
             },

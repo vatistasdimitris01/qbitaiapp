@@ -191,11 +191,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }, [aiStatus]);
 
     const contentParts = useMemo(() => {
-        // Only AI_RESPONSE and ERROR types should have their content parsed into parts.
-        // Other types are handled by specific logic blocks (e.g., hasThinking for AGENT_ACTION).
-        if (message.type !== MessageType.AI_RESPONSE && message.type !== MessageType.ERROR) {
-            return [];
-        }
+        if (message.type === MessageType.USER) return [];
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
     

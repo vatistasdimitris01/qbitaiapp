@@ -97,6 +97,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const responseTextRef = useRef('');
     const charIndexRef = useRef(0);
     const typingTimeoutRef = useRef<number | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
 
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (
@@ -143,8 +144,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         responseTextRef.current = parsedResponseText;
     }, [parsedResponseText]);
 
-    useEffect(() => {
-        let animationFrameId: number;
+     useEffect(() => {
         let scrambleTimeoutId: number | null = null;
         let pollTimeoutId: number | null = null;
 
@@ -152,59 +152,49 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             if (scrambleTimeoutId) clearTimeout(scrambleTimeoutId);
             if (pollTimeoutId) clearTimeout(pollTimeoutId);
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
 
+        // When generation stops, finalize text and clean up.
         if (!isLoading) {
             cleanup();
-            setTypedText(responseTextRef.current);
-            charIndexRef.current = responseTextRef.current.length;
+            if (typedText !== responseTextRef.current) {
+                setTypedText(responseTextRef.current);
+            }
             return;
         }
-
+        
+        // When status is not 'generating', clean up but don't finalize text
+        // (to keep it visible while thinking/searching).
         if (aiStatus !== 'generating') {
             cleanup();
             return;
         }
 
-        // When generation starts, reset state.
-        if (charIndexRef.current === 0 && typedText !== '') {
-            setTypedText('');
-        }
-
         const animateCharacter = (charIndex: number) => {
             const currentTargetText = responseTextRef.current;
             
-            // This handles cases where text has changed underneath (e.g. regenerate)
-            const currentTypedText = currentTargetText.substring(0, charIndex);
-            if (typedText !== currentTypedText && !currentTargetText.startsWith(typedText)) {
-                charIndexRef.current = 0;
-                setTypedText('');
-                animateCharacter(0);
-                return;
-            }
-
+            // If we've finished the current text, poll for more content
             if (charIndex >= currentTargetText.length) {
-                // End of current text, poll for more
                 pollTimeoutId = window.setTimeout(() => animateCharacter(charIndex), 100);
                 return;
             }
 
             const targetChar = currentTargetText[charIndex];
             let scrambleCount = 0;
-            const maxScrambles = 2; // Reduced for speed
-            const scrambleSpeed = 30; // ms per scramble char
+            const maxScrambles = 2;
+            const scrambleSpeed = 30;
 
             const scramble = () => {
                 if (scrambleCount < maxScrambles) {
                     const randomChar = lettersAndSymbols[Math.floor(Math.random() * lettersAndSymbols.length)];
-                    animationFrameId = requestAnimationFrame(() => {
+                    animationFrameRef.current = requestAnimationFrame(() => {
                         setTypedText(currentTargetText.substring(0, charIndex) + randomChar);
                     });
                     scrambleCount++;
                     scrambleTimeoutId = window.setTimeout(scramble, scrambleSpeed);
                 } else {
-                    animationFrameId = requestAnimationFrame(() => {
+                    animationFrameRef.current = requestAnimationFrame(() => {
                         setTypedText(currentTargetText.substring(0, charIndex + 1));
                     });
                     
@@ -217,11 +207,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             scramble();
         };
 
+        // Reset and start animation when aiStatus becomes 'generating'
         cleanup();
-        animateCharacter(charIndexRef.current);
+        charIndexRef.current = 0;
+        setTypedText('');
+        animateCharacter(0);
 
         return cleanup;
-    }, [isLoading, aiStatus, typedText]);
+    }, [isLoading, aiStatus]);
 
 
     useEffect(() => {

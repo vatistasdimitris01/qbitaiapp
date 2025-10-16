@@ -105,9 +105,6 @@ export default async function handler(req: Request) {
                 const write = (data: object) => controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
 
                 try {
-                    // Send a "searching" status immediately since grounding might happen. This is for UX.
-                    write({ type: 'searching', payload: message });
-
                     const stream = await ai.models.generateContentStream({
                         model: model,
                         contents: contents,

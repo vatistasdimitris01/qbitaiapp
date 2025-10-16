@@ -84,6 +84,8 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
+const lettersAndSymbols = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*-=_+<>';
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -141,13 +143,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         responseTextRef.current = parsedResponseText;
     }, [parsedResponseText]);
 
-    // New, more robust typewriter effect logic
     useEffect(() => {
+        let animationFrameId: number;
+        let scrambleTimeoutId: number | null = null;
+        let pollTimeoutId: number | null = null;
+
         const cleanup = () => {
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-                typingTimeoutRef.current = null;
-            }
+            if (scrambleTimeoutId) clearTimeout(scrambleTimeoutId);
+            if (pollTimeoutId) clearTimeout(pollTimeoutId);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
 
         if (!isLoading) {
@@ -159,40 +164,64 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
         if (aiStatus !== 'generating') {
             cleanup();
-            setTypedText('');
-            charIndexRef.current = 0;
             return;
         }
-        
-        const type = () => {
-            const currentTargetText = responseTextRef.current;
-            // Reset if target text changed underneath (e.g. regenerate)
-            const currentTypedText = currentTargetText.substring(0, charIndexRef.current);
-            if (!currentTargetText.startsWith(currentTypedText)) {
-                charIndexRef.current = 0;
-            }
-            
-            if (charIndexRef.current < currentTargetText.length) {
-                const nextChar = currentTargetText[charIndexRef.current];
-                
-                // Slower, variable delay for a more natural feel. Whitespace types faster.
-                const delay = (nextChar === ' ' || nextChar === '\n') ? 15 : 35 + (Math.random() - 0.5) * 20;
 
-                charIndexRef.current++;
-                setTypedText(currentTargetText.substring(0, charIndexRef.current));
-                
-                typingTimeoutRef.current = window.setTimeout(type, delay);
-            } else {
-                // If we've caught up to the streamed text, check again soon for more content.
-                typingTimeoutRef.current = window.setTimeout(type, 100);
+        // When generation starts, reset state.
+        if (charIndexRef.current === 0 && typedText !== '') {
+            setTypedText('');
+        }
+
+        const animateCharacter = (charIndex: number) => {
+            const currentTargetText = responseTextRef.current;
+            
+            // This handles cases where text has changed underneath (e.g. regenerate)
+            const currentTypedText = currentTargetText.substring(0, charIndex);
+            if (typedText !== currentTypedText && !currentTargetText.startsWith(typedText)) {
+                charIndexRef.current = 0;
+                setTypedText('');
+                animateCharacter(0);
+                return;
             }
+
+            if (charIndex >= currentTargetText.length) {
+                // End of current text, poll for more
+                pollTimeoutId = window.setTimeout(() => animateCharacter(charIndex), 100);
+                return;
+            }
+
+            const targetChar = currentTargetText[charIndex];
+            let scrambleCount = 0;
+            const maxScrambles = 2; // Reduced for speed
+            const scrambleSpeed = 30; // ms per scramble char
+
+            const scramble = () => {
+                if (scrambleCount < maxScrambles) {
+                    const randomChar = lettersAndSymbols[Math.floor(Math.random() * lettersAndSymbols.length)];
+                    animationFrameId = requestAnimationFrame(() => {
+                        setTypedText(currentTargetText.substring(0, charIndex) + randomChar);
+                    });
+                    scrambleCount++;
+                    scrambleTimeoutId = window.setTimeout(scramble, scrambleSpeed);
+                } else {
+                    animationFrameId = requestAnimationFrame(() => {
+                        setTypedText(currentTargetText.substring(0, charIndex + 1));
+                    });
+                    
+                    charIndexRef.current = charIndex + 1;
+                    const stagger = (targetChar === ' ' || targetChar === '\n') ? 5 : 20;
+                    typingTimeoutRef.current = window.setTimeout(() => animateCharacter(charIndex + 1), stagger);
+                }
+            };
+
+            scramble();
         };
 
-        cleanup(); // Clear any existing timer before starting a new one
-        type();
+        cleanup();
+        animateCharacter(charIndexRef.current);
 
-        return cleanup; // Cleanup on unmount or when status changes
-    }, [isLoading, aiStatus]);
+        return cleanup;
+    }, [isLoading, aiStatus, typedText]);
 
 
     useEffect(() => {

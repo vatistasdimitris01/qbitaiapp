@@ -46,56 +46,7 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // For navigation requests, we add headers for cross-origin isolation
-  // This is required for Pyodide (SharedArrayBuffer).
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const newHeaders = new Headers(response.headers);
-          newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-          // Use 'credentialless' to allow cross-origin resources without CORP headers
-          // as long as they are loaded with the crossorigin="anonymous" attribute.
-          newHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
-
-          // Cache the original response before modifying headers for the browser
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-              if(responseToCache.status === 200) {
-                cache.put(event.request, responseToCache);
-              }
-          });
-
-          return new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: newHeaders,
-          });
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(event.request).then(cachedResponse => {
-              // If we find it in cache, we MUST add the headers for COEP to work offline
-              if (cachedResponse) {
-                  const newHeaders = new Headers(cachedResponse.headers);
-                  newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-                  newHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
-
-                  return new Response(cachedResponse.body, {
-                      status: cachedResponse.status,
-                      statusText: cachedResponse.statusText,
-                      headers: newHeaders
-                  });
-              }
-              // If not in cache either, it will fail.
-              return cachedResponse; 
-          });
-        })
-    );
-    return;
-  }
-
-  // For all other requests, use a network-first, falling-back-to-cache strategy.
+  // For all requests, use a network-first, falling-back-to-cache strategy.
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

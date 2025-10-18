@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, XIcon, Wand2Icon } from './icons';
+import { runPythonCode, stopPythonExecution, PythonExecutorUpdate } from '../services/pythonExecutorService';
+
 
 declare global {
     interface Window {
@@ -8,151 +10,6 @@ declare global {
         Plotly: any;
     }
 }
-
-const pythonWorkerSource = `
-    importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
-    let pyodide = null;
-    
-    async function loadPyodideAndPackages() {
-        // @ts-ignore
-        pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
-        await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
-        await pyodide.loadPackage('micropip');
-        const micropip = pyodide.pyimport('micropip');
-        await micropip.install(['plotly', 'fpdf2', 'seaborn', 'openpyxl', 'python-docx']);
-        self.postMessage({ type: 'status', status: 'ready' });
-    }
-    const pyodideReadyPromise = loadPyodideAndPackages();
-
-    self.onmessage = async (event) => {
-        await pyodideReadyPromise;
-        const { code } = event.data;
-
-        try {
-            pyodide.setStdout({ batched: (str) => {
-                const lines = str.split('\\n');
-                for (const line of lines) {
-                    if (line.trim() === '') continue;
-                    if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:') || line.startsWith('__QBIT_PLOT_PIL__:')) {
-                        self.postMessage({ type: 'plot', plotType: 'image', data: line.split(':')[1] });
-                    } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
-                        self.postMessage({ type: 'plot', plotType: 'plotly', data: line.substring(line.indexOf(':') + 1) });
-                    } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
-                        const separator = ':';
-                        const parts = line.split(separator);
-                        if (parts.length >= 4) {
-                            parts.shift(); // remove command
-                            const filename = parts.shift() || 'download';
-                            const mimetype = parts.shift() || 'application/octet-stream';
-                            const data = parts.join(separator); // Rejoin the rest
-                            self.postMessage({ type: 'download', filename, mimetype, data });
-                        }
-                    } else {
-                        self.postMessage({ type: 'stdout', data: line });
-                    }
-                }
-            }});
-            pyodide.setStderr({ batched: (str) => self.postMessage({ type: 'stderr', error: str }) });
-
-            const preamble = \`
-import io, base64, json, matplotlib, warnings
-import matplotlib.pyplot as plt
-from PIL import Image
-import plotly.graph_objects as go
-import plotly.express as px
-import numpy as np
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer): return int(obj)
-        if isinstance(obj, np.floating): return float(obj)
-        if isinstance(obj, np.ndarray): return obj.tolist()
-        return super(NumpyEncoder, self).default(obj)
-matplotlib.use('agg')
-def custom_plt_show():
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
-    plt.clf()
-plt.show = custom_plt_show
-def custom_pil_show(self):
-    buf = io.BytesIO()
-    self.save(buf, format='PNG')
-    buf.seek(0)
-    b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_PIL__:{b64_str}")
-Image.Image.show = custom_pil_show
-def custom_plotly_show(self, *args, **kwargs):
-    fig_dict = self.to_dict()
-    json_str = json.dumps(fig_dict, cls=NumpyEncoder)
-    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
-go.Figure.show = custom_plotly_show
-if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
-
-# --- Monkey-patch file generation libraries to trigger downloads ---
-try:
-    from openpyxl.workbook.workbook import Workbook
-    original_workbook_save = Workbook.save
-    def patched_workbook_save(self, filename):
-        if isinstance(filename, str):
-            buffer = io.BytesIO()
-            original_workbook_save(self, buffer)
-            buffer.seek(0)
-            excel_bytes = buffer.read()
-            b64_data = base64.b64encode(excel_bytes).decode('utf-8')
-            mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{b64_data}")
-        else:
-            original_workbook_save(self, filename)
-    Workbook.save = patched_workbook_save
-except ImportError:
-    pass
-
-try:
-    from fpdf import FPDF
-    original_fpdf_output = FPDF.output
-    def patched_fpdf_output(self, name='', dest='S'):
-        # If a filename is provided, intercept it for download
-        if name: 
-            pdf_output_bytes = original_fpdf_output(self, dest='S')
-            b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
-            mimetype = "application/pdf"
-            print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
-        else:
-            # If no filename, behave as original (e.g., return bytes for dest='S')
-            return original_fpdf_output(self, name=name, dest=dest)
-    FPDF.output = patched_fpdf_output
-except ImportError:
-    pass
-
-try:
-    from docx.document import Document
-    original_document_save = Document.save
-    def patched_document_save(self, path_or_stream):
-        if isinstance(path_or_stream, str):
-            buffer = io.BytesIO()
-            original_document_save(self, buffer)
-            buffer.seek(0)
-            word_bytes = buffer.read()
-            b64_data = base64.b64encode(word_bytes).decode('utf-8')
-            mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            print(f"__QBIT_DOWNLOAD_FILE__:{path_or_stream}:{mimetype}:{b64_data}")
-        else:
-            original_document_save(self, path_or_stream)
-    Document.save = patched_document_save
-except ImportError:
-    pass
-\`;
-            
-            await pyodide.runPythonAsync(preamble + '\\n' + code);
-            self.postMessage({ type: 'success' });
-        } catch (error) {
-            self.postMessage({ type: 'error', error: error.message });
-        }
-    };
-`;
 
 const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -198,11 +55,13 @@ interface CodeExecutorProps {
     persistedResult?: ExecutionResult;
     onExecutionComplete: (result: ExecutionResult) => void;
     onFixRequest?: (error: string) => void;
+    onStopExecution: () => void;
+    isPythonReady: boolean;
     isLoading?: boolean;
     t: (key: string, params?: Record<string, string>) => string;
 }
 
-type ExecutionStatus = 'idle' | 'loading-env' | 'executing' | 'success' | 'error';
+type ExecutionStatus = 'idle' | 'executing' | 'success' | 'error';
 type OutputContent = string | React.ReactNode;
 
 function usePrevious<T>(value: T): T | undefined {
@@ -213,12 +72,13 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
-const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; }> = ({ onClick, title, children }) => (
+const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; disabled?: boolean; }> = ({ onClick, title, children, disabled = false }) => (
     <button
         onClick={onClick}
         title={title}
         aria-label={title}
-        className="p-1 rounded-sm text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground transition-colors"
+        disabled={disabled}
+        className="p-1 rounded-sm text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     >
         {children}
     </button>
@@ -235,11 +95,10 @@ const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode;
 );
 
 
-export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, isLoading = false, t }) => {
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, onStopExecution, isPythonReady, isLoading = false, t }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
     const reactMountRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<any>(null);
-    const workerRef = useRef<Worker | null>(null);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
@@ -257,61 +116,36 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const lineCount = useMemo(() => code.split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
-        setStatus('loading-env');
+        setStatus('executing');
         setHasRunOnce(true);
-    
-        if (workerRef.current) {
-            workerRef.current.terminate();
-        }
-    
-        const workerBlob = new Blob([pythonWorkerSource], { type: 'application/javascript' });
-        const workerUrl = URL.createObjectURL(workerBlob);
-        const worker = new Worker(workerUrl);
-        workerRef.current = worker;
     
         let stdoutBuffer = '';
         let stderrBuffer = '';
         let finalResult: ExecutionResult | null = null;
         let currentRunDownloadableFile: DownloadableFile | null = null;
     
-        const cleanup = () => {
-            if (workerRef.current) {
-                workerRef.current.terminate();
-                workerRef.current = null;
-            }
-            URL.revokeObjectURL(workerUrl);
-        };
-    
-        worker.onmessage = (event) => {
-            const { type, status: msgStatus, data, plotType, error: msgError, filename, mimetype } = event.data;
-    
-            switch (type) {
-                case 'status':
-                    if (msgStatus === 'ready') {
-                        setStatus('executing');
-                        worker.postMessage({ code });
-                    }
-                    break;
+        runPythonCode(code, (update: PythonExecutorUpdate) => {
+            switch (update.type) {
                 case 'stdout':
-                    stdoutBuffer += data + '\n';
-                    setOutput(prev => (typeof prev === 'string' ? prev : '') + data + '\n');
+                    stdoutBuffer += update.data + '\n';
+                    setOutput(prev => (typeof prev === 'string' ? prev : '') + update.data + '\n');
                     break;
                 case 'stderr':
-                    stderrBuffer += msgError + '\n';
+                    stderrBuffer += update.error + '\n';
                     setError(stderrBuffer.trim());
                     break;
                 case 'plot':
-                    if (plotType === 'plotly') {
-                        setOutput(data);
-                        finalResult = { output: data, error: '', type: 'plotly-json' };
+                    if (update.plotType === 'plotly') {
+                        setOutput(update.data);
+                        finalResult = { output: update.data, error: '', type: 'plotly-json' };
                     } else { // matplotlib or pil
-                        setOutput(<img src={`data:image/png;base64,${data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
-                        finalResult = { output: data, error: '', type: 'image-base64' };
+                        setOutput(<img src={`data:image/png;base64,${update.data}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
+                        finalResult = { output: update.data, error: '', type: 'image-base64' };
                     }
                     break;
                 case 'download':
-                    const fileInfo = { filename, mimetype, data };
-                    downloadFile(filename, mimetype, data);
+                    const fileInfo = { filename: update.filename!, mimetype: update.mimetype!, data: update.data! };
+                    downloadFile(fileInfo.filename, fileInfo.mimetype, fileInfo.data);
                     setDownloadableFile(fileInfo);
                     currentRunDownloadableFile = fileInfo;
                     break;
@@ -334,10 +168,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         resultToPersist.downloadableFile = currentRunDownloadableFile;
                     }
                     onExecutionComplete(resultToPersist);
-                    cleanup();
                     break;
                 case 'error':
-                    const errorMsg = msgError || stderrBuffer.trim();
+                    const errorMsg = update.error || stderrBuffer.trim();
                     setError(errorMsg);
                     setStatus('error');
                     const errorResult: ExecutionResult = { output: null, error: errorMsg, type: 'error' };
@@ -345,18 +178,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         errorResult.downloadableFile = currentRunDownloadableFile;
                     }
                     onExecutionComplete(errorResult);
-                    cleanup();
                     break;
             }
-        };
-    
-        worker.onerror = (err) => {
-            const errorMsg = `Worker error: ${err.message}`;
-            setError(errorMsg);
-            setStatus('error');
-            onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
-            cleanup();
-        };
+        });
     }, [code, onExecutionComplete, t]);
     
     const runJavaScript = useCallback(() => {
@@ -508,10 +332,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     }, [persistedResult]);
 
     useEffect(() => {
-        if (autorun && prevIsLoading && !isLoading && !persistedResult) {
+        if (autorun && isPythonReady && prevIsLoading && !isLoading && !persistedResult) {
             handleRunCode();
         }
-    }, [isLoading, prevIsLoading, autorun, persistedResult, handleRunCode]);
+    }, [isLoading, prevIsLoading, autorun, isPythonReady, persistedResult, handleRunCode]);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -542,7 +366,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     
     useEffect(() => {
         return () => {
-            if (workerRef.current) workerRef.current.terminate();
             if (htmlBlobUrl) URL.revokeObjectURL(htmlBlobUrl);
         };
     }, [htmlBlobUrl]);
@@ -555,13 +378,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     };
     
     const handleStopCode = () => {
-        if (workerRef.current) {
-            workerRef.current.terminate();
-            workerRef.current = null;
+        if (lang === 'python') {
+            stopPythonExecution();
+            onStopExecution(); // Signal to App to update readiness state
+            setStatus('idle');
+            setError(t('code.stopped'));
+            setOutput('');
         }
-        setStatus('idle');
-        setError(t('code.stopped'));
-        setOutput('');
+        // Stopping for JS/React/HTML is not implemented as they run synchronously.
     };
     
     const OutputDisplay = () => {
@@ -631,24 +455,35 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         </div>
       );
     };
+    
+    const isPython = lang.toLowerCase() === 'python';
+    const isRunButtonDisabled = (isPython && !isPythonReady) || status === 'executing';
 
     return (
         <div className="not-prose my-4">
             <div className="bg-card border border-default rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 bg-token-surface-secondary/50 border-b border-default">
-                    <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
+                        {isPython && !isPythonReady && status !== 'executing' && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <LoadingSpinner />
+                                <span>{t('code.loading')}</span>
+                            </div>
+                        )}
+                    </div>
                      <div className="flex items-center gap-0.5 bg-background p-0.5 rounded-md border border-default shadow-sm">
                         <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
                         </ActionButton>
                         
                         {isExecutable ? (
-                            status === 'executing' || status === 'loading-env' ? (
+                             status === 'executing' ? (
                                 <ActionButton onClick={handleStopCode} title={t('code.stop')}>
                                     <div className="w-3 h-3 bg-foreground rounded-sm"></div>
                                 </ActionButton>
                             ) : (
-                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')}>
+                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
                                     {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
                                 </ActionButton>
                             )
@@ -676,10 +511,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             </div>
             
             <div className="mt-2 space-y-2">
-                {isExecutable && (status === 'executing' || status === 'loading-env') && (
+                {isExecutable && status === 'executing' && (
                      <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
                         <LoadingSpinner />
-                        <span>{status === 'loading-env' ? t('code.loading') : t('code.executing')}</span>
+                        <span>{t('code.executing')}</span>
                     </div>
                 )}
 

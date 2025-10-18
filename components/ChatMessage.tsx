@@ -25,6 +25,8 @@ interface ChatMessageProps {
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
     onFixRequest: (code: string, lang: string, error: string) => void;
+    onStopExecution: () => void;
+    isPythonReady: boolean;
     t: (key: string) => string;
 }
 
@@ -86,7 +88,7 @@ const getTextFromMessage = (content: MessageContent): string => {
 
 const lettersAndSymbols = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*-=_+<>';
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, t }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -515,6 +517,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                                 persistedResult={executionResults[key]}
                                                 onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
                                                 onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
+                                                onStopExecution={onStopExecution}
+                                                isPythonReady={isPythonReady}
                                                 isLoading={isLoading}
                                                 t={t}
                                             />

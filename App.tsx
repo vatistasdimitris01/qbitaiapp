@@ -10,7 +10,7 @@ import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
-import { getPyodide } from './services/pyodideService';
+import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
 import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
 
@@ -94,6 +94,7 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
 
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
+  const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -128,6 +129,27 @@ const App: React.FC = () => {
     }
   };
 
+  const checkPythonReady = useCallback(() => {
+    // This function can be called multiple times (e.g., after stopping execution).
+    // It attaches to the current `readyPromise` from the service.
+    pythonExecutorReady().then(() => {
+        console.log('Python worker environment ready.');
+        if (!isPythonReady) setIsPythonReady(true);
+    }).catch(e => {
+        console.error('Failed to prepare Python worker environment:', e);
+        if (isPythonReady) setIsPythonReady(false);
+    });
+  }, [isPythonReady]);
+
+
+  // Initialize app and background services
+  useEffect(() => {
+    // The app UI is ready immediately.
+    setIsAppReady(true);
+    
+    // Start loading the Python environment in the background.
+    checkPythonReady();
+  }, [checkPythonReady]);
 
   // Service Worker Update Handler
   useEffect(() => {
@@ -177,21 +199,6 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Pre-load Pyodide environment on app startup
-  useEffect(() => {
-    // Don't pre-load if app is already considered ready (e.g. from a quick refresh)
-    if (isAppReady) return;
-
-    getPyodide().then(() => {
-        console.log('Pyodide environment pre-loaded and ready.');
-        setIsAppReady(true);
-    }).catch(e => {
-        console.error('Failed to pre-load Pyodide environment:', e);
-        // Load app anyway, code execution might fail but chat is still usable.
-        setIsAppReady(true);
-    });
-  }, [isAppReady]);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -666,6 +673,12 @@ const App: React.FC = () => {
       const key = `${messageId}_${partIndex}`;
       setExecutionResults(prev => ({ ...prev, [key]: result }));
   };
+  
+  const handleStopExecution = () => {
+    setIsPythonReady(false);
+    stopPythonExecution();
+    checkPythonReady(); // This will listen to the *new* readyPromise from the re-initialized worker
+  };
 
   const handleFixCodeRequest = (code: string, lang: string, error: string) => {
     const message = `The following code block produced an error. Please analyze the code and the error message, identify the issue, and provide a corrected version of the code block.
@@ -786,6 +799,8 @@ ${error}
                             executionResults={executionResults}
                             onStoreExecutionResult={handleStoreExecutionResult}
                             onFixRequest={handleFixCodeRequest}
+                            onStopExecution={handleStopExecution}
+                            isPythonReady={isPythonReady}
                             t={t}
                         />;
               })

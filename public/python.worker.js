@@ -1,4 +1,3 @@
-
 // This script is run in a separate thread by a Web Worker.
 // It's responsible for setting up the Pyodide environment and executing Python code.
 
@@ -36,7 +35,7 @@ self.onmessage = async (event) => {
     try {
         // Set up handlers to capture stdout and stderr from the Python code.
         pyodide.setStdout({ batched: (str) => {
-            const lines = str.split('\\n');
+            const lines = str.split('\n');
             for (const line of lines) {
                 if (line.trim() === '') continue;
                 // Custom protocols to send structured data (plots, files) back to the main thread.

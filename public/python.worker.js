@@ -155,7 +155,7 @@ except ImportError:
 `;
         
         // Run the preamble and the user's code.
-        await pyodide.runPythonAsync(preamble + '\\n' + code);
+        await pyodide.runPythonAsync(preamble + '\n' + code);
         self.postMessage({ type: 'success' });
     } catch (error) {
         // If an error occurs during execution, send it back to the main thread.

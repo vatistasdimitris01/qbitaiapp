@@ -118,18 +118,22 @@ export const streamMessageToAI = async (
                 }
             }
         }
+        
+        const duration = Date.now() - startTime;
+        onFinish(duration);
 
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
              console.log("Stream aborted by user.");
-             // Don't call onError for user-initiated aborts
+             // For user-initiated aborts, we don't call onError or onFinish.
+             // The UI-side abort handler is responsible for all state changes.
         } else {
             console.error("Error streaming message to AI:", error);
             onError(error instanceof Error ? error.message : String(error));
+            // Also call onFinish in case of an API error to stop loading states.
+            const duration = Date.now() - startTime;
+            onFinish(duration);
         }
-    } finally {
-        const duration = Date.now() - startTime;
-        onFinish(duration);
     }
 };
 

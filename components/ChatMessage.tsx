@@ -86,8 +86,6 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const lettersAndSymbols = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*-=_+<>';
-
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -95,11 +93,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const [typedText, setTypedText] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // Add refs for robust typing animation
     const responseTextRef = useRef('');
     const charIndexRef = useRef(0);
     const typingTimeoutRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const isAnimating = useRef(false);
 
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (
@@ -146,76 +144,50 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         responseTextRef.current = parsedResponseText;
     }, [parsedResponseText]);
 
-     useEffect(() => {
-        let scrambleTimeoutId: number | null = null;
-        let pollTimeoutId: number | null = null;
+    useEffect(() => {
+        const animate = () => {
+            if (!isAnimating.current) return;
+            
+            const currentTarget = responseTextRef.current;
+            if (charIndexRef.current < currentTarget.length) {
+                // Animate character by character quickly.
+                const nextCharIndex = charIndexRef.current + 1;
+                animationFrameRef.current = requestAnimationFrame(() => {
+                    setTypedText(currentTarget.substring(0, nextCharIndex));
+                });
+                charIndexRef.current = nextCharIndex;
+                typingTimeoutRef.current = window.setTimeout(animate, 2); // Fast typing speed
+            } else {
+                // Done with current text, check for more in a bit.
+                typingTimeoutRef.current = window.setTimeout(animate, 50);
+            }
+        };
 
-        const cleanup = () => {
-            if (scrambleTimeoutId) clearTimeout(scrambleTimeoutId);
-            if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        if (isLoading && aiStatus === 'generating') {
+            if (!isAnimating.current) {
+                // Start animation
+                isAnimating.current = true;
+                animate();
+            }
+        } else {
+            // Stop animation
+            isAnimating.current = false;
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            
+            // If finished loading, ensure final text is displayed and cursor is at the end
+            if (!isLoading) {
+                setTypedText(responseTextRef.current);
+                charIndexRef.current = responseTextRef.current.length;
+            }
+        }
+
+        return () => {
+            // Cleanup on unmount
+            isAnimating.current = false;
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-
-        // When generation stops, finalize text and clean up.
-        if (!isLoading) {
-            cleanup();
-            if (typedText !== responseTextRef.current) {
-                setTypedText(responseTextRef.current);
-            }
-            return;
-        }
-        
-        // When status is not 'generating', clean up but don't finalize text
-        // (to keep it visible while thinking/searching).
-        if (aiStatus !== 'generating') {
-            cleanup();
-            return;
-        }
-
-        const animateCharacter = (charIndex: number) => {
-            const currentTargetText = responseTextRef.current;
-            
-            // If we've finished the current text, poll for more content
-            if (charIndex >= currentTargetText.length) {
-                pollTimeoutId = window.setTimeout(() => animateCharacter(charIndex), 100);
-                return;
-            }
-
-            const targetChar = currentTargetText[charIndex];
-            let scrambleCount = 0;
-            const maxScrambles = 2;
-            const scrambleSpeed = 30;
-
-            const scramble = () => {
-                if (scrambleCount < maxScrambles) {
-                    const randomChar = lettersAndSymbols[Math.floor(Math.random() * lettersAndSymbols.length)];
-                    animationFrameRef.current = requestAnimationFrame(() => {
-                        setTypedText(currentTargetText.substring(0, charIndex) + randomChar);
-                    });
-                    scrambleCount++;
-                    scrambleTimeoutId = window.setTimeout(scramble, scrambleSpeed);
-                } else {
-                    animationFrameRef.current = requestAnimationFrame(() => {
-                        setTypedText(currentTargetText.substring(0, charIndex + 1));
-                    });
-                    
-                    charIndexRef.current = charIndex + 1;
-                    const stagger = (targetChar === ' ' || targetChar === '\n') ? 5 : 20;
-                    typingTimeoutRef.current = window.setTimeout(() => animateCharacter(charIndex + 1), stagger);
-                }
-            };
-
-            scramble();
-        };
-
-        // Reset and start animation when aiStatus becomes 'generating'
-        cleanup();
-        charIndexRef.current = 0;
-        setTypedText('');
-        animateCharacter(0);
-
-        return cleanup;
     }, [isLoading, aiStatus]);
 
 

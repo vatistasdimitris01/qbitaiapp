@@ -334,6 +334,12 @@ const App: React.FC = () => {
       return () => main?.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  // Scroll to bottom when conversation changes
+  useEffect(() => {
+    // A small timeout ensures the DOM has updated with the new messages
+    setTimeout(() => scrollToBottom('auto'), 0);
+  }, [activeConversationId, scrollToBottom]);
+
   // Auto-scroll logic for streaming AI responses
   useEffect(() => {
     if (isLoading && !showScrollToBottom) {

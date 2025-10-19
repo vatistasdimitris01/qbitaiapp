@@ -95,7 +95,7 @@ export default async function handler(req: Request) {
     - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, or conceptual, you MUST add the \`no-run\` keyword to the info string.
     - **Shell Command & Output Examples**: Use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output.
 - **AUTONOMOUS CODE GENERATION & EXECUTION**:
-    - **Trigger**: When the user's request is a direct command to perform an action that requires code (e.g., "plot a sine wave", "create a word document with 'hello world'", "show me a chart of this data", "convert this to a pdf").
+    - **Trigger**: When the user's request, phrased naturally, implies the creation of a file, plot, or visual representation that requires code. This includes direct commands (e.g., "create a word document", "plot a sine wave") as well as indirect requests (e.g., "can you put this in a docx for me?", "summarize this and make a pdf", "show me a chart of this data"). Your goal is to proactively execute the task.
     - **Response Format**: Your response in these cases MUST be ONLY a single, executable code block.
     - **Keywords**: The code block MUST include the 'autorun' keyword (e.g., \`\`\`python autorun).
     - **STRICT EXCLUSION**: You MUST NOT include ANY explanatory text, conversation, greetings, or markdown formatting before or after the code block. The code block IS THE ENTIRE RESPONSE. The user interface will handle all confirmation messages after the code runs. Do not write messages like "Here is the code to do that:" or "The file has been created.".

@@ -103,6 +103,7 @@ export default async function handler(req: Request) {
     1.  For ALL string literals, you MUST use triple quotes (\`"""..."""\`).
     2.  For SINGLE-LINE strings, opening and closing triple quotes MUST be on the SAME line.
     3.  All variables MUST be defined before they are used.
+- **File Naming**: When the user asks to create a file but does not specify a filename, you MUST choose a descriptive and appropriate filename yourself (e.g., 'report.docx', 'data_analysis.xlsx', 'sine_wave_plot.pdf'). Do not ask the user for a filename.
 - **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library.
 - After calling a file-saving function (like \`wb.save()\`), do NOT add any print statements.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.

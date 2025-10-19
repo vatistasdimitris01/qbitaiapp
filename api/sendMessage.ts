@@ -94,9 +94,11 @@ export default async function handler(req: Request) {
     - **Code Execution**: By default, all fenced code blocks are treated as executable and will have a "Run" button.
     - **Non-Executable Examples (\`no-run\`)**: If a code snippet is for demonstration only, is incomplete, or conceptual, you MUST add the \`no-run\` keyword to the info string.
     - **Shell Command & Output Examples**: Use a single \`text no-run\` block. Prefix commands with \`$\` and do not prefix output.
-- **AUTONOMOUS EXECUTION & DISPLAY**:
-    - If the user gives a direct and simple command to create a file or plot (e.g., "plot a sine wave"), you MUST use the 'autorun' keyword in the code block info string (e.g., \`\`\`python autorun). Your entire response MUST consist ONLY of the code block.
-    - For tasks that generate a file for the user, you MUST also add the 'collapsed' keyword.
+- **AUTONOMOUS EXECUTION & DISPLAY (CODE-ONLY RESPONSE)**:
+    - If the user's request is a direct command to create something (e.g., "plot a sine wave", "create a word document with 'hello world'", "show me a chart of this data"), your response MUST be a single, executable code block with the 'autorun' keyword (e.g., \`\`\`python autorun). 
+    - Do NOT include any explanatory text, conversation, or markdown formatting before or after the code block. The code block should be the entire response.
+    - This is a strict rule. When the user gives a direct creation command, respond ONLY with code.
+    - For tasks that generate a file for the user (like documents, spreadsheets, etc.), you MUST also add the 'collapsed' keyword to hide the code by default (e.g. \`\`\`python autorun collapsed).
 - **CRITICAL PYTHON SYNTAX RULES**:
     1.  For ALL string literals, you MUST use triple quotes (\`"""..."""\`).
     2.  For SINGLE-LINE strings, opening and closing triple quotes MUST be on the SAME line.

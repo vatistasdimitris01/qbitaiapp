@@ -24,6 +24,14 @@ interface LocationInfo {
     country: string;
 }
 
+const languageMap: { [key: string]: string } = {
+    en: 'English',
+    el: 'Greek',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+};
+
 // The main handler for the API route
 export default async function handler(req: Request) {
     if (req.method !== 'POST') {
@@ -34,7 +42,7 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { history, message, attachments, personaInstruction, location } = await req.json();
+        const { history, message, attachments, personaInstruction, location, language } = await req.json();
 
         // As per guidelines, the API key MUST be from process.env.API_KEY
         if (!process.env.API_KEY) {
@@ -70,9 +78,12 @@ export default async function handler(req: Request) {
         ];
 
         const model = 'gemini-2.5-flash';
+        
+        const userLanguageName = languageMap[language as string] || 'English';
 
         const baseSystemInstruction = `You are a helpful and brilliant assistant.
 
+- **Language**: The user is speaking ${userLanguageName}. It is a strict requirement that you also think and respond *only* in ${userLanguageName}. All of your output, including your internal thoughts inside <thinking> tags, MUST be in ${userLanguageName}. Do not use English unless the user explicitly asks for it in ${userLanguageName}.
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
 - **Web Search**: You have access to Google Search for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should use your search tool. When you use search results, synthesize the information to formulate a comprehensive answer and cite your sources.
 - **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query. For general questions, ignore the location.

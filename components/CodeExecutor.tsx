@@ -338,6 +338,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     }, [isLoading, prevIsLoading, autorun, isPythonReady, persistedResult, handleRunCode]);
 
     useEffect(() => {
+        // If the code was autorun, expand it after the first run so the user sees what was executed.
+        if (autorun && hasRunOnce) {
+            setIsCollapsed(false);
+        }
+    }, [autorun, hasRunOnce]);
+
+    useEffect(() => {
         if ((window as any).hljs) {
             try {
                 const highlighted = (window as any).hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;

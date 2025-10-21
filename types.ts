@@ -1,20 +1,25 @@
 
 
+
 export enum MessageType {
   USER = 'USER',
   AI_RESPONSE = 'AI_RESPONSE',
-  AI_SOURCES = 'AI_SOURCES',
   SYSTEM = 'SYSTEM',
   ERROR = 'ERROR',
   AGENT_ACTION = 'AGENT_ACTION',
   AGENT_PLAN = 'AGENT_PLAN',
 }
 
-export interface GroundingChunk {
-    web: {
-        uri: string;
-        title: string;
-    };
+export interface CitationSource {
+  title: string;
+  url: string;
+  description?: string;
+  quote?: string;
+}
+
+export interface Citation {
+  number: string;
+  sources: CitationSource[];
 }
 
 export interface CodeBlockContent {
@@ -32,12 +37,23 @@ export interface FileAttachment {
     name: string;
     type: string;
     size: number;
-    dataUrl: string; // Base64 or object URL for preview
+    // For small files (< 4MB) for immediate preview
+    dataUrl?: string;
+    // For large files, tracks upload state
+    uploadStatus?: 'uploading' | 'completed' | 'error';
+    progress?: number; // 0-100
+    // The reference to the file in cloud storage, e.g., 'gs://bucket-name/file-id'
+    fileIdentifier?: string;
+    // Client-side only: To hold the File object during upload
+    file?: File;
+    // Client-side only: To allow aborting uploads
+    abortController?: AbortController;
 }
+
 
 export type Tool = 'web-search' | 'code-execution' | 'agent-mode' | null;
 
-export type MessageContent = string | GroundingChunk[] | CodeBlockContent | AgentPlanContent;
+export type MessageContent = string | CodeBlockContent | AgentPlanContent;
 
 export interface Message {
   id: string;
@@ -50,6 +66,7 @@ export interface Message {
     candidatesTokenCount: number;
     totalTokenCount: number;
   };
+  citations?: Citation[];
 }
 
 export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';

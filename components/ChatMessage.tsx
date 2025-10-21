@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
+import type { Message, MessageContent, AIStatus, Citation } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
+import InlineCitation from './InlineCitation';
 
 type ExecutionResult = {
   output: string | null;
@@ -35,35 +36,6 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'a
         {children}
     </button>
 );
-
-const GroundingDisplay: React.FC<{ chunks: GroundingChunk[], t: (key: string) => string }> = ({ chunks, t }) => {
-    return (
-        <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
-            <div className="flex gap-2 text-sm text-muted-foreground">
-                <div className="relative mt-0.5">
-                    <SearchIcon className="size-4" />
-                </div>
-                <div className="flex-1 space-y-2">
-                    <div>{t('chat.message.grounding')}</div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {chunks.map((chunk, i) => (
-                            <a
-                                key={i}
-                                href={chunk.web.uri}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center rounded-md border border-transparent bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 gap-1 px-2 py-0.5 font-normal text-xs truncate"
-                                title={chunk.web.title}
-                            >
-                                {new URL(chunk.web.uri).hostname}
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // Simple HTML escape function to prevent XSS
 const escapeHtml = (html: string) => {
@@ -196,6 +168,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             setIsThinkingOpen(true);
         }
     }, [aiStatus]);
+    
+    const markedRenderer = useMemo(() => {
+        const renderer = new marked.Renderer();
+        renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
+            lang = (lang || 'plaintext').toLowerCase();
+            if (lang === 'mermaid') {
+                return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
+            }
+            const safeLang = escapeHtml(lang);
+            const escapedCode = escapeHtml(code);
+             try {
+                if ((window as any).hljs) {
+                    const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
+                    return `<pre class="not-prose"><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
+                }
+            } catch (e) { /* language not supported */ }
+            return `<pre class="not-prose"><code class="language-${safeLang}">${escapedCode}</code></pre>`;
+        };
+        return renderer;
+    }, []);
 
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
@@ -203,7 +195,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
     
         type ContentPart = {
-            type: 'text' | 'code';
+            type: 'text' | 'code' | 'citation';
             content?: string;
             lang?: string;
             title?: string;
@@ -211,14 +203,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             autorun?: boolean;
             collapsed?: boolean;
             noRun?: boolean;
+            citation?: Citation;
         };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
+
+        const citationMap = message.citations ? new Map(message.citations.map(c => [`[${c.number}]`, c])) : null;
     
         sections.forEach((section, index) => {
             if (index % 2 === 0) {
                 // This is a text part
-                if (section) parts.push({ type: 'text', content: section });
+                if (section) {
+                    if (citationMap) {
+                        const textSubParts = section.split(/(\[\d+\])/g);
+                        textSubParts.forEach((subPart) => {
+                            const citation = citationMap.get(subPart);
+                            if (citation) {
+                                parts.push({ type: 'citation', citation });
+                            } else if (subPart) {
+                                parts.push({ type: 'text', content: subPart });
+                            }
+                        });
+                    } else {
+                        parts.push({ type: 'text', content: section });
+                    }
+                }
             } else {
                 // This is a code part (info string + code)
                 const firstNewlineIndex = section.indexOf('\n');
@@ -264,10 +273,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     
         return parts;
-    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
+    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus, message.citations]);
 
     const hasRenderableContent = useMemo(() => {
-      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
+      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || p.type === 'code' || p.type === 'citation');
     }, [contentParts]);
 
 
@@ -286,29 +295,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             .filter(part => part.type === 'code' && part.lang === 'python' && part.code)
             .map(part => part.code!);
     }, [contentParts]);
-
-
-    const markedRenderer = useMemo(() => {
-        const renderer = new marked.Renderer();
-        renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
-            lang = (lang || 'plaintext').toLowerCase();
-            if (lang === 'mermaid') {
-                return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
-            }
-            // All other code rendering is handled by the contentParts logic,
-            // so this default renderer for inline/other code blocks can be simple.
-            const safeLang = escapeHtml(lang);
-            const escapedCode = escapeHtml(code);
-             try {
-                if ((window as any).hljs) {
-                    const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
-                    return `<pre class="not-prose"><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
-                }
-            } catch (e) { /* language not supported */ }
-            return `<pre class="not-prose"><code class="language-${safeLang}">${escapedCode}</code></pre>`;
-        };
-        return renderer;
-    }, []);
 
     const thinkingHtml = useMemo(() => {
         if (!parsedThinkingText) return '';
@@ -365,7 +351,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     }, [contentParts, message.type, message.id, parsedResponseText]);
 
-    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
+    const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const loadingTexts = useMemo(() => {
@@ -406,15 +392,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
                             aria-expanded={isThinkingOpen}
                         >
-                            {message.type === MessageType.AI_SOURCES ? <SearchIcon className="size-4" /> : <BrainIcon className="size-4" />}
-                            <span className="flex-1 text-left font-medium hidden sm:inline">{message.type === MessageType.AI_SOURCES ? t('chat.message.grounding') : t('chat.message.thinking')}</span>
+                            <BrainIcon className="size-4" />
+                            <span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
-                                {message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
-                                    <GroundingDisplay chunks={message.content as GroundingChunk[]} t={t} />
-                                )}
                                 {parsedThinkingText && (
                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
                                         <div
@@ -472,7 +455,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {
                                         const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                                        return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                    }
+                                    if (part.type === 'citation' && part.citation) {
+                                        return <InlineCitation key={index} citation={part.citation} t={t} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

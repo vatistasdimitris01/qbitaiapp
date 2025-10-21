@@ -17,6 +17,16 @@ export interface GroundingChunk {
     };
 }
 
+export interface CitationSource {
+  url: string;
+  title: string;
+}
+
+export interface Citation {
+  number: number;
+  sources: CitationSource[];
+}
+
 export interface CodeBlockContent {
     lang: string;
     code: string;
@@ -50,6 +60,7 @@ export interface Message {
     candidatesTokenCount: number;
     totalTokenCount: number;
   };
+  citations?: Citation[];
 }
 
 export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';

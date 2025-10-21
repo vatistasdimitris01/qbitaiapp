@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-// FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, Citation } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -91,6 +90,29 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
     </div>
   );
 };
+
+const parseCitationsFromContent = (content: string): { cleanedContent: string; citations: Citation[] } => {
+    const citationRegex = /```json:citations\n([\s\S]*?)```/;
+    const match = content.match(citationRegex);
+
+    if (!match || !match[1]) {
+        return { cleanedContent: content, citations: [] };
+    }
+
+    const cleanedContent = content.replace(citationRegex, '').trim();
+    try {
+        const citations = JSON.parse(match[1]);
+        if (Array.isArray(citations)) {
+             return { cleanedContent, citations };
+        }
+       return { cleanedContent: content, citations: [] };
+    } catch (e) {
+        console.error("Failed to parse citations JSON:", match[1], e);
+        // Return original content with the broken JSON block so user can see it
+        return { cleanedContent: content, citations: [] };
+    }
+};
+
 
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
@@ -480,28 +502,6 @@ const App: React.FC = () => {
                             }
                         }
                         break;
-                    case 'sources':
-                        const sourcesMessage: Message = {
-                            id: `sources-${aiMessageId}`,
-                            type: MessageType.AI_SOURCES,
-                            content: update.payload,
-                        };
-                        const aiMsgIndex = newMessages.findIndex(m => m.id === aiMessageId);
-                        if (aiMsgIndex > -1) {
-                            // Replace agent action with sources
-                            const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
-                             if (agentActionIndex !== -1) {
-                                newMessages.splice(agentActionIndex, 1, sourcesMessage);
-                            } else {
-                                const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
-                                if (existingSourcesIndex === -1) {
-                                    newMessages.splice(aiMsgIndex, 0, sourcesMessage);
-                                } else {
-                                    newMessages[existingSourcesIndex] = sourcesMessage;
-                                }
-                            }
-                        }
-                        break;
                     case 'usage':
                         newMessages = newMessages.map(msg =>
                             msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg
@@ -515,6 +515,25 @@ const App: React.FC = () => {
             setIsLoading(false);
             abortControllerRef.current = null;
             setAiStatus('complete');
+
+            // Post-process the final message for citations
+            setConversations(prev => prev.map(c => {
+                if (c.id !== activeConversationId) return c;
+                
+                const lastMessageIndex = c.messages.length - 1;
+                const lastMessage = c.messages[lastMessageIndex];
+                
+                if (lastMessage && lastMessage.id === aiMessageId && typeof lastMessage.content === 'string') {
+                    const { cleanedContent, citations } = parseCitationsFromContent(lastMessage.content);
+                    if (citations.length > 0) {
+                        const updatedMessage = { ...lastMessage, content: cleanedContent, citations };
+                        const newMessages = [...c.messages.slice(0, lastMessageIndex), updatedMessage];
+                        return { ...c, messages: newMessages };
+                    }
+                }
+                return c;
+            }));
+            
             setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => { // onError callback
@@ -612,24 +631,6 @@ const App: React.FC = () => {
                              }
                          }
                         break;
-                    case 'sources':
-                        const sourcesMessage: Message = { 
-                            id: `sources-${messageIdToRegenerate}`, 
-                            type: MessageType.AI_SOURCES, 
-                            content: update.payload 
-                        };
-                         const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
-                         if (agentActionIndex !== -1) {
-                            newMessages.splice(agentActionIndex, 1, sourcesMessage);
-                        } else {
-                            const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
-                            if (existingSourcesIndex === -1) {
-                                newMessages.splice(targetMsgIndex, 0, sourcesMessage);
-                            } else {
-                                newMessages[existingSourcesIndex] = sourcesMessage;
-                            }
-                        }
-                        break;
                     case 'usage':
                         newMessages[targetMsgIndex] = {
                             ...newMessages[targetMsgIndex],
@@ -644,6 +645,25 @@ const App: React.FC = () => {
             setIsLoading(false);
             abortControllerRef.current = null;
             setAiStatus('complete');
+            
+            // Post-process the final message for citations
+            setConversations(prev => prev.map(c => {
+                if (c.id !== activeConversationId) return c;
+                
+                const targetMsgIndex = c.messages.findIndex(m => m.id === messageIdToRegenerate);
+                if (targetMsgIndex > -1 && typeof c.messages[targetMsgIndex].content === 'string') {
+                    const lastMessage = c.messages[targetMsgIndex];
+                    const { cleanedContent, citations } = parseCitationsFromContent(lastMessage.content as string);
+                    if (citations.length > 0) {
+                        const updatedMessage = { ...lastMessage, content: cleanedContent, citations };
+                        const newMessages = [...c.messages];
+                        newMessages[targetMsgIndex] = updatedMessage;
+                        return { ...c, messages: newMessages };
+                    }
+                }
+                return c;
+            }));
+
             setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => {

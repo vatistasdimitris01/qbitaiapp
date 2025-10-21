@@ -17,7 +17,7 @@ const InlineCitation: React.FC<InlineCitationProps> = ({ citation, t }) => {
   const currentSource = sources[currentSourceIndex];
   let hostname = 'source';
   try {
-    hostname = new URL(currentSource.url).hostname;
+    hostname = new URL(currentSource.url).hostname.replace(/^www\./, '');
   } catch (e) { /* invalid URL */ }
 
   const handlePrev = (e: React.MouseEvent) => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, Citation } from './types';
+// FIX: Removed PreviewContent from import as it is not defined in types.ts and was unused.
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -236,20 +237,7 @@ const App: React.FC = () => {
 
   // Persist state to localStorage whenever it changes
   useEffect(() => {
-    try {
-        // Create a serializable version of conversations without non-serializable parts.
-        const conversationsToSave = conversations.map(convo => ({
-            ...convo,
-            messages: convo.messages.map(message => ({
-                ...message,
-                files: message.files?.map(({ file, abortController, ...rest }) => rest) // Exclude File and AbortController
-            }))
-        }));
-        localStorage.setItem('conversations', JSON.stringify(conversationsToSave));
-    } catch (error) {
-        console.error("Failed to save conversations to localStorage:", error);
-        // Handle potential quota errors, e.g., by clearing some old data.
-    }
+    localStorage.setItem('conversations', JSON.stringify(conversations));
   }, [conversations]);
 
   useEffect(() => {
@@ -409,22 +397,18 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
     if (!activeConversationId || !activeConversation) return;
-
-    // Filter out any attachments that failed to upload
-    const successfulAttachments = attachments.filter(a => a.uploadStatus !== 'error');
     const trimmedText = text.trim();
+    if (isLoading || (!trimmedText && attachments.length === 0)) return;
 
-    if (isLoading || (!trimmedText && successfulAttachments.length === 0)) return;
-
-    const messageText = trimmedText === '' && successfulAttachments.length > 0
-        ? t('chat.input.placeholderWithFiles').replace('{count}', successfulAttachments.length.toString())
+    const messageText = trimmedText === '' && attachments.length > 0
+        ? t('chat.input.placeholderWithFiles').replace('{count}', attachments.length.toString())
         : trimmedText;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       type: MessageType.USER,
       content: messageText,
-      files: successfulAttachments,
+      files: attachments,
     };
     
     const isFirstMessage = activeConversation.messages.length === 0;
@@ -434,7 +418,6 @@ const App: React.FC = () => {
       id: aiMessageId,
       type: MessageType.AI_RESPONSE,
       content: '',
-      citations: [],
     };
     
     const conversationHistoryForState = [...activeConversation.messages, userMessage];
@@ -462,7 +445,7 @@ const App: React.FC = () => {
     await streamMessageToAI(
         conversationHistoryForState,
         messageText,
-        successfulAttachments,
+        attachments,
         currentPersona?.instruction,
         userLocation,
         lang,
@@ -476,32 +459,9 @@ const App: React.FC = () => {
                 switch (update.type) {
                     case 'chunk':
                         setAiStatus('generating');
-                        newMessages = newMessages.map(msg => {
-                            if (msg.id === aiMessageId) {
-                                let newContent = (msg.content as string || '') + update.payload;
-                                let currentCitations = msg.citations || [];
-
-                                const sourcesRegex = /<sources>([\s\S]*?)<\/sources>/;
-                                const sourcesMatch = newContent.match(sourcesRegex);
-
-                                if (sourcesMatch && sourcesMatch[1]) {
-                                    try {
-                                        const parsed = JSON.parse(sourcesMatch[1]);
-                                        const isValid = Array.isArray(parsed) && parsed.every(p => 
-                                            'number' in p && 
-                                            Array.isArray(p.sources) && 
-                                            p.sources.every((s: any) => 'title' in s && 'url' in s)
-                                        );
-                                        if (isValid) {
-                                            currentCitations = parsed;
-                                            newContent = newContent.replace(sourcesRegex, '').trim();
-                                        }
-                                    } catch (e) { /* Incomplete JSON, wait for more chunks */ }
-                                }
-                                return { ...msg, content: newContent, citations: currentCitations };
-                            }
-                            return msg;
-                        });
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, content: (msg.content as string || '') + update.payload } : msg
+                        );
                         break;
                     case 'searching':
                         setAiStatus('searching');
@@ -517,6 +477,28 @@ const App: React.FC = () => {
                                 newMessages.splice(aiMsgIdx, 0, searchActionMessage);
                             } else {
                                 newMessages[existingSearchIndex] = searchActionMessage;
+                            }
+                        }
+                        break;
+                    case 'sources':
+                        const sourcesMessage: Message = {
+                            id: `sources-${aiMessageId}`,
+                            type: MessageType.AI_SOURCES,
+                            content: update.payload,
+                        };
+                        const aiMsgIndex = newMessages.findIndex(m => m.id === aiMessageId);
+                        if (aiMsgIndex > -1) {
+                            // Replace agent action with sources
+                            const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
+                             if (agentActionIndex !== -1) {
+                                newMessages.splice(agentActionIndex, 1, sourcesMessage);
+                            } else {
+                                const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
+                                if (existingSourcesIndex === -1) {
+                                    newMessages.splice(aiMsgIndex, 0, sourcesMessage);
+                                } else {
+                                    newMessages[existingSourcesIndex] = sourcesMessage;
+                                }
                             }
                         }
                         break;
@@ -578,7 +560,6 @@ const App: React.FC = () => {
             id: messageIdToRegenerate,
             type: MessageType.AI_RESPONSE,
             content: '',
-            citations: [],
         }
     ];
 
@@ -610,26 +591,10 @@ const App: React.FC = () => {
                 switch (update.type) {
                     case 'chunk':
                         setAiStatus('generating');
-                        const targetMsg = newMessages[targetMsgIndex];
-                        let newContent = (targetMsg.content as string || '') + update.payload;
-                        let currentCitations = targetMsg.citations || [];
-                        const sourcesRegex = /<sources>([\s\S]*?)<\/sources>/;
-                        const sourcesMatch = newContent.match(sourcesRegex);
-                        if (sourcesMatch && sourcesMatch[1]) {
-                            try {
-                                const parsed = JSON.parse(sourcesMatch[1]);
-                                const isValid = Array.isArray(parsed) && parsed.every(p => 
-                                    'number' in p && 
-                                    Array.isArray(p.sources) && 
-                                    p.sources.every((s: any) => 'title' in s && 'url' in s)
-                                );
-                                if (isValid) {
-                                    currentCitations = parsed;
-                                    newContent = newContent.replace(sourcesRegex, '').trim();
-                                }
-                            } catch (e) { /* Incomplete JSON */ }
-                        }
-                        newMessages[targetMsgIndex] = { ...targetMsg, content: newContent, citations: currentCitations };
+                        newMessages[targetMsgIndex] = {
+                            ...newMessages[targetMsgIndex],
+                            content: (newMessages[targetMsgIndex].content as string) + update.payload
+                        };
                         break;
                     case 'searching':
                          setAiStatus('searching');
@@ -646,6 +611,24 @@ const App: React.FC = () => {
                                  newMessages[existingSearchIndex] = searchActionMessage;
                              }
                          }
+                        break;
+                    case 'sources':
+                        const sourcesMessage: Message = { 
+                            id: `sources-${messageIdToRegenerate}`, 
+                            type: MessageType.AI_SOURCES, 
+                            content: update.payload 
+                        };
+                         const agentActionIndex = newMessages.findIndex(m => m.type === MessageType.AGENT_ACTION);
+                         if (agentActionIndex !== -1) {
+                            newMessages.splice(agentActionIndex, 1, sourcesMessage);
+                        } else {
+                            const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessage.id);
+                            if (existingSourcesIndex === -1) {
+                                newMessages.splice(targetMsgIndex, 0, sourcesMessage);
+                            } else {
+                                newMessages[existingSourcesIndex] = sourcesMessage;
+                            }
+                        }
                         break;
                     case 'usage':
                         newMessages[targetMsgIndex] = {

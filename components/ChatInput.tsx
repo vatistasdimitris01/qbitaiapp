@@ -9,14 +9,6 @@ interface ChatInputProps {
     onAbortGeneration: () => void;
 }
 
-// Small files are read as data URLs for inline preview
-const SMALL_FILE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
-
-// Limits for the entire attachment batch
-const MAX_FILES = 5;
-const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100 MB
-const MAX_SINGLE_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-
 const fileToDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -26,46 +18,11 @@ const fileToDataURL = (file: File): Promise<string> => {
     });
 };
 
-// Mocks a file upload to a signed URL, with progress.
-// In a real app, this would get a URL from the backend and then fetch/XHR to it.
-const uploadLargeFile = (
-    attachment: FileAttachment,
-    onProgress: (progress: number) => void,
-): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const { file, abortController } = attachment;
-        if (!file || !abortController) {
-            return reject(new Error('File or AbortController missing.'));
-        }
-
-        const signal = abortController.signal;
-        let progress = 0;
-
-        // Simulate upload progress
-        const interval = setInterval(() => {
-            if (signal.aborted) {
-                clearInterval(interval);
-                return reject(new DOMException('Upload aborted by user.', 'AbortError'));
-            }
-            progress += Math.random() * 20;
-            if (progress >= 100) {
-                clearInterval(interval);
-                onProgress(100);
-                // In a real app, this would be the file's GCS URI or S3 key.
-                const fileIdentifier = `gs://mock-bucket/${Date.now()}-${file.name}`;
-                resolve(fileIdentifier);
-            } else {
-                onProgress(progress);
-            }
-        }, 300); // Simulate network speed
-
-        signal.addEventListener('abort', () => {
-            clearInterval(interval);
-            reject(new DOMException('Upload aborted by user.', 'AbortError'));
-        });
-    });
-};
-
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_GB = 30;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
+const MAX_TOTAL_SIZE_GB = 50;
+const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
     const [text, setText] = useState('');
@@ -86,77 +43,54 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
     }, [text, adjustTextareaHeight]);
     
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
+        if (e.target.files) {
+            const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
 
-        const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
-        let newFilesSize = 0;
-        // FIX: Explicitly type `filesToProcess` as `File[]` to ensure correct type inference for `file` in the loop.
-        const filesToProcess: File[] = Array.from(e.target.files);
+            let allowedNewFiles: File[] = [];
+            let newFilesSize = 0;
 
-        for (const file of filesToProcess) {
-            // --- Validation ---
-            if (attachments.length + 1 > MAX_FILES) {
-                window.alert(t('chat.input.tooManyFiles', { count: String(MAX_FILES) }));
-                break;
-            }
-            if (file.size > MAX_SINGLE_FILE_SIZE) {
-                window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_SINGLE_FILE_SIZE / (1024 ** 2)}MB` }));
-                continue;
-            }
-            if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
-                window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE / (1024 ** 2)}MB` }));
-                break;
-            }
-            newFilesSize += file.size;
-
-            // --- File processing ---
-            const abortController = new AbortController();
-            const attachment: FileAttachment = {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                file, // Keep the file object for upload
-                abortController,
-            };
-
-            setAttachments(prev => [...prev, attachment]);
-
-            if (file.size < SMALL_FILE_THRESHOLD) {
-                // Handle small file: read as data URL for preview
-                try {
-                    const dataUrl = await fileToDataURL(file);
-                    setAttachments(prev => prev.map(a => a === attachment ? { ...a, dataUrl, uploadStatus: 'completed', file: undefined } : a));
-                } catch (error) {
-                    console.error("Error reading small file:", error);
-                    setAttachments(prev => prev.map(a => a === attachment ? { ...a, uploadStatus: 'error', file: undefined } : a));
+            // FIX: Iterate directly over `e.target.files` (a FileList) to ensure correct type inference for `file` as `File`.
+            // This resolves the errors where properties like `.size` and `.name` were not found on an `unknown` type.
+            for (const file of e.target.files) {
+                if (attachments.length + allowedNewFiles.length >= MAX_FILES) {
+                    window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
+                    break;
                 }
-            } else {
-                // Handle large file: "upload" it
-                setAttachments(prev => prev.map(a => a === attachment ? { ...a, uploadStatus: 'uploading', progress: 0 } : a));
+                if (file.size > MAX_FILE_SIZE) {
+                    window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_GB}GB` }));
+                    continue;
+                }
+                if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
+                    window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_GB}GB` }));
+                    break;
+                }
                 
-                try {
-                    const fileIdentifier = await uploadLargeFile(attachment, (progress) => {
-                        setAttachments(prev => prev.map(a => a === attachment ? { ...a, progress } : a));
-                    });
-                    setAttachments(prev => prev.map(a => a === attachment ? { ...a, uploadStatus: 'completed', fileIdentifier, file: undefined, progress: 100 } : a));
-                } catch (error) {
-                    if ((error as Error).name !== 'AbortError') {
-                        console.error("Error uploading large file:", error);
-                        setAttachments(prev => prev.map(a => a === attachment ? { ...a, uploadStatus: 'error', file: undefined } : a));
-                    }
-                }
+                allowedNewFiles.push(file);
+                newFilesSize += file.size;
+            }
+
+            if (allowedNewFiles.length > 0) {
+                const filePromises = allowedNewFiles.map(async (file: File) => {
+                    const dataUrl = await fileToDataURL(file);
+                    return {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        dataUrl
+                    };
+                });
+                const newAttachments = await Promise.all(filePromises);
+                setAttachments(prev => [...prev, ...newAttachments]);
             }
         }
-
-        if (e.target) e.target.value = '';
+        // Reset file input value to allow selecting the same file again
+        if (e.target) {
+            e.target.value = '';
+        }
     };
     
-    const handleRemoveFile = (indexToRemove: number) => {
-        const attachmentToRemove = attachments[indexToRemove];
-        if (attachmentToRemove?.uploadStatus === 'uploading') {
-            attachmentToRemove.abortController?.abort();
-        }
-        setAttachments(prev => prev.filter((_, i) => i !== indexToRemove));
+    const handleRemoveFile = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -165,120 +99,118 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const isUploading = attachments.some(a => a.uploadStatus === 'uploading');
-        if (isLoading || isUploading) return;
-        
-        const completedAttachments = attachments.filter(a => a.uploadStatus === 'completed');
-        if (text.trim() || completedAttachments.length > 0) {
+        if ((text.trim() || attachments.length > 0) && !isLoading) {
             let messageToSend = text.trim();
-            if (!messageToSend && completedAttachments.length > 0) {
-                messageToSend = t('chat.input.placeholderWithFiles', { count: completedAttachments.length.toString() });
+            if (!messageToSend && attachments.length > 0) {
+                messageToSend = "Refer to the following content:";
             }
-            onSendMessage(messageToSend, completedAttachments);
+            onSendMessage(messageToSend, attachments);
             setText('');
             setAttachments([]);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit(e);
+            if (textareaRef.current) {
+                textareaRef.current.style.height = '44px';
+            }
         }
     };
     
-    const isUploading = attachments.some(a => a.uploadStatus === 'uploading');
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e as unknown as React.FormEvent);
+        }
+    };
+    
+    const handleAttachClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const placeholder = attachments.length > 0 
+        ? t('chat.input.placeholderWithFiles', { count: attachments.length.toString() })
+        : t('chat.input.placeholder');
 
     return (
-        <form onSubmit={handleSubmit} className="relative">
-            {attachments.length > 0 && (
-                <div className="p-3 bg-card border border-default border-b-0 rounded-t-xl mb-[-1px]">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                        {attachments.map((file, index) => (
-                            <div key={index} className="relative group aspect-square">
-                                <div className="w-full h-full bg-token-surface-secondary rounded-lg flex items-center justify-center overflow-hidden">
-                                    {file.dataUrl && file.type.startsWith('image/') ? (
-                                        <img src={file.dataUrl} alt={file.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="text-center p-2 flex flex-col items-center justify-center">
-                                            <p className="text-xs text-token-secondary break-all">{file.name}</p>
-                                        </div>
-                                    )}
+        <div className="flex flex-col gap-0 justify-center w-full relative items-center">
+            <form onSubmit={handleSubmit} className="relative w-full max-w-4xl">
+                <input 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    multiple 
+                    type="file" 
+                    name="files" 
+                    onChange={handleFileChange}
+                />
+                <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
+                    {attachments.length > 0 && (
+                        <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
+                            {attachments.map((file, index) => (
+                                <div key={index} className="relative group/chip flex-shrink-0 mt-2">
+                                    <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
+                                        <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
+                                            <img alt={file.name} className="h-full w-full object-cover" src={file.dataUrl} />
+                                        </figure>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveFile(index)}
+                                        className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
+                                        aria-label={t('chat.input.removeFile', { filename: file.name })}
+                                    >
+                                        <XIcon className="size-4" />
+                                    </button>
                                 </div>
-                                 {file.uploadStatus === 'uploading' && (
-                                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white p-2">
-                                        <div className="w-full bg-white/30 rounded-full h-1.5">
-                                            <div className="bg-white h-1.5 rounded-full" style={{ width: `${file.progress || 0}%` }}></div>
-                                        </div>
-                                        <span className="text-xs font-medium mt-2">{Math.round(file.progress || 0)}%</span>
-                                    </div>
-                                )}
-                                {file.uploadStatus === 'error' && (
-                                    <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-white text-xs font-bold p-2">
-                                        Upload Failed
-                                    </div>
-                                )}
+                            ))}
+                        </div>
+                    )}
+                    <div className="relative z-10">
+                        <textarea
+                            ref={textareaRef}
+                            dir="auto"
+                            aria-label={placeholder}
+                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-muted"
+                            style={{ resize: 'none', minHeight: '44px' }}
+                            placeholder={placeholder}
+                            rows={1}
+                            value={text}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                        ></textarea>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
+                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
+                            <PaperclipIcon className="text-muted" />
+                        </button>
+                        <div className="ml-auto relative">
+                            {isLoading ? (
                                 <button
                                     type="button"
-                                    onClick={() => handleRemoveFile(index)}
-                                    className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                    aria-label={t('chat.input.removeFile', { filename: file.name })}
+                                    onClick={onAbortGeneration}
+                                    aria-label={t('chat.input.stop')}
+                                    className="inline-flex items-center justify-center rounded-xl h-12 w-12 sm:h-11 sm:w-11 bg-white dark:bg-card border border-default shadow-md"
+                                    style={{ transform: 'translateY(-2px)' }}
                                 >
-                                    <XIcon className="size-3" />
+                                    <div className="flex items-center justify-center h-7 w-7 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
+                                        <div className="h-3 w-3 bg-black dark:bg-white rounded-sm"></div>
+                                    </div>
                                 </button>
-                            </div>
-                        ))}
+                            ) : (
+                                <button
+                                    type="submit"
+                                    aria-label={t('chat.input.submit')}
+                                    className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    style={{ transform: 'translateY(-2px)' }}
+                                    disabled={(!text.trim() && attachments.length === 0)}
+                                >
+                                    <ArrowUpIcon />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-            )}
-            <div className="flex items-end p-2 bg-card/80 backdrop-blur-md border border-default rounded-xl shadow-sm">
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg flex-shrink-0"
-                    aria-label={t('chat.input.attach')}
-                >
-                    <PaperclipIcon className="size-5" />
-                </button>
-                <input
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    ref={fileInputRef}
-                    className="hidden"
-                />
-                <textarea
-                    ref={textareaRef}
-                    value={text}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('chat.input.placeholder')}
-                    className="flex-1 bg-transparent resize-none p-2 text-foreground placeholder-muted outline-none"
-                    rows={1}
-                    style={{ maxHeight: '200px' }}
-                />
-                 {isLoading ? (
-                     <button
-                        type="button"
-                        onClick={onAbortGeneration}
-                        className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg flex-shrink-0"
-                        aria-label={t('chat.input.stop')}
-                    >
-                        <div className="w-4 h-4 bg-foreground rounded-sm"></div>
-                    </button>
-                 ) : (
-                    <button
-                        type="submit"
-                        disabled={!text.trim() && attachments.length === 0 || isUploading}
-                        className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={t('chat.input.submit')}
-                    >
-                        <ArrowUpIcon className="size-5" />
-                    </button>
-                 )}
-            </div>
-            <p className="text-center text-xs text-muted mt-2 px-4">{t('chat.input.disclaimer')}</p>
-        </form>
+            </form>
+             <p className="text-xs text-center text-muted mt-2">
+                {t('chat.input.disclaimer')}
+            </p>
+        </div>
     );
 };
 

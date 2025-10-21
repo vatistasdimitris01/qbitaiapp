@@ -43,17 +43,9 @@ export const streamMessageToAI = async (
     });
 
     const apiAttachments = attachments?.map(file => {
-        // If it's a large file that was "uploaded", send its identifier.
-        if (file.fileIdentifier) {
-            return {
-                fileIdentifier: file.fileIdentifier,
-                mimeType: file.type,
-            };
-        }
-        // Otherwise, it's a small file; send its base64 data.
         return {
             mimeType: file.type,
-            data: file.dataUrl?.split(',')[1],
+            data: file.dataUrl.split(',')[1],
         };
     });
 

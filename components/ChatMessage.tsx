@@ -1,15 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom/client';
 import { marked } from 'marked';
-import type { Message, AIStatus, Citation } from '../types';
+import type { Message, GroundingChunk, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import InlineCitation from './InlineCitation';
-
 
 type ExecutionResult = {
   output: string | null;
@@ -39,62 +36,55 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'a
     </button>
 );
 
+const GroundingDisplay: React.FC<{ chunks: GroundingChunk[], t: (key: string) => string }> = ({ chunks, t }) => {
+    return (
+        <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
+            <div className="flex gap-2 text-sm text-muted-foreground">
+                <div className="relative mt-0.5">
+                    <SearchIcon className="size-4" />
+                </div>
+                <div className="flex-1 space-y-2">
+                    <div>{t('chat.message.grounding')}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {chunks.map((chunk, i) => (
+                            <a
+                                key={i}
+                                href={chunk.web.uri}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-md border border-transparent bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 gap-1 px-2 py-0.5 font-normal text-xs truncate"
+                                title={chunk.web.title}
+                            >
+                                {new URL(chunk.web.uri).hostname}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Simple HTML escape function to prevent XSS
+const escapeHtml = (html: string) => {
+    const text = document.createTextNode(html);
+    const p = document.createElement('p');
+    p.appendChild(text);
+    return p.innerHTML;
+};
+
 const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
 const isVideoFile = (mimeType: string) => mimeType.startsWith('video/');
 const isAudioFile = (mimeType: string) => mimeType.startsWith('audio/');
 
 
-const TextWithCitations: React.FC<{ text: string, citations?: Citation[], t: (key: string) => string, renderer: any }> = ({ text, citations, t, renderer }) => {
-    const rootRef = useRef<HTMLDivElement>(null);
-    const roots = useRef<Map<Element, any>>(new Map());
-
-    const html = useMemo(() => {
-        if (!citations || citations.length === 0) {
-            return marked.parse(text, { breaks: true, gfm: true, renderer });
-        }
-        let processedText = text;
-        citations.forEach(citation => {
-            const placeholder = `<span class="citation-placeholder" data-citation-number="${citation.number}"></span>`;
-            // Use a regex to replace all occurrences of the citation marker
-            const citationRegex = new RegExp(`\\[${citation.number}\\]`, 'g');
-            processedText = processedText.replace(citationRegex, placeholder);
-        });
-        return marked.parse(processedText, { breaks: true, gfm: true, renderer });
-    }, [text, citations, renderer]);
-
-    useEffect(() => {
-        if (rootRef.current && citations) {
-            const placeholders = rootRef.current.querySelectorAll('.citation-placeholder');
-            const currentRoots = roots.current;
-
-            placeholders.forEach(ph => {
-                const number = (ph as HTMLElement).dataset.citationNumber;
-                if (!number) return;
-
-                const citationData = citations.find(c => String(c.number) === number);
-                if (citationData) {
-                    if (!currentRoots.has(ph)) {
-                        const root = ReactDOM.createRoot(ph);
-                        currentRoots.set(ph, root);
-                    }
-                    const root = currentRoots.get(ph);
-                    root.render(<InlineCitation citation={citationData} t={t} />);
-                }
-            });
-        }
-    }, [html, citations, t]);
-
-    useEffect(() => {
-        const currentRoots = roots.current;
-        return () => {
-            // Unmount all roots on cleanup
-            currentRoots.forEach(root => root.unmount());
-        };
-    }, []);
-
-    return <div ref={rootRef} dangerouslySetInnerHTML={{ __html: html }} />;
-};
-
+// Helper to get string content from MessageContent
+const getTextFromMessage = (content: MessageContent): string => {
+    if (typeof content === 'string') {
+        return content;
+    }
+    return ''; // Other content types are handled as structured data.
+}
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
@@ -120,7 +110,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
 
-    const messageText = useMemo(() => typeof message.content === 'string' ? message.content : '', [message.content]);
+    const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
     const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50;
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
@@ -149,6 +139,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
+    // Update the ref whenever the response text changes. This doesn't re-trigger the typing effect.
     useEffect(() => {
         responseTextRef.current = parsedResponseText;
     }, [parsedResponseText]);
@@ -159,27 +150,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             
             const currentTarget = responseTextRef.current;
             if (charIndexRef.current < currentTarget.length) {
+                // Animate character by character quickly.
                 const nextCharIndex = charIndexRef.current + 1;
                 animationFrameRef.current = requestAnimationFrame(() => {
                     setTypedText(currentTarget.substring(0, nextCharIndex));
                 });
                 charIndexRef.current = nextCharIndex;
-                typingTimeoutRef.current = window.setTimeout(animate, 2); 
+                typingTimeoutRef.current = window.setTimeout(animate, 2); // Fast typing speed
             } else {
+                // Done with current text, check for more in a bit.
                 typingTimeoutRef.current = window.setTimeout(animate, 50);
             }
         };
 
         if (isLoading && aiStatus === 'generating') {
             if (!isAnimating.current) {
+                // Start animation
                 isAnimating.current = true;
                 animate();
             }
         } else {
+            // Stop animation
             isAnimating.current = false;
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             
+            // If finished loading, ensure final text is displayed and cursor is at the end
             if (!isLoading) {
                 setTypedText(responseTextRef.current);
                 charIndexRef.current = responseTextRef.current.length;
@@ -187,6 +183,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
 
         return () => {
+            // Cleanup on unmount
             isAnimating.current = false;
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -201,20 +198,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }, [aiStatus]);
 
     const contentParts = useMemo(() => {
-        if (isUser) return [];
+        if (message.type === MessageType.USER) return [];
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
     
-        type ContentPart = { type: 'text' | 'code'; content?: string; lang?: string; title?: string; code?: string; autorun?: boolean; collapsed?: boolean; noRun?: boolean; };
+        type ContentPart = {
+            type: 'text' | 'code';
+            content?: string;
+            lang?: string;
+            title?: string;
+            code?: string;
+            autorun?: boolean;
+            collapsed?: boolean;
+            noRun?: boolean;
+        };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
     
         sections.forEach((section, index) => {
             if (index % 2 === 0) {
+                // This is a text part
                 if (section) parts.push({ type: 'text', content: section });
             } else {
+                // This is a code part (info string + code)
                 const firstNewlineIndex = section.indexOf('\n');
                 if (firstNewlineIndex === -1) {
+                    // Incomplete info string or no code yet, treat as text for now
                     parts.push({ type: 'text', content: '```' + section });
                     return;
                 }
@@ -233,7 +242,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 const baseLang = isLegacyExample ? lang.substring(0, lang.length - '-example'.length) : lang;
                 
                 parts.push({
-                    type: 'code', lang: baseLang, autorun: keywords.has('autorun'), collapsed: keywords.has('collapsed'), noRun: keywords.has('no-run') || isLegacyExample, title: title, code: codeContent,
+                    type: 'code',
+                    lang: baseLang,
+                    autorun: keywords.has('autorun'),
+                    collapsed: keywords.has('collapsed'),
+                    noRun: keywords.has('no-run') || isLegacyExample,
+                    title: title,
+                    code: codeContent,
                 });
             }
         });
@@ -249,7 +264,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     
         return parts;
-    }, [isLoading, typedText, parsedResponseText, isUser, aiStatus]);
+    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
 
     const hasRenderableContent = useMemo(() => {
       return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
@@ -272,13 +287,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             .map(part => part.code!);
     }, [contentParts]);
 
-    const escapeHtml = (html: string) => {
-        const text = document.createTextNode(html);
-        const p = document.createElement('p');
-        p.appendChild(text);
-        return p.innerHTML;
-    };
-    
+
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
         renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
@@ -286,6 +295,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             if (lang === 'mermaid') {
                 return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
             }
+            // All other code rendering is handled by the contentParts logic,
+            // so this default renderer for inline/other code blocks can be simple.
             const safeLang = escapeHtml(lang);
             const escapedCode = escapeHtml(code);
              try {
@@ -298,19 +309,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         };
         return renderer;
     }, []);
-    
+
     const thinkingHtml = useMemo(() => {
         if (!parsedThinkingText) return '';
         return marked.parse(parsedThinkingText, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
     }, [parsedThinkingText, markedRenderer]);
 
     useEffect(() => {
-        if (contentRef.current && !isUser) {
+        if (contentRef.current && message.type !== MessageType.USER) {
             try {
-                if ((window as any).renderMathInElement) {
-                    (window as any).renderMathInElement(contentRef.current, { delimiters: [ { left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }, { left: '\\(', right: '\\)', display: false }, { left: '\\[', right: '\\]', display: true } ], throwOnError: false });
+                if ((window as any).renderMathInElement && (window as any).katex) {
+                    (window as any).renderMathInElement(contentRef.current, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$', right: '$', display: false },
+                            { left: '\\(', right: '\\)', display: false },
+                            { left: '\\[', right: '\\]', display: true }
+                        ],
+                        throwOnError: false
+                    });
                 }
-            } catch (error) { console.error('KaTeX rendering error:', error); }
+            } catch (error) {
+                console.error('KaTeX rendering error:', error);
+            }
 
             try {
                 const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
@@ -318,47 +339,88 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     (window as any).mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
                     mermaidElements.forEach((el) => {
                         if (el.textContent && !el.getAttribute('data-processed')) {
-                             try { (window as any).mermaid.render(`mermaid-${message.id}-${Math.random().toString(36).substring(2)}`, el.textContent, (svgCode: string) => { el.innerHTML = svgCode; el.setAttribute('data-processed', 'true'); });
-                            } catch(e) { el.innerHTML = "Error rendering diagram"; console.error("Mermaid render error:", e); }
+                             try {
+                                (window as any).mermaid.render(`mermaid-${message.id}-${Math.random().toString(36).substring(2)}`, el.textContent, (svgCode: string) => {
+                                    el.innerHTML = svgCode;
+                                    el.setAttribute('data-processed', 'true');
+                                });
+                            } catch(e) {
+                                el.innerHTML = "Error rendering diagram";
+                                console.error("Mermaid render error:", e);
+                            }
                         }
                     });
                 }
-            } catch (error) { console.error('Mermaid rendering error:', error); }
+            } catch (error) {
+                console.error('Mermaid rendering error:', error);
+            }
 
-            try { contentRef.current.querySelectorAll('input[type=checkbox]').forEach((el) => el.setAttribute('disabled', 'true'));
-            } catch (error) { console.error('Task list checkbox error:', error); }
+            try {
+                contentRef.current.querySelectorAll('input[type=checkbox]').forEach((el) => {
+                    el.setAttribute('disabled', 'true');
+                });
+            } catch (error) {
+                console.error('Task list checkbox error:', error);
+            }
         }
-    }, [contentParts, isUser, message.id, parsedResponseText]);
+    }, [contentParts, message.type, message.id, parsedResponseText]);
 
-    const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
+    const hasThinking = !isUser && ((message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && message.content.length > 0) || hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
     const loadingTexts = useMemo(() => {
       switch(aiStatus) {
-        case 'thinking': return [ t('chat.status.thinking'), t('chat.status.processing'), t('chat.status.analyzing'), t('chat.status.consulting'), ];
-        case 'searching': return [ t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle'), ];
-        case 'generating': return [ t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting'), ];
+        case 'thinking': return [
+          t('chat.status.thinking'),
+          t('chat.status.processing'),
+          t('chat.status.analyzing'),
+          t('chat.status.consulting'),
+        ];
+        case 'searching': return [
+          t('chat.status.searching'),
+          t('chat.status.finding'),
+          t('chat.status.consultingGoogle'),
+        ];
+        case 'generating': return [
+          t('chat.status.generating'),
+          t('chat.status.composing'),
+          t('chat.status.formatting'),
+        ];
         default: return [t('chat.status.thinking')];
       }
     }, [aiStatus, t]);
 
-    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) return null;
+
+    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) {
+      return null;
+    }
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className="group flex flex-col w-full max-w-3xl">
                 {hasThinking && (
                     <div className="w-full mb-2">
-                        <button type="button" onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground" aria-expanded={isThinkingOpen}>
-                            <BrainIcon className="size-4" />
-                            <span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsThinkingOpen(!isThinkingOpen)}
+                            className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                            aria-expanded={isThinkingOpen}
+                        >
+                            {message.type === MessageType.AI_SOURCES ? <SearchIcon className="size-4" /> : <BrainIcon className="size-4" />}
+                            <span className="flex-1 text-left font-medium hidden sm:inline">{message.type === MessageType.AI_SOURCES ? t('chat.message.grounding') : t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
+                                {message.type === MessageType.AI_SOURCES && Array.isArray(message.content) && (
+                                    <GroundingDisplay chunks={message.content as GroundingChunk[]} t={t} />
+                                )}
                                 {parsedThinkingText && (
                                     <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
-                                        <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} />
+                                        <div
+                                            className="prose prose-sm max-w-none text-muted-foreground"
+                                            dangerouslySetInnerHTML={{ __html: thinkingHtml }}
+                                        />
                                     </div>
                                 )}
                             </div>
@@ -369,19 +431,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     {isUser ? (
                         <>
                            {messageText && (
-                                <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'} bg-user-message text-foreground`}>
+                                <div className={`
+                                    w-fit max-w-full
+                                    ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'}
+                                    bg-user-message text-foreground
+                                `}>
                                     <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
                                         <p className="whitespace-pre-wrap">{messageText}</p>
                                     </div>
                                 </div>
                             )}
+
                             {hasAttachments && (
                                 <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
                                     {message.files?.map((file, index) => (
                                         <div key={index} className="w-48 flex-shrink-0">
-                                            {file.dataUrl && isImageFile(file.type) ? ( <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
-                                            ) : file.dataUrl && isVideoFile(file.type) ? ( <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
-                                            ) : file.dataUrl && isAudioFile(file.type) ? (
+                                            {isImageFile(file.type) ? (
+                                                <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
+                                            ) : isVideoFile(file.type) ? (
+                                                <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
+                                            ) : isAudioFile(file.type) ? (
                                                 <div className="p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg">
                                                     <audio src={file.dataUrl} controls className="w-full" />
                                                     <p className="text-xs text-muted-foreground break-all truncate mt-1" title={file.name}>{file.name}</p>
@@ -402,22 +471,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {
-                                        return <TextWithCitations key={index} text={part.content} citations={message.citations} t={t} renderer={markedRenderer} />;
+                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                        return <div key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
                                     if (part.type === 'code' && part.code) {
+                                        const isExecutable = !part.noRun;
                                         const key = `${message.id}_${index}`;
                                         return (
                                             <CodeExecutor
-                                                key={key} code={part.code} lang={part.lang!} title={part.title} isExecutable={!part.noRun} autorun={part.autorun} initialCollapsed={part.collapsed} persistedResult={executionResults[key]}
+                                                key={key}
+                                                code={part.code}
+                                                lang={part.lang!}
+                                                title={part.title}
+                                                isExecutable={isExecutable}
+                                                autorun={part.autorun}
+                                                initialCollapsed={part.collapsed}
+                                                persistedResult={executionResults[key]}
                                                 onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
                                                 onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
-                                                onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t}
+                                                onStopExecution={onStopExecution}
+                                                isPythonReady={isPythonReady}
+                                                isLoading={isLoading}
+                                                t={t}
                                             />
                                         );
                                     }
                                     return null;
                                 })}
-                                {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') && ( <AITextLoading texts={loadingTexts} /> )}
+                                
+                                {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') && (
+                                    <AITextLoading texts={loadingTexts} />
+                                )}
                             </div>
                         </div>
                     )}
@@ -434,7 +518,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     <GitForkIcon className="size-4" />
                                 </IconButton>
                                 {pythonCodeBlocks.length > 0 && (
-                                    <IconButton onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')} aria-label={t('chat.message.viewCode')}>
+                                    <IconButton
+                                        onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
+                                        aria-label={t('chat.message.viewCode')}
+                                    >
                                         <CodeXmlIcon className="size-5" />
                                     </IconButton>
                                 )}

@@ -16,8 +16,7 @@ interface HistoryItem {
 
 interface ApiAttachment {
     mimeType: string;
-    data?: string; // base64 encoded for small files
-    fileIdentifier?: string; // Cloud storage URI for large files
+    data: string; // base64 encoded
 }
 
 interface LocationInfo {
@@ -64,23 +63,12 @@ export default async function handler(req: Request) {
         const userMessageParts: Part[] = [{ text: userMessageText }];
         if (attachments && (attachments as ApiAttachment[]).length > 0) {
             for (const attachment of attachments as ApiAttachment[]) {
-                if (attachment.fileIdentifier) {
-                    // Handle large file from cloud storage
-                    userMessageParts.push({
-                        fileData: {
-                            mimeType: attachment.mimeType,
-                            fileUri: attachment.fileIdentifier,
-                        },
-                    });
-                } else if (attachment.data) {
-                    // Handle small file sent as base64
-                    userMessageParts.push({
-                        inlineData: {
-                            mimeType: attachment.mimeType,
-                            data: attachment.data,
-                        },
-                    });
-                }
+                userMessageParts.push({
+                    inlineData: {
+                        mimeType: attachment.mimeType,
+                        data: attachment.data,
+                    },
+                });
             }
         }
         
@@ -97,15 +85,7 @@ export default async function handler(req: Request) {
 
 - **Language**: The user is speaking ${userLanguageName}. It is a strict requirement that you also think and respond *only* in ${userLanguageName}. All of your output, including your internal thoughts inside <thinking> tags, MUST be in ${userLanguageName}. Do not use English unless the user explicitly asks for it in ${userLanguageName}.
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
-- **Web Search & Citations**:
-    - When you use Google Search results to answer, you MUST cite your sources.
-    - Citations MUST be inline and formatted as bracketed numbers, like [1], [2], etc., placed directly after the information they support.
-    - At the VERY END of your response, after all other content, you MUST include a \`<sources>\` block containing a JSON array of citations.
-    - Each object in the JSON array represents one citation number and can contain multiple sources.
-    - Each citation object MUST have a "number" (string) and a "sources" key, which is an array of source objects.
-    - Each source object MUST have "title" (string) and "url" (string) keys.
-    - Example: \`<sources>[{"number": "1", "sources": [{"title": "Example Title 1", "url": "https://example.com/1"}, {"title": "Example Title 2", "url": "https://example.com/2"}]}]</sources>\`.
-    - The citation number in the text MUST correspond to the number in the JSON block. Do not list sources anywhere else.
+- **Web Search**: You have access to Google Search for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should use your search tool. When you use search results, synthesize the information to formulate a comprehensive answer and cite your sources.
 - **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query. For general questions, ignore the location.
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
@@ -153,6 +133,12 @@ export default async function handler(req: Request) {
                     for await (const chunk of stream) {
                         if (chunk.text) {
                             write({ type: 'chunk', payload: chunk.text });
+                        }
+                        
+                        // Check for grounding metadata and send it as sources
+                        const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+                        if (groundingMetadata?.groundingChunks && groundingMetadata.groundingChunks.length > 0) {
+                            write({ type: 'sources', payload: groundingMetadata.groundingChunks });
                         }
 
                         if (chunk.usageMetadata && !usageMetadataSent) {

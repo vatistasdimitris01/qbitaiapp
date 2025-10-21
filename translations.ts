@@ -34,6 +34,9 @@ export const translations = {
         submit: 'Submit',
         stop: 'Stop generation',
         removeFile: 'Remove {filename}',
+        fileTooLarge: 'File "{filename}" is too large. Max per file is {size}.',
+        totalSizeTooLarge: 'Total attachment size exceeds the limit of {size}.',
+        tooManyFiles: 'You can attach a maximum of {count} files.',
       },
       message: {
         thinking: 'Chain of Thought',
@@ -174,6 +177,9 @@ export const translations = {
         submit: 'Υποβολή',
         stop: 'Διακοπή δημιουργίας',
         removeFile: 'Αφαίρεση {filename}',
+        fileTooLarge: 'Το αρχείο "{filename}" είναι πολύ μεγάλο. Το μέγιστο μέγεθος ανά αρχείο είναι {size}.',
+        totalSizeTooLarge: 'Το συνολικό μέγεθος των συνημμένων υπερβαίνει το όριο του {size}.',
+        tooManyFiles: 'Μπορείτε να επισυνάψετε το πολύ {count} αρχεία.',
       },
       message: {
         thinking: 'Ροή Σκέψης',
@@ -310,6 +316,9 @@ export const translations = {
         submit: 'Enviar',
         stop: 'Detener generación',
         removeFile: 'Quitar {filename}',
+        fileTooLarge: 'El archivo "{filename}" es demasiado grande. El tamaño máximo por archivo es {size}.',
+        totalSizeTooLarge: 'El tamaño total de los archivos adjuntos supera el límite de {size}.',
+        tooManyFiles: 'Puedes adjuntar un máximo de {count} archivos.',
       },
       message: {
         thinking: 'Cadena de Pensamiento',
@@ -446,6 +455,9 @@ export const translations = {
         submit: 'Envoyer',
         stop: 'Arrêter la génération',
         removeFile: 'Retirer {filename}',
+        fileTooLarge: 'Le fichier "{filename}" est trop volumineux. La taille maximale par fichier est de {size}.',
+        totalSizeTooLarge: "La taille totale des pièces jointes dépasse la limite de {size}.",
+        tooManyFiles: 'Vous pouvez joindre un maximum de {count} fichiers.',
       },
       message: {
         thinking: 'Chaîne de Pensée',
@@ -582,6 +594,9 @@ export const translations = {
         submit: 'Senden',
         stop: 'Generierung stoppen',
         removeFile: '{filename} entfernen',
+        fileTooLarge: 'Die Datei "{filename}" ist zu groß. Die maximale Größe pro Datei beträgt {size}.',
+        totalSizeTooLarge: 'Die Gesamtgröße der Anhänge überschreitet das Limit von {size}.',
+        tooManyFiles: 'Sie können maximal {count} Dateien anhängen.',
       },
       message: {
         thinking: 'Gedankenkette',

@@ -18,6 +18,12 @@ const fileToDataURL = (file: File): Promise<string> => {
     });
 };
 
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_MB = 3;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_TOTAL_SIZE_MB = 4;
+const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
     const [text, setText] = useState('');
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -38,17 +44,48 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
     
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const filePromises = Array.from(e.target.files).map(async (file: File) => {
-                const dataUrl = await fileToDataURL(file);
-                return {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    dataUrl
-                };
-            });
-            const newAttachments = await Promise.all(filePromises);
-            setAttachments(prev => [...prev, ...newAttachments]);
+            const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
+
+            let allowedNewFiles: File[] = [];
+            let newFilesSize = 0;
+
+            // FIX: Iterate directly over `e.target.files` (a FileList) to ensure correct type inference for `file` as `File`.
+            // This resolves the errors where properties like `.size` and `.name` were not found on an `unknown` type.
+            for (const file of e.target.files) {
+                if (attachments.length + allowedNewFiles.length >= MAX_FILES) {
+                    window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
+                    break;
+                }
+                if (file.size > MAX_FILE_SIZE) {
+                    window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_MB}MB` }));
+                    continue;
+                }
+                if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
+                    window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_MB}MB` }));
+                    break;
+                }
+                
+                allowedNewFiles.push(file);
+                newFilesSize += file.size;
+            }
+
+            if (allowedNewFiles.length > 0) {
+                const filePromises = allowedNewFiles.map(async (file: File) => {
+                    const dataUrl = await fileToDataURL(file);
+                    return {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        dataUrl
+                    };
+                });
+                const newAttachments = await Promise.all(filePromises);
+                setAttachments(prev => [...prev, ...newAttachments]);
+            }
+        }
+        // Reset file input value to allow selecting the same file again
+        if (e.target) {
+            e.target.value = '';
         }
     };
     

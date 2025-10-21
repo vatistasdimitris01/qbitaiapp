@@ -19,10 +19,10 @@ const fileToDataURL = (file: File): Promise<string> => {
 };
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_MB = 3;
-const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_TOTAL_SIZE_MB = 4;
-const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+const MAX_FILE_SIZE_GB = 30;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
+const MAX_TOTAL_SIZE_GB = 50;
+const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
     const [text, setText] = useState('');
@@ -57,11 +57,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                     break;
                 }
                 if (file.size > MAX_FILE_SIZE) {
-                    window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_MB}MB` }));
+                    window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_GB}GB` }));
                     continue;
                 }
                 if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
-                    window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_MB}MB` }));
+                    window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_GB}GB` }));
                     break;
                 }
                 

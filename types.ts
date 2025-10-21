@@ -23,7 +23,7 @@ export interface CitationSource {
 }
 
 export interface Citation {
-  number: number;
+  number: string;
   sources: CitationSource[];
 }
 

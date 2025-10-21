@@ -92,7 +92,7 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
 };
 
 const parseCitationsFromContent = (content: string): { cleanedContent: string; citations: Citation[] } => {
-    const citationRegex = /```json:citations\n([\s\S]*?)```/;
+    const citationRegex = /```json:citations\s*([\s\S]*?)```/; // More lenient regex
     const match = content.match(citationRegex);
 
     if (!match || !match[1]) {
@@ -103,8 +103,13 @@ const parseCitationsFromContent = (content: string): { cleanedContent: string; c
     try {
         const citations = JSON.parse(match[1]);
         if (Array.isArray(citations)) {
-             return { cleanedContent, citations };
+            // Validate that citations have the expected structure
+            const validCitations = citations.filter(c => 
+                c && typeof c.number === 'string' && Array.isArray(c.sources)
+            );
+            return { cleanedContent, citations: validCitations };
         }
+       // If JSON is valid but not an array, it's malformed. Return original content.
        return { cleanedContent: content, citations: [] };
     } catch (e) {
         console.error("Failed to parse citations JSON:", match[1], e);

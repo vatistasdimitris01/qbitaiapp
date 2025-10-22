@@ -7,6 +7,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
+import CitationPill from './CitationPill';
 
 type ExecutionResult = {
   output: string | null;
@@ -29,6 +30,43 @@ interface ChatMessageProps {
     isPythonReady: boolean;
     t: (key: string) => string;
 }
+
+const MessageContentRenderer: React.FC<{ content: string; citations?: Citation[]; renderer: any }> = ({ content, citations = [], renderer }) => {
+    if (!citations.length) {
+        const html = marked.parse(content, { breaks: true, gfm: true, renderer }) as string;
+        return <span dangerouslySetInnerHTML={{ __html: html }} />;
+    }
+
+    const citationMap = new Map<string, Citation>();
+    citations.forEach(c => citationMap.set(c.number, c));
+
+    // Split by groups of citation markers e.g., [1], [1][2]
+    const parts = content.split(/((?:\[\d+\])+)/g);
+
+    return (
+        <>
+            {parts.map((part, index) => {
+                // Check if the part is a citation group
+                if (/^((?:\[\d+\])+)$/.test(part)) {
+                    // Extract individual markers e.g., "[1][2]" -> ["[1]", "[2]"]
+                    const individualMarkers = part.match(/\[\d+\]/g) || [];
+                    return individualMarkers.map((marker, i) => {
+                        const number = marker.replace(/[\[\]]/g, '');
+                        const citation = citationMap.get(number);
+                        if (citation && citation.sources.length > 0) {
+                            return <CitationPill key={`${index}-${i}`} source={citation.sources[0]} />;
+                        }
+                        return marker; // Render as text if not found
+                    });
+                } else if (part) {
+                    const html = marked.parse(part, { breaks: true, gfm: true, renderer }) as string;
+                    return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                }
+                return null;
+            })}
+        </>
+    );
+};
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
@@ -438,8 +476,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {
-                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                        return <MessageContentRenderer key={index} content={part.content} citations={message.citations} renderer={markedRenderer} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

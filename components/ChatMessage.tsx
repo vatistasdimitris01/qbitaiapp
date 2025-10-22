@@ -7,22 +7,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import { 
-    InlineCitation,
-    InlineCitationCard,
-    InlineCitationCardBody,
-    InlineCitationCardTrigger,
-    InlineCitationCarousel,
-    InlineCitationCarouselContent,
-    InlineCitationCarouselHeader,
-    InlineCitationCarouselIndex,
-    InlineCitationCarouselItem,
-    InlineCitationCarouselNext,
-    InlineCitationCarouselPrev,
-    InlineCitationQuote,
-    InlineCitationSource
-} from './InlineCitation';
-
+import InlineCitation from './InlineCitation';
 
 type ExecutionResult = {
   output: string | null;
@@ -473,43 +458,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
                                     if (part.type === 'citation' && part.citation) {
-                                        const citation = part.citation;
-                                        return (
-                                            <InlineCitation key={index}>
-                                              <InlineCitationCard>
-                                                <InlineCitationCardTrigger sources={citation.sources.map(s => s.url)}>
-                                                    {citation.number}
-                                                </InlineCitationCardTrigger>
-                                                <InlineCitationCardBody>
-                                                  <InlineCitationCarousel sources={citation.sources}>
-                                                    {citation.sources.length > 1 && (
-                                                        <InlineCitationCarouselHeader>
-                                                          <InlineCitationCarouselPrev />
-                                                          <InlineCitationCarouselIndex />
-                                                          <InlineCitationCarouselNext />
-                                                        </InlineCitationCarouselHeader>
-                                                    )}
-                                                    <InlineCitationCarouselContent>
-                                                      {citation.sources.map((source, sourceIdx) => (
-                                                        <InlineCitationCarouselItem key={sourceIdx}>
-                                                          <InlineCitationSource
-                                                            title={source.title}
-                                                            url={source.url}
-                                                            description={source.description}
-                                                          />
-                                                          {source.quote && (
-                                                            <InlineCitationQuote>
-                                                              {source.quote}
-                                                            </InlineCitationQuote>
-                                                          )}
-                                                        </InlineCitationCarouselItem>
-                                                      ))}
-                                                    </InlineCitationCarouselContent>
-                                                  </InlineCitationCarousel>
-                                                </InlineCitationCardBody>
-                                              </InlineCitationCard>
-                                            </InlineCitation>
-                                        );
+                                        return <InlineCitation key={index} citation={part.citation} t={t} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

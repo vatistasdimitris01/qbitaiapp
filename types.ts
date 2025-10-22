@@ -20,8 +20,6 @@ export interface GroundingChunk {
 export interface CitationSource {
   url: string;
   title: string;
-  description?: string;
-  quote?: string;
 }
 
 export interface Citation {
@@ -83,8 +81,6 @@ export interface Persona {
 export interface LocationInfo {
     city: string;
     country: string;
-    latitude?: number;
-    longitude?: number;
 }
 
 export interface Conversation {

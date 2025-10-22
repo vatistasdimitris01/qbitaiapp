@@ -22,8 +22,6 @@ interface ApiAttachment {
 interface LocationInfo {
     city: string;
     country: string;
-    latitude?: number;
-    longitude?: number;
 }
 
 const languageMap: { [key: string]: string } = {
@@ -57,7 +55,12 @@ export default async function handler(req: Request) {
             parts: [{ text: msg.text }],
         }));
         
-        const userMessageParts: Part[] = [{ text: message }];
+        let userMessageText = message;
+        if (location && (location as LocationInfo).city && (location as LocationInfo).country) {
+            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${message}`;
+        }
+
+        const userMessageParts: Part[] = [{ text: userMessageText }];
         if (attachments && (attachments as ApiAttachment[]).length > 0) {
             for (const attachment of attachments as ApiAttachment[]) {
                 userMessageParts.push({
@@ -82,31 +85,32 @@ export default async function handler(req: Request) {
 
 - **Language**: The user is speaking ${userLanguageName}. It is a strict requirement that you also think and respond *only* in ${userLanguageName}. All of your output, including your internal thoughts inside <thinking> tags, MUST be in ${userLanguageName}. Do not use English unless the user explicitly asks for it in ${userLanguageName}.
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
-- **Web Search & Citations**:
-  - You have access to Google Search for recent information.
-  - When you use information from Google Search, you MUST provide citations. THIS IS NOT OPTIONAL.
-  - **Citation Process**:
-    1.  Place a numeric marker like \`[1]\` in the text immediately after the cited information.
-    2.  At the VERY END of your entire response, append a JSON code block with the details for all citations.
-    3.  This block MUST start with \`\`\`json:citations and end with \`\`\`. There must be no other text after this block.
-  - **JSON Format**: The JSON block must contain an array of objects. Each object must have:
-    - \`number\`: A string matching the marker in the text (e.g., \`"1"\`).
-    - \`sources\`: An array containing one or more source objects.
-    - Each \`source\` object must have a \`url\` and a \`title\`. It can optionally have a \`description\` and a \`quote\`.
-  - **Example**:
-    The sky is blue [1].
-    \`\`\`json:citations
-    [
-      {
-        "number": "1",
-        "sources": [
-          { "url": "https://example.com/sky", "title": "Why the Sky is Blue", "quote": "The sky is blue because of Rayleigh scattering." }
-        ]
-      }
+- **Web Search**: You have access to Google Search for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should use your search tool.
+- **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query. For general questions, ignore the location.
+- **Citations**: When you use Google Search to answer, you MUST cite your sources. IT IS CRITICAL that you follow this format precisely.
+    1. Insert numeric markers in the text, like [1], [2], etc., immediately after the information you are citing.
+    2. A single piece of information might have multiple sources; cite them like [1][2].
+    3. After your main response, you MUST append a JSON code block containing the citation data. This block MUST start with \`\`\`json:citations and end with \`\`\`.
+    4. The JSON must be an array of objects. Each object needs a "number" (as a string, e.g., "1") and a "sources" array. Each source object needs a "url" and "title" from the search results.
+    5. DO NOT include the "Citations" JSON block if you did not use Google Search.
+- **Example Citation Format**:
+The sky appears blue due to a phenomenon called Rayleigh scattering [1]. Sunlight reaches Earth's atmosphere and is scattered in all directions by the tiny molecules of gas and other particles in the air [1][2].
+\`\`\`json:citations
+[
+  {
+    "number": "1",
+    "sources": [
+      { "url": "https://spaceplace.nasa.gov/blue-sky/en/", "title": "Why Is the Sky Blue? | NASA Space Place" }
     ]
-    \`\`\`
-  - If you do not use Google Search for an answer, DO NOT include citations or the JSON block.
-- **Location-Aware Search**: The user's location is provided via API. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to provide a better answer. For general questions, ignore the location.
+  },
+  {
+    "number": "2",
+    "sources": [
+      { "url": "https://www.scientificamerican.com/article/why-is-the-sky-blue/", "title": "Why Is the Sky Blue? - Scientific American" }
+    ]
+  }
+]
+\`\`\`
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
 - **CODE FORMATTING GUIDE**:
@@ -133,22 +137,7 @@ export default async function handler(req: Request) {
         const finalSystemInstruction = personaInstruction
             ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`
             : baseSystemInstruction;
-        
-        const tools: any[] = [{googleSearch: {}}];
-        let toolConfig: any = undefined;
-
-        if (location && (location as LocationInfo).latitude && (location as LocationInfo).longitude) {
-            tools.push({googleMaps: {}});
-            toolConfig = {
-                retrievalConfig: {
-                    latLng: {
-                        latitude: (location as LocationInfo).latitude,
-                        longitude: (location as LocationInfo).longitude,
-                    }
-                }
-            };
-        }
-
+            
         const responseStream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
@@ -160,8 +149,7 @@ export default async function handler(req: Request) {
                         contents: contents,
                         config: {
                             systemInstruction: finalSystemInstruction,
-                            tools: tools,
-                            toolConfig: toolConfig,
+                            tools: [{googleSearch: {}}], // Use the built-in Google Search tool
                         },
                     });
 

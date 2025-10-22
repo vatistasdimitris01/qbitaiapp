@@ -48,13 +48,13 @@ const LocationBanner: React.FC<LocationBannerProps> = ({ onLocationUpdate, t }) 
             const country = address.country || 'Unknown Country';
             const countryCode = data?.address?.country_code?.toUpperCase();
             const detectedLang = countryCode ? countryToLang[countryCode] : undefined;
-            onLocationUpdate({ city, country, latitude, longitude }, detectedLang);
+            onLocationUpdate({ city, country }, detectedLang);
         } else {
-            onLocationUpdate({ city: 'Unknown City', country: 'Unknown Country', latitude, longitude });
+            onLocationUpdate({ city: 'Unknown City', country: 'Unknown Country' });
         }
       } catch (error) {
         console.error("Error fetching location data:", error);
-        onLocationUpdate({ city: 'Unknown City', country: 'Unknown Country', latitude, longitude }); // Provide fallback
+        onLocationUpdate({ city: 'Unknown City', country: 'Unknown Country' }); // Provide fallback
       }
   };
 

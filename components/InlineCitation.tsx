@@ -7,7 +7,7 @@ interface InlineCitationProps {
   t: (key: string) => string;
 }
 
-const InlineCitation: React.FC<InlineCitationProps> = ({ citation, t }) => {
+const InlineCitation: React.FC<InlineCitationProps> = ({ citation }) => {
   const [isCardVisible, setIsCardVisible] = useState(false);
   const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
 
@@ -30,15 +30,13 @@ const InlineCitation: React.FC<InlineCitationProps> = ({ citation, t }) => {
     setCurrentSourceIndex(i => (i + 1) % sources.length);
   };
 
-
   return (
     <span 
       className="inline-block relative align-super mx-0.5"
       onMouseEnter={() => setIsCardVisible(true)}
       onMouseLeave={() => {
         setIsCardVisible(false);
-        // Reset to first source when mouse leaves to ensure it starts fresh next time
-        setCurrentSourceIndex(0);
+        setCurrentSourceIndex(0); // Reset on leave
       }}
       style={{ lineHeight: 1 }}
     >
@@ -53,34 +51,44 @@ const InlineCitation: React.FC<InlineCitationProps> = ({ citation, t }) => {
         <div 
           id={`citation-card-${citation.number}`}
           role="tooltip"
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-card border border-default rounded-lg shadow-xl z-10 text-left animate-fade-in-up"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-card border border-default rounded-lg shadow-xl z-10 text-left animate-fade-in-up overflow-hidden"
           style={{ animationDuration: '200ms' }}
         >
           {sources.length > 1 && (
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-default">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-default">
               <button onClick={handlePrev} className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground" aria-label="Previous source">
                 <ChevronDownIcon className="size-4 rotate-90" />
               </button>
-              <span className="text-xs font-mono text-muted-foreground">
+              <div className="text-xs font-mono text-muted-foreground">
                 {currentSourceIndex + 1} / {sources.length}
-              </span>
+              </div>
               <button onClick={handleNext} className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground" aria-label="Next source">
                 <ChevronDownIcon className="size-4 -rotate-90" />
               </button>
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            <a 
-              href={currentSource.url} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-sm font-semibold text-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words leading-snug"
-            >
-              {currentSource.title}
-            </a>
-            <p className="text-xs text-muted-foreground break-words truncate">
-              {hostname}
-            </p>
+          <div className="p-3">
+            <div className="flex flex-col gap-1.5">
+              <a 
+                href={currentSource.url} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-sm font-semibold text-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words leading-snug"
+              >
+                {currentSource.title}
+              </a>
+              <p className="text-xs text-muted-foreground break-words truncate">
+                {hostname}
+              </p>
+              {currentSource.description && (
+                 <p className="text-xs text-muted-foreground mt-1">{currentSource.description}</p>
+              )}
+            </div>
+            {currentSource.quote && (
+              <blockquote className="mt-3 text-xs italic border-l-2 border-default text-muted-foreground !my-0 !p-0 !pl-3 !border-l-2">
+                {currentSource.quote}
+              </blockquote>
+            )}
           </div>
         </div>
       )}

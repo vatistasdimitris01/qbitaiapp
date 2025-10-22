@@ -7,7 +7,6 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import InlineCitation from './InlineCitation';
 
 type ExecutionResult = {
   output: string | null;
@@ -195,7 +194,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
     
         type ContentPart = {
-            type: 'text' | 'code' | 'citation';
+            type: 'text' | 'code';
             content?: string;
             lang?: string;
             title?: string;
@@ -203,30 +202,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             autorun?: boolean;
             collapsed?: boolean;
             noRun?: boolean;
-            citation?: Citation;
         };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
-
-        const citationMap = message.citations ? new Map(message.citations.map(c => [`[${c.number}]`, c])) : null;
     
         sections.forEach((section, index) => {
             if (index % 2 === 0) {
                 // This is a text part
                 if (section) {
-                    if (citationMap) {
-                        const textSubParts = section.split(/(\[\d+\])/g);
-                        textSubParts.forEach((subPart) => {
-                            const citation = citationMap.get(subPart);
-                            if (citation) {
-                                parts.push({ type: 'citation', citation });
-                            } else if (subPart) {
-                                parts.push({ type: 'text', content: subPart });
-                            }
-                        });
-                    } else {
-                        parts.push({ type: 'text', content: section });
-                    }
+                    parts.push({ type: 'text', content: section });
                 }
             } else {
                 // This is a code part (info string + code)
@@ -273,10 +257,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     
         return parts;
-    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus, message.citations]);
+    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
 
     const hasRenderableContent = useMemo(() => {
-      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || p.type === 'code' || p.type === 'citation');
+      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || p.type === 'code');
     }, [contentParts]);
 
 
@@ -457,9 +441,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
                                         return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
-                                    if (part.type === 'citation' && part.citation) {
-                                        return <InlineCitation key={index} citation={part.citation} />;
-                                    }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;
                                         const key = `${message.id}_${index}`;
@@ -489,32 +470,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     <AITextLoading texts={loadingTexts} />
                                 )}
                             </div>
-                             {!isUser && !isLoading && message.citations && message.citations.length > 0 && (
-                                <div className="mt-4 pt-3 border-t border-default">
-                                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{t('chat.message.grounding')}</h4>
-                                    <div className="flex flex-col gap-2">
-                                        {message.citations.flatMap((citation) => 
-                                            citation.sources.map((source, index) => (
-                                                <a 
-                                                    key={`${citation.number}-${index}`} 
-                                                    href={source.url} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer" 
-                                                    className="group flex items-center gap-3 p-2 rounded-lg bg-token-surface-secondary/50 hover:bg-token-surface-secondary transition-colors"
-                                                >
-                                                    <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-xs font-bold text-sidebar-active-fg bg-sidebar-active border border-sidebar rounded-full">
-                                                        {citation.number}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-foreground truncate group-hover:underline">{source.title}</p>
-                                                        <p className="text-xs text-muted-foreground truncate">{new URL(source.url).hostname}</p>
-                                                    </div>
-                                                </a>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>

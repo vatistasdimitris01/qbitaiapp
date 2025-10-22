@@ -135,9 +135,6 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
   const [appHeight, setAppHeight] = useState(window.innerHeight);
-
-  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
-  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
@@ -147,14 +144,6 @@ const App: React.FC = () => {
   const mainContentRef = useRef<HTMLElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { t, setLang, lang } = useTranslations(language);
-  
-  const handleUpdate = () => {
-    if (waitingWorkerRef.current) {
-        waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' });
-        // The page will reload after the new service worker takes control.
-        setShowUpdateBanner(false);
-    }
-  };
 
   const checkPythonReady = useCallback(() => {
     // This function can be called multiple times (e.g., after stopping execution).
@@ -178,10 +167,11 @@ const App: React.FC = () => {
     checkPythonReady();
   }, [checkPythonReady]);
 
-  // Service Worker Update Handler
+  // Service Worker Auto-Update Handler
   useEffect(() => {
     if ('serviceWorker' in navigator) {
         const handleControllerChange = () => {
+            // When the new service worker takes control, reload to get latest assets.
             window.location.reload();
         };
         
@@ -196,9 +186,9 @@ const App: React.FC = () => {
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
-                                    // New update available
-                                    waitingWorkerRef.current = installingWorker;
-                                    setShowUpdateBanner(true);
+                                    // A new service worker is installed and waiting.
+                                    // Post message to the new worker to activate it immediately for an auto-update.
+                                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
                                 }
                             }
                         };
@@ -759,15 +749,6 @@ ${error}
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
-      {showUpdateBanner && (
-        <div className="absolute top-0 left-0 right-0 bg-blue-500 text-white text-sm text-center p-2 flex items-center justify-center gap-4 z-[100]">
-            <p>{t('updateBanner.text')}</p>
-            <button onClick={handleUpdate} className="bg-white text-blue-500 font-semibold px-3 py-1 rounded-md hover:opacity-90">
-                {t('updateBanner.button')}
-            </button>
-        </div>
-      )}
-      
       {/* Floating Sidebar Toggle Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}

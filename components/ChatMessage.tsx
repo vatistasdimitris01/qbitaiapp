@@ -458,7 +458,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
                                     if (part.type === 'citation' && part.citation) {
-                                        return <InlineCitation key={index} citation={part.citation} t={t} />;
+                                        return <InlineCitation key={index} citation={part.citation} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

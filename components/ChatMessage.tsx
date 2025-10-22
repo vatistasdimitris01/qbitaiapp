@@ -58,48 +58,6 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const ParsedMarkdown: React.FC<{ markdown: string; citations: Citation[]; renderer: marked.Renderer; t: (key: string) => string }> = ({ markdown, citations, renderer, t }) => {
-    const citationMap = useMemo(() => new Map((citations || []).map(c => [`[${c.number}]`, c])), [citations]);
-
-    // Use a placeholder that is unlikely to be in the original text.
-    const placeholder = '||CITATION||';
-    
-    // Build a queue of citations in the order they appear.
-    const citationQueue = useMemo(() => {
-        const queue: Citation[] = [];
-        markdown.replace(/\[\d+\]/g, (match) => {
-            const citation = citationMap.get(match);
-            if (citation) {
-                queue.push(citation);
-            }
-            return match;
-        });
-        return queue;
-    }, [markdown, citationMap]);
-
-    // Replace citation markers in the text with the placeholder.
-    const textWithPlaceholders = markdown.replace(/\[\d+\]/g, (match) => {
-        return citationMap.has(match) ? placeholder : match;
-    });
-
-    const html = marked.parse(textWithPlaceholders, { breaks: true, gfm: true, renderer }) as string;
-    const parts = html.split(placeholder);
-
-    return (
-        <>
-            {parts.map((part, index) => (
-                <React.Fragment key={index}>
-                    <span dangerouslySetInnerHTML={{ __html: part }} />
-                    {index < parts.length - 1 && citationQueue[index] && (
-                        <InlineCitation citation={citationQueue[index]} t={t} />
-                    )}
-                </React.Fragment>
-            ))}
-        </>
-    );
-};
-
-
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -230,37 +188,52 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         };
         return renderer;
     }, []);
-    
+
     const contentParts = useMemo(() => {
         if (message.type === MessageType.USER) return [];
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
-
+    
         type ContentPart = {
-            type: 'markdown' | 'code';
-            content?: string; // for markdown
+            type: 'text' | 'code' | 'citation';
+            content?: string;
             lang?: string;
             title?: string;
-            code?: string; // for code
+            code?: string;
             autorun?: boolean;
             collapsed?: boolean;
             noRun?: boolean;
+            citation?: Citation;
         };
         const parts: ContentPart[] = [];
         const sections = textToRender.split('```');
 
+        const citationMap = message.citations ? new Map(message.citations.map(c => [`[${c.number}]`, c])) : null;
+    
         sections.forEach((section, index) => {
             if (index % 2 === 0) {
-                // This is a markdown part
+                // This is a text part
                 if (section) {
-                    parts.push({ type: 'markdown', content: section });
+                    if (citationMap) {
+                        const textSubParts = section.split(/(\[\d+\])/g);
+                        textSubParts.forEach((subPart) => {
+                            const citation = citationMap.get(subPart);
+                            if (citation) {
+                                parts.push({ type: 'citation', citation });
+                            } else if (subPart) {
+                                parts.push({ type: 'text', content: subPart });
+                            }
+                        });
+                    } else {
+                        parts.push({ type: 'text', content: section });
+                    }
                 }
             } else {
                 // This is a code part (info string + code)
                 const firstNewlineIndex = section.indexOf('\n');
                 if (firstNewlineIndex === -1) {
-                    // Incomplete info string or no code yet, treat as markdown for now
-                    parts.push({ type: 'markdown', content: '```' + section });
+                    // Incomplete info string or no code yet, treat as text for now
+                    parts.push({ type: 'text', content: '```' + section });
                     return;
                 }
                 const infoString = section.substring(0, firstNewlineIndex).trim();
@@ -292,18 +265,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         if (isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
             const lastPart = parts[parts.length - 1];
-            if (lastPart && lastPart.type === 'markdown') {
+            if (lastPart && lastPart.type === 'text') {
                 lastPart.content = (lastPart.content || '') + cursorHtml;
             } else {
-                parts.push({ type: 'markdown', content: cursorHtml });
+                parts.push({ type: 'text', content: cursorHtml });
             }
         }
     
         return parts;
-    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
+    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus, message.citations]);
 
     const hasRenderableContent = useMemo(() => {
-      return contentParts.some(p => (p.type === 'markdown' && p.content && p.content.trim() !== '') || (p.type === 'code' && p.code));
+      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || p.type === 'code' || p.type === 'citation');
     }, [contentParts]);
 
 
@@ -480,8 +453,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         <div className="w-fit max-w-full">
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
-                                    if (part.type === 'markdown' && part.content) {
-                                       return <ParsedMarkdown key={index} markdown={part.content} citations={message.citations || []} renderer={markedRenderer} t={t} />;
+                                    if (part.type === 'text' && part.content) {
+                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+                                    }
+                                    if (part.type === 'citation' && part.citation) {
+                                        return <InlineCitation key={index} citation={part.citation} t={t} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

@@ -92,7 +92,7 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
 };
 
 const parseCitationsFromContent = (content: string): { cleanedContent: string; citations: Citation[] } => {
-    const citationRegex = /```\s*json\s*:\s*citations\s*([\s\S]*?)```/i;
+    const citationRegex = /```json:citations\s*([\s\S]*?)```/; // More lenient regex
     const match = content.match(citationRegex);
 
     if (!match || !match[1]) {

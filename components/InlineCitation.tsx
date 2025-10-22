@@ -21,9 +21,8 @@ const InlineCitation: React.FC<InlineCitationProps> = ({ citation }) => {
       href={firstSource.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-sidebar-active-fg bg-sidebar-active border border-sidebar rounded-full no-underline transition-transform duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-background relative align-super mx-0.5"
+      className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-sidebar-active-fg bg-sidebar-active border border-sidebar rounded-full no-underline transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-background align-baseline mx-0.5 translate-y-[-1.5px]"
       title={firstSource.title}
-      style={{ lineHeight: 1 }}
     >
       {citation.number}
     </a>

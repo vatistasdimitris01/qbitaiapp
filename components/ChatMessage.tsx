@@ -489,6 +489,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     <AITextLoading texts={loadingTexts} />
                                 )}
                             </div>
+                             {!isUser && !isLoading && message.citations && message.citations.length > 0 && (
+                                <div className="mt-4 pt-3 border-t border-default">
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{t('chat.message.grounding')}</h4>
+                                    <div className="flex flex-col gap-2">
+                                        {message.citations.flatMap((citation) => 
+                                            citation.sources.map((source, index) => (
+                                                <a 
+                                                    key={`${citation.number}-${index}`} 
+                                                    href={source.url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="group flex items-center gap-3 p-2 rounded-lg bg-token-surface-secondary/50 hover:bg-token-surface-secondary transition-colors"
+                                                >
+                                                    <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-xs font-bold text-sidebar-active-fg bg-sidebar-active border border-sidebar rounded-full">
+                                                        {citation.number}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-foreground truncate group-hover:underline">{source.title}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">{new URL(source.url).hostname}</p>
+                                                    </div>
+                                                </a>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                      <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>

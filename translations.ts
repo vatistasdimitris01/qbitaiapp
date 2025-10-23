@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     // App-level
@@ -148,6 +149,7 @@ export const translations = {
       title: 'Local Places',
       directions: 'Directions',
       placesFound: '{count} places found',
+      mapPreview: 'Map preview',
     },
     mapView: {
       header: 'Explore on Map',
@@ -300,6 +302,7 @@ export const translations = {
       title: 'Τοπικά Μέρη',
       directions: 'Οδηγίες',
       placesFound: 'Βρέθηκαν {count} μέρη',
+      mapPreview: 'Προεπισκόπηση χάρτη',
     },
     mapView: {
       header: 'Εξερεύνηση στον Χάρτη',
@@ -452,6 +455,7 @@ export const translations = {
       title: 'Lugares Locales',
       directions: 'Direcciones',
       placesFound: '{count} lugares encontrados',
+      mapPreview: 'Vista previa del mapa',
     },
     mapView: {
       header: 'Explorar en el Mapa',
@@ -604,6 +608,7 @@ export const translations = {
       title: 'Lieux Locaux',
       directions: 'Itinéraire',
       placesFound: '{count} lieux trouvés',
+      mapPreview: 'Aperçu de la carte',
     },
     mapView: {
       header: 'Explorer sur la carte',
@@ -756,6 +761,7 @@ export const translations = {
       title: 'Orte in der Nähe',
       directions: 'Route',
       placesFound: '{count} Orte gefunden',
+      mapPreview: 'Kartenvorschau',
     },
     mapView: {
       header: 'Auf Karte erkunden',

@@ -24,21 +24,19 @@ const MapsCard: React.FC<MapCardProps> = ({ chunks, onShowMap, t }) => {
     return (
         <div className="not-prose my-4 bg-card border border-default rounded-xl overflow-hidden max-w-sm animate-fade-in-up relative aspect-video">
             <div className="absolute inset-0">
-                <APIProvider apiKey={process.env.API_KEY!}>
-                    <Map
-                        mapId="qbit-maps-card-preview"
-                        defaultCenter={center}
-                        defaultZoom={12}
-                        gestureHandling={'none'}
-                        disableDefaultUI={true}
-                        mapTypeId={'satellite'}
-                    >
-                       {chunks.map(chunk => (
-                           (chunk.maps.latitude && chunk.maps.longitude) &&
-                           <AdvancedMarker key={chunk.maps.uri} position={{lat: chunk.maps.latitude, lng: chunk.maps.longitude}} />
-                       ))}
-                    </Map>
-                </APIProvider>
+                <Map
+                    mapId="qbit-maps-card-preview"
+                    defaultCenter={center}
+                    defaultZoom={12}
+                    gestureHandling={'none'}
+                    disableDefaultUI={true}
+                    mapTypeId={'satellite'}
+                >
+                    {chunks.map(chunk => (
+                        (chunk.maps.latitude && chunk.maps.longitude) &&
+                        <AdvancedMarker key={chunk.maps.uri} position={{lat: chunk.maps.latitude, lng: chunk.maps.longitude}} />
+                    ))}
+                </Map>
             </div>
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

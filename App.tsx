@@ -208,21 +208,19 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
             </header>
 
             <div className="flex-1 relative overflow-hidden">
-                <APIProvider apiKey={process.env.API_KEY!} libraries={['maps3d']}>
-                    <Map3D ref={mapRef} center={initialCenter} range={15000} tilt={45} heading={0}>
-                        {chunks.map((chunk, index) => (
-                            (chunk.maps.latitude && chunk.maps.longitude) && (
-                                <Marker3D
-                                    key={chunk.maps.uri}
-                                    position={{ lat: chunk.maps.latitude, lng: chunk.maps.longitude, altitude: 100 }}
-                                    onClick={() => setSelectedChunk(chunk)}
-                                    color={selectedChunk?.maps.uri === chunk.maps.uri ? '#EA4335' : '#4285F4'}
-                                    glyph={`${index + 1}`}
-                                />
-                            )
-                        ))}
-                    </Map3D>
-                </APIProvider>
+                <Map3D ref={mapRef} center={initialCenter} range={15000} tilt={45} heading={0}>
+                    {chunks.map((chunk, index) => (
+                        (chunk.maps.latitude && chunk.maps.longitude) && (
+                            <Marker3D
+                                key={chunk.maps.uri}
+                                position={{ lat: chunk.maps.latitude, lng: chunk.maps.longitude, altitude: 100 }}
+                                onClick={() => setSelectedChunk(chunk)}
+                                color={selectedChunk?.maps.uri === chunk.maps.uri ? '#EA4335' : '#4285F4'}
+                                glyph={`${index + 1}`}
+                            />
+                        )
+                    ))}
+                </Map3D>
 
                 <div ref={chatContentRef} className="absolute top-4 left-4 max-w-sm max-h-60 overflow-y-auto space-y-2 pointer-events-auto">
                     {messages.map(msg => (
@@ -887,133 +885,135 @@ ${error}
   }
 
   return (
-    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
-      {/* Floating Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        aria-label={t('sidebar.open')}
-      >
-        <LayoutGridIcon className="size-5" />
-      </button>
+    <APIProvider apiKey={process.env.API_KEY!} libraries={['maps', 'maps3d', 'places']}>
+        <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
+        {/* Floating Sidebar Toggle Button */}
+        <button
+            onClick={() => setIsSidebarOpen(true)}
+            className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            aria-label={t('sidebar.open')}
+        >
+            <LayoutGridIcon className="size-5" />
+        </button>
 
-      {/* New Chat Button for PC */}
-      <button
-        onClick={handleNewChat}
-        className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        aria-label={t('sidebar.newChat')}
-      >
-        <SquarePenIcon className="size-5" />
-      </button>
+        {/* New Chat Button for PC */}
+        <button
+            onClick={handleNewChat}
+            className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            aria-label={t('sidebar.newChat')}
+        >
+            <SquarePenIcon className="size-5" />
+        </button>
 
-      {/* Sidebar Overlay */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onNewChat={handleNewChat}
-        onSelectConversation={handleSelectConversation}
-        onDeleteConversation={handleDeleteConversation}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        t={t}
-      />
-      
-      {/* Backdrop */}
-      {isSidebarOpen && (
-        <div 
-          onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300"
-          aria-hidden="true"
-        ></div>
-      )}
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full relative">
-        <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
-        
-        <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4">
-            {activeConversation && activeConversation.messages.length > 0 ? (
-              activeConversation.messages.map((msg, index) => {
-                const isLastMessage = index === activeConversation.messages.length - 1;
-                const isCurrentlyLoading = isLoading && isLastMessage;
-                const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
-                return <ChatMessage
-                            key={msg.id}
-                            message={msg}
-                            onRegenerate={handleRegenerate}
-                            onFork={handleForkConversation}
-                            isLoading={isCurrentlyLoading}
-                            aiStatus={currentAiStatus}
-                            onShowAnalysis={handleShowAnalysis}
-                            onShowMap={handleShowMap}
-                            executionResults={executionResults}
-                            onStoreExecutionResult={handleStoreExecutionResult}
-                            onFixRequest={handleFixCodeRequest}
-                            onStopExecution={handleStopExecution}
-                            isPythonReady={isPythonReady}
-                            t={t}
-                        />;
-              })
-            ) : (
-               <div className="text-center text-muted pt-16">
-                 {t('chat.placeholder')}
-               </div>
-            )}
-          </div>
-        </main>
-        
-        <div className="mt-auto pt-4">
-           {showScrollToBottom && (
-              <button
-                  onClick={handleScrollToBottomClick}
-                  className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up"
-                  aria-label={t('chat.scrollToBottom')}
-              >
-                  <ChevronDownIcon className="size-6" />
-              </button>
-          )}
-          <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-              <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
-          </footer>
-        </div>
-      </div>
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        theme={theme}
-        setTheme={setTheme}
-        language={lang}
-        setLanguage={setLanguage}
-        personas={personas}
-        setPersonas={setPersonas}
-        conversations={conversations}
-        setConversations={setConversations}
-        activeConversationId={activeConversationId}
-        t={t}
-      />
-      {analysisModalContent && (
-        <CodeAnalysisModal
-            code={analysisModalContent.code}
-            lang={analysisModalContent.lang}
-            onClose={() => setAnalysisModalContent(null)}
+        {/* Sidebar Overlay */}
+        <Sidebar 
+            isOpen={isSidebarOpen} 
+            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onNewChat={handleNewChat}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             t={t}
         />
-      )}
-      {mapViewState.isOpen && (
-          <MapView
-              isOpen={mapViewState.isOpen}
-              onClose={() => setMapViewState({ isOpen: false, chunks: [] })}
-              initialChunks={mapViewState.chunks}
-              conversationHistory={activeConversation?.messages || []}
-              onTurnComplete={handleAddMessagesToConversation}
-              location={userLocation}
-              language={lang}
-              t={t}
-          />
-      )}
-    </div>
+        
+        {/* Backdrop */}
+        {isSidebarOpen && (
+            <div 
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300"
+            aria-hidden="true"
+            ></div>
+        )}
+        
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col h-full relative">
+            <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
+            
+            <main ref={mainContentRef} className="flex-1 overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4">
+                {activeConversation && activeConversation.messages.length > 0 ? (
+                activeConversation.messages.map((msg, index) => {
+                    const isLastMessage = index === activeConversation.messages.length - 1;
+                    const isCurrentlyLoading = isLoading && isLastMessage;
+                    const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
+                    return <ChatMessage
+                                key={msg.id}
+                                message={msg}
+                                onRegenerate={handleRegenerate}
+                                onFork={handleForkConversation}
+                                isLoading={isCurrentlyLoading}
+                                aiStatus={currentAiStatus}
+                                onShowAnalysis={handleShowAnalysis}
+                                onShowMap={handleShowMap}
+                                executionResults={executionResults}
+                                onStoreExecutionResult={handleStoreExecutionResult}
+                                onFixRequest={handleFixCodeRequest}
+                                onStopExecution={handleStopExecution}
+                                isPythonReady={isPythonReady}
+                                t={t}
+                            />;
+                })
+                ) : (
+                <div className="text-center text-muted pt-16">
+                    {t('chat.placeholder')}
+                </div>
+                )}
+            </div>
+            </main>
+            
+            <div className="mt-auto pt-4">
+            {showScrollToBottom && (
+                <button
+                    onClick={handleScrollToBottomClick}
+                    className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up"
+                    aria-label={t('chat.scrollToBottom')}
+                >
+                    <ChevronDownIcon className="size-6" />
+                </button>
+            )}
+            <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
+            </footer>
+            </div>
+        </div>
+        <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            theme={theme}
+            setTheme={setTheme}
+            language={lang}
+            setLanguage={setLanguage}
+            personas={personas}
+            setPersonas={setPersonas}
+            conversations={conversations}
+            setConversations={setConversations}
+            activeConversationId={activeConversationId}
+            t={t}
+        />
+        {analysisModalContent && (
+            <CodeAnalysisModal
+                code={analysisModalContent.code}
+                lang={analysisModalContent.lang}
+                onClose={() => setAnalysisModalContent(null)}
+                t={t}
+            />
+        )}
+        {mapViewState.isOpen && (
+            <MapView
+                isOpen={mapViewState.isOpen}
+                onClose={() => setMapViewState({ isOpen: false, chunks: [] })}
+                initialChunks={mapViewState.chunks}
+                conversationHistory={activeConversation?.messages || []}
+                onTurnComplete={handleAddMessagesToConversation}
+                location={userLocation}
+                language={lang}
+                t={t}
+            />
+        )}
+        </div>
+    </APIProvider>
   );
 };
 

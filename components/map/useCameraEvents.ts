@@ -20,7 +20,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
+// FIX: Added missing React imports.
 import {useEffect, useRef} from 'react';
 import {Map3DCameraProps} from './Map3D';
 
@@ -59,6 +60,9 @@ export function useMap3DCameraEvents(
         if (newValue == null) return;
 
         if (p === 'center')
+          // fixme: the typings say this should be a LatLngAltitudeLiteral, but in reality a
+          //  LatLngAltitude object is returned, even when a LatLngAltitudeLiteral was written
+          //  to the property.
           cameraPropsRef.current.center = (
             newValue as google.maps.LatLngAltitude
           ).toJSON();
@@ -67,6 +71,7 @@ export function useMap3DCameraEvents(
         if (onCameraChange && !updateQueued) {
           updateQueued = true;
 
+          // queue a microtask so all synchronously dispatched events are handled first
           queueMicrotask(() => {
             updateQueued = false;
             onCameraChange(cameraPropsRef.current);

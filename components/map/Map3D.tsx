@@ -70,13 +70,21 @@ export const Map3D = forwardRef(
       });
     }, []);
 
-    const {center, heading, tilt, range, roll, children, ...map3dOptions} = props;
+    const {center, heading, tilt, range, roll, children, onCameraChange, ...map3dOptions} = props;
 
     useDeepCompareEffect(() => {
       if (!map3DElement) return;
 
       Object.assign(map3DElement, map3dOptions);
-    }, [map3DElement, map3dOptions]);
+
+      // Set complex properties directly on the element to avoid stringification
+      if (center !== undefined) map3DElement.center = center;
+      if (range !== undefined) map3DElement.range = range;
+      if (heading !== undefined) map3DElement.heading = heading;
+      if (tilt !== undefined) map3DElement.tilt = tilt;
+      if (roll !== undefined) map3DElement.roll = roll;
+
+    }, [map3DElement, map3dOptions, center, heading, tilt, range, roll]);
 
     useImperativeHandle<
       google.maps.maps3d.Map3DElement | null,
@@ -88,11 +96,6 @@ export const Map3D = forwardRef(
     return (
       <gmp-map-3d
         ref={map3dRef}
-        center={center}
-        range={range}
-        heading={heading}
-        tilt={tilt}
-        roll={roll}
         defaultUIHidden={true}
         mode="SATELLITE">
           {children}

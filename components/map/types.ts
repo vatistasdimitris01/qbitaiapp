@@ -23,21 +23,36 @@
 
 import React from 'react';
 
-// FIX: Reordered declarations to ensure types are defined before use.
-// The `declare global` block must come before module augmentations that use its types.
+// a helper type for CustomElement definitions
+type CustomElement<TElem, TAttr> = Partial<
+  TAttr &
+    // FIX: Use fully-qualified type names since the import was removed.
+    React.DOMAttributes<TElem> &
+    React.RefAttributes<TElem> & {
+      // for whatever reason, anything else doesn't work as children
+      // of a custom element, so we allow `any` here
+      children: any;
+    }
+>;
+
+
+// temporary fix until @types/google.maps is updated with the latest changes
 declare global {
   namespace google.maps {
+    // FIX: Add missing LatLng interface
     interface LatLng {
       lat(): number;
       lng(): number;
       toJSON(): {lat: number; lng: number};
     }
 
+    // FIX: Add missing LatLngLiteral interface
     interface LatLngLiteral {
       lat: number;
       lng: number;
     }
 
+    // FIX: Add missing LatLngAltitude interface
     interface LatLngAltitude {
       lat: number;
       lng: number;
@@ -45,18 +60,21 @@ declare global {
       toJSON(): LatLngAltitudeLiteral;
     }
 
+    // FIX: Add missing LatLngAltitudeLiteral interface
     interface LatLngAltitudeLiteral {
       lat: number;
       lng: number;
       altitude: number;
     }
     
+    // Define the PlacesLibrary interface
     interface PlacesLibrary {
       Place: typeof places.Place;
       PlaceContextualElement: any;
       PlaceContextualListConfigElement: any;
     }
 
+    // FIX: Add missing places namespace and Place class definition
     namespace places {
       class Place {
         constructor(options: {id: string});
@@ -68,6 +86,7 @@ declare global {
       }
     }
 
+    // FIX: Add missing types for the Elevation service.
     interface ElevationLibrary {
       ElevationService: {
         new (): ElevationService;
@@ -90,6 +109,7 @@ declare global {
       ): Promise<{results: ElevationResult[]}>;
     }
 
+    // Add missing types for the Geocoding service.
     interface GeocodingLibrary {
       Geocoder: {
         new (): Geocoder;
@@ -133,8 +153,10 @@ declare global {
       getCenter(): LatLng;
       getNorthEast(): LatLng;
       getSouthWest(): LatLng;
+      // ... and other methods
     }
 
+    // FIX: Add interface for the maps3d library to provide strong types
     interface Maps3DLibrary {
       Marker3DInteractiveElement: {
         new (options: any): HTMLElement;
@@ -164,6 +186,7 @@ declare global {
         mode?: 'HYBRID' | 'SATELLITE';
         flyCameraAround: (options: FlyAroundAnimationOptions) => void;
         flyCameraTo: (options: FlyToAnimationOptions) => void;
+        // FIX: Add element properties to be used as attributes in JSX
         center: google.maps.LatLngAltitude | google.maps.LatLngAltitudeLiteral;
         heading: number;
         range: number;
@@ -172,6 +195,7 @@ declare global {
         defaultUIHidden?: boolean;
       }
 
+      // FIX: Add missing Map3DElementOptions interface
       interface Map3DElementOptions {
         center?: google.maps.LatLngAltitude | google.maps.LatLngAltitudeLiteral;
         heading?: number;
@@ -184,31 +208,28 @@ declare global {
   }
 }
 
-// FIX: Moved CustomElement type definition before its use in React module augmentation.
-type CustomElement<TElem, TAttr> = Partial<
-  TAttr &
-    React.DOMAttributes<TElem> &
-    React.RefAttributes<TElem> & {
-      children: any;
-    }
->;
-
-// FIX: Moved module augmentation to after the global types it depends on are declared. This resolves the "Invalid module name in augmentation" error, which was likely caused by using undeclared types.
+// add an overload signature for the useMapsLibrary hook, so typescript
+// knows what the 'maps3d' library is.
 declare module '@vis.gl/react-google-maps' {
   export function useMapsLibrary(
     name: 'maps3d'
   ): google.maps.Maps3DLibrary | null;
+  // FIX: Add overload for 'elevation' library to provide strong types for the ElevationService.
   export function useMapsLibrary(
     name: 'elevation'
   ): google.maps.ElevationLibrary | null;
+  // Add overload for 'places' library
   export function useMapsLibrary(
     name: 'places'
   ): google.maps.PlacesLibrary | null;
+  // Add overload for 'geocoding' library
   export function useMapsLibrary(
     name: 'geocoding'
   ): google.maps.GeocodingLibrary | null;
 }
 
+// add the <gmp-map-3d> custom-element to the JSX.IntrinsicElements
+// interface, so it can be used in jsx
 declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, MessageContent, AIStatus, GroundingChunk, MapsGroundingChunk } from '../types';
@@ -8,7 +9,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import PlacesCard from './PlacesListCard';
+
 
 type ExecutionResult = {
   output: string | null;
@@ -71,13 +72,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const typingTimeoutRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const isAnimating = useRef(false);
-
-    const mapChunks = useMemo(() => {
-        if (!message.groundingChunks) return [];
-        return message.groundingChunks.filter(
-            (chunk): chunk is MapsGroundingChunk => 'maps' in chunk && chunk.maps !== undefined
-        );
-    }, [message.groundingChunks]);
 
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (
@@ -389,7 +383,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }, [aiStatus, t]);
 
 
-    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking && mapChunks.length === 0) {
+    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) {
       return null;
     }
 
@@ -463,7 +457,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         </>
                     ) : (
                         <div className="w-full">
-                            {mapChunks.length > 0 && <PlacesCard chunks={mapChunks} t={t} />}
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {
@@ -501,7 +494,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             </div>
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || (!hasRenderableContent && mapChunks.length === 0) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-0 group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>

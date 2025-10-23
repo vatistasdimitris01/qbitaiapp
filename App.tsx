@@ -91,6 +91,15 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
   );
 };
 
+// Custom hook for debouncing an effect
+const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, delay: number) => {
+    useEffect(() => {
+        const handler = setTimeout(() => effect(), delay);
+        return () => clearTimeout(handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [...deps, delay]);
+};
+
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -223,10 +232,14 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist state to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('conversations', JSON.stringify(conversations));
-  }, [conversations]);
+  // Debounced saving to localStorage to prevent performance issues during streaming
+    useDebouncedEffect(() => {
+        localStorage.setItem('conversations', JSON.stringify(conversations));
+    }, [conversations], 500);
+
+    useDebouncedEffect(() => {
+        localStorage.setItem('executionResults', JSON.stringify(executionResults));
+    }, [executionResults], 500);
 
   useEffect(() => {
     if (activeConversationId) {
@@ -275,11 +288,6 @@ const App: React.FC = () => {
     localStorage.setItem('language', language);
     setLang(language);
   }, [language, setLang]);
-
-  useEffect(() => {
-    localStorage.setItem('executionResults', JSON.stringify(executionResults));
-  }, [executionResults]);
-
 
   const activeConversation = useMemo(() => {
     return conversations.find(c => c.id === activeConversationId);

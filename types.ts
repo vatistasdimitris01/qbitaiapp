@@ -17,18 +17,6 @@ export interface GroundingChunk {
     };
 }
 
-export interface CitationSource {
-  url: string;
-  title: string;
-  description?: string;
-  quote?: string;
-}
-
-export interface Citation {
-  number: string;
-  sources: CitationSource[];
-}
-
 export interface CodeBlockContent {
     lang: string;
     code: string;
@@ -62,7 +50,6 @@ export interface Message {
     candidatesTokenCount: number;
     totalTokenCount: number;
   };
-  citations?: Citation[];
 }
 
 export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';
@@ -71,6 +58,14 @@ export interface Tab {
   id: number;
   url: string | null;
   title?: string;
+}
+
+// FIX: Add missing 'CitationSource' interface.
+export interface CitationSource {
+  url: string;
+  title: string;
+  description?: string;
+  quote?: string;
 }
 
 // Re-added for application structure

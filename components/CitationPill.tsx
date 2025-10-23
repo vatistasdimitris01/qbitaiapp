@@ -1,4 +1,5 @@
 import React from 'react';
+// FIX: Correctly import the 'CitationSource' type, which is now defined in types.ts.
 import type { CitationSource } from '../types';
 
 // Helper to extract domain from a URL

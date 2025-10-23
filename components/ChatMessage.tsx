@@ -1,27 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, MessageContent, AIStatus, Citation, CitationSource } from '../types';
+import type { Message, MessageContent, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import {
-    InlineCitation,
-    InlineCitationCard,
-    InlineCitationCardBody,
-    InlineCitationCardTrigger,
-    InlineCitationCarousel,
-    InlineCitationCarouselContent,
-    InlineCitationCarouselItem,
-    InlineCitationCarouselHeader,
-    InlineCitationCarouselIndex,
-    InlineCitationCarouselPrev,
-    InlineCitationCarouselNext,
-    InlineCitationSource,
-    InlineCitationQuote,
-} from './InlineCitation';
 
 type ExecutionResult = {
   output: string | null;
@@ -44,60 +29,6 @@ interface ChatMessageProps {
     isPythonReady: boolean;
     t: (key: string) => string;
 }
-
-const MessageContentRenderer: React.FC<{ content: string; citations?: Citation[]; renderer: any }> = ({ content, citations = [], renderer }) => {
-    const citationMap = useMemo(() => {
-        const map = new Map<string, Citation>();
-        citations.forEach(c => map.set(c.number, c));
-        return map;
-    }, [citations]);
-
-    // Split by single citation markers e.g., [1]
-    const parts = content.split(/(\[\d+\])/g);
-
-    return (
-        <>
-            {parts.map((part, index) => {
-                const citationMatch = part.match(/\[(\d+)\]/);
-                if (citationMatch) {
-                    const number = citationMatch[1];
-                    const citation = citationMap.get(number);
-                    if (citation && citation.sources.length > 0) {
-                        return (
-                            <InlineCitation key={index}>
-                                <InlineCitationCard>
-                                    <InlineCitationCardTrigger number={citation.number} sources={citation.sources} />
-                                    <InlineCitationCardBody>
-                                        <InlineCitationCarousel sources={citation.sources}>
-                                            <InlineCitationCarouselHeader>
-                                                <InlineCitationCarouselPrev />
-                                                <InlineCitationCarouselIndex />
-                                                <InlineCitationCarouselNext />
-                                            </InlineCitationCarouselHeader>
-                                            <InlineCitationCarouselContent>
-                                                {citation.sources.map((source, i) => (
-                                                    <InlineCitationCarouselItem key={i}>
-                                                        <InlineCitationSource {...source} />
-                                                        {source.quote && <InlineCitationQuote>{source.quote}</InlineCitationQuote>}
-                                                    </InlineCitationCarouselItem>
-                                                ))}
-                                            </InlineCitationCarouselContent>
-                                        </InlineCitationCarousel>
-                                    </InlineCitationCardBody>
-                                </InlineCitationCard>
-                            </InlineCitation>
-                        );
-                    }
-                }
-                if (part) {
-                    const html = marked.parse(part, { breaks: true, gfm: true, renderer }) as string;
-                    return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
-                }
-                return null;
-            })}
-        </>
-    );
-};
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
     <button onClick={onClick} className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors" aria-label={ariaLabel}>
@@ -125,6 +56,16 @@ const getTextFromMessage = (content: MessageContent): string => {
     }
     return ''; // Other content types are handled as structured data.
 }
+
+const getDomain = (url: string): string => {
+    try {
+        const hostname = new URL(url).hostname;
+        return hostname.replace(/^www\./, '');
+    } catch (e) {
+        return url.split('/')[2] || 'source';
+    }
+};
+
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
@@ -239,6 +180,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
+        renderer.link = (href, title, text) => {
+            const domain = getDomain(href || '');
+            const escapedTitle = escapeHtml(title || text);
+            const escapedHref = escapeHtml(href || '');
+            const escapedDomain = escapeHtml(domain);
+
+            // Override standard links to render as citation pills
+            if (href) {
+                 return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="inline-flex h-5 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium transition-colors duration-150 ease-in-out text-token-secondary bg-token-surface-secondary hover:bg-border no-underline relative -top-0.5 ml-1"><span class="max-w-[20ch] truncate">${escapedDomain}</span></a>`;
+            }
+            // Fallback for malformed links
+            return text;
+        };
+
         renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
             lang = (lang || 'plaintext').toLowerCase();
             if (lang === 'mermaid') {
@@ -507,7 +462,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {
-                                        return <MessageContentRenderer key={index} content={part.content} citations={message.citations} renderer={markedRenderer} />;
+                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+                                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
                                     if (part.type === 'code' && part.code) {
                                         const isExecutable = !part.noRun;

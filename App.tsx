@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, Citation } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -90,34 +90,6 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
     </div>
   );
 };
-
-const parseCitationsFromContent = (content: string): { cleanedContent: string; citations: Citation[] } => {
-    const citationRegex = /```json:citations\s*([\s\S]*?)```/; // More lenient regex
-    const match = content.match(citationRegex);
-
-    if (!match || !match[1]) {
-        return { cleanedContent: content, citations: [] };
-    }
-
-    const cleanedContent = content.replace(citationRegex, '').trim();
-    try {
-        const citations = JSON.parse(match[1]);
-        if (Array.isArray(citations)) {
-            // Validate that citations have the expected structure
-            const validCitations = citations.filter(c => 
-                c && typeof c.number === 'string' && Array.isArray(c.sources)
-            );
-            return { cleanedContent, citations: validCitations };
-        }
-       // If JSON is valid but not an array, it's malformed. Return original content.
-       return { cleanedContent: content, citations: [] };
-    } catch (e) {
-        console.error("Failed to parse citations JSON:", match[1], e);
-        // Return original content with the broken JSON block so user can see it
-        return { cleanedContent: content, citations: [] };
-    }
-};
-
 
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
@@ -510,25 +482,6 @@ const App: React.FC = () => {
             setIsLoading(false);
             abortControllerRef.current = null;
             setAiStatus('complete');
-
-            // Post-process the final message for citations
-            setConversations(prev => prev.map(c => {
-                if (c.id !== activeConversationId) return c;
-                
-                const lastMessageIndex = c.messages.length - 1;
-                const lastMessage = c.messages[lastMessageIndex];
-                
-                if (lastMessage && lastMessage.id === aiMessageId && typeof lastMessage.content === 'string') {
-                    const { cleanedContent, citations } = parseCitationsFromContent(lastMessage.content);
-                    if (citations.length > 0) {
-                        const updatedMessage = { ...lastMessage, content: cleanedContent, citations };
-                        const newMessages = [...c.messages.slice(0, lastMessageIndex), updatedMessage];
-                        return { ...c, messages: newMessages };
-                    }
-                }
-                return c;
-            }));
-            
             setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => { // onError callback
@@ -640,25 +593,6 @@ const App: React.FC = () => {
             setIsLoading(false);
             abortControllerRef.current = null;
             setAiStatus('complete');
-            
-            // Post-process the final message for citations
-            setConversations(prev => prev.map(c => {
-                if (c.id !== activeConversationId) return c;
-                
-                const targetMsgIndex = c.messages.findIndex(m => m.id === messageIdToRegenerate);
-                if (targetMsgIndex > -1 && typeof c.messages[targetMsgIndex].content === 'string') {
-                    const lastMessage = c.messages[targetMsgIndex];
-                    const { cleanedContent, citations } = parseCitationsFromContent(lastMessage.content as string);
-                    if (citations.length > 0) {
-                        const updatedMessage = { ...lastMessage, content: cleanedContent, citations };
-                        const newMessages = [...c.messages];
-                        newMessages[targetMsgIndex] = updatedMessage;
-                        return { ...c, messages: newMessages };
-                    }
-                }
-                return c;
-            }));
-
             setTimeout(() => setAiStatus('idle'), 500);
         },
         (errorText) => {

@@ -131,7 +131,6 @@ export default async function handler(req: Request) {
                     });
 
                     let usageMetadataSent = false;
-                    const groundingChunks = new Map<string, any>();
 
                     for await (const chunk of stream) {
                         if (chunk.text) {
@@ -143,19 +142,8 @@ export default async function handler(req: Request) {
                             usageMetadataSent = true;
                         }
 
-                        // Collect grounding chunks, avoiding duplicates based on URI
-                        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-                            for (const gc of chunk.candidates[0].groundingMetadata.groundingChunks) {
-                                if (gc.web && gc.web.uri) {
-                                    groundingChunks.set(gc.web.uri, gc);
-                                }
-                            }
-                        }
-                    }
-
-                    // Send all unique collected sources at the end of the text stream
-                    if (groundingChunks.size > 0) {
-                        write({ type: 'sources', payload: Array.from(groundingChunks.values()) });
+                        // Grounding metadata is implicitly used by the model to generate the text with citations.
+                        // We no longer need to process it on the server.
                     }
 
                     write({ type: 'end' });

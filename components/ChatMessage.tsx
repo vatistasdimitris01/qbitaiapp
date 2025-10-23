@@ -57,16 +57,6 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const getDomain = (url: string): string => {
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        return url.split('/')[2] || 'source';
-    }
-};
-
-
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -79,40 +69,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const typingTimeoutRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const isAnimating = useRef(false);
-
-    if (message.type === MessageType.AI_SOURCES) {
-        const sources = message.content as GroundingChunk[];
-        if (!sources || sources.length === 0) return null;
-
-        return (
-            <div className="flex w-full my-4 justify-start animate-fade-in-up">
-                <div className="w-full max-w-3xl">
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-                        <SearchIcon className="size-4 flex-shrink-0" />
-                        <span className="font-medium">{t('chat.message.grounding')}</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {sources.map((source, index) => (
-                            <a 
-                                key={index} 
-                                href={source.web.uri} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="block p-3 bg-token-surface-secondary border border-default rounded-lg hover:bg-border transition-colors group"
-                            >
-                                <div className="font-medium text-sm text-foreground truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                                    {source.web.title || getDomain(source.web.uri)}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1 truncate">
-                                    {getDomain(source.web.uri)}
-                                </div>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (
@@ -215,14 +171,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
         renderer.link = (href, title, text) => {
-            const domain = getDomain(href || '');
+            const escapedText = escapeHtml(text);
             const escapedTitle = escapeHtml(title || text);
             const escapedHref = escapeHtml(href || '');
-            const escapedDomain = escapeHtml(domain);
 
             // Override standard links to render as citation pills
             if (href) {
-                 return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="inline-flex h-5 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium transition-colors duration-150 ease-in-out text-token-secondary bg-token-surface-secondary hover:bg-border no-underline relative -top-0.5 ml-1"><span class="max-w-[20ch] truncate">${escapedDomain}</span></a>`;
+                 return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="inline-flex h-5 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium transition-colors duration-150 ease-in-out text-token-secondary bg-token-surface-secondary hover:bg-border no-underline relative -top-0.5 ml-1"><span class="max-w-[20ch] truncate">${escapedText}</span></a>`;
             }
             // Fallback for malformed links
             return text;

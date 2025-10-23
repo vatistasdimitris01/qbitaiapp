@@ -474,22 +474,6 @@ const App: React.FC = () => {
                             msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg
                         );
                         break;
-                    case 'sources':
-                        const sourcesMessageId = `sources-${aiMessageId}`;
-                        const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessageId);
-                        
-                        const sourcesMessage: Message = {
-                            id: sourcesMessageId,
-                            type: MessageType.AI_SOURCES,
-                            content: update.payload as GroundingChunk[],
-                        };
-
-                        if (existingSourcesIndex === -1) {
-                            newMessages.push(sourcesMessage);
-                        } else {
-                            newMessages[existingSourcesIndex] = sourcesMessage;
-                        }
-                        break;
                 }
                 return { ...c, messages: newMessages };
             }));
@@ -600,22 +584,6 @@ const App: React.FC = () => {
                                 ? { ...msg, usageMetadata: update.payload } 
                                 : msg
                         );
-                        break;
-                    case 'sources':
-                        const sourcesMessageId = `sources-${messageIdToRegenerate}`;
-                        const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessageId);
-                        
-                        const sourcesMessage: Message = {
-                            id: sourcesMessageId,
-                            type: MessageType.AI_SOURCES,
-                            content: update.payload as GroundingChunk[],
-                        };
-
-                        if (existingSourcesIndex === -1) {
-                            newMessages.push(sourcesMessage);
-                        } else {
-                            newMessages[existingSourcesIndex] = sourcesMessage;
-                        }
                         break;
                 }
                 return { ...c, messages: newMessages };
@@ -764,7 +732,7 @@ ${error}
             {activeConversation && activeConversation.messages.length > 0 ? (
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;
-                const isCurrentlyLoading = isLoading && isLastMessage && msg.type !== MessageType.AI_SOURCES;
+                const isCurrentlyLoading = isLoading && isLastMessage;
                 const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
                 return <ChatMessage
                             key={msg.id}

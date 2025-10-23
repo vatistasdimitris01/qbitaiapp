@@ -12,6 +12,10 @@ import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
 import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon, ChevronLeftIcon, ArrowUpIcon, MapPinIcon, BrainIcon } from './components/icons';
+import { APIProvider } from '@vis.gl/react-google-maps';
+import { Map3D } from './components/map/Map3D';
+import { Marker3D } from './components/map/Marker3D';
+
 
 type Language = keyof typeof translations;
 
@@ -104,19 +108,6 @@ interface MapViewProps {
     t: (key: string, params?: Record<string, string>) => string;
 }
 
-// A simple hashing function to create pseudo-random, but deterministic positions for map pins.
-// This is a fallback for when real coordinates are not provided by the API.
-const simpleHash = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32bit integer
-    }
-    const a = Math.abs((hash * hash) % 10000);
-    return a / 10000;
-};
-
 const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conversationHistory, onTurnComplete, location, language, t }) => {
     const [chunks, setChunks] = useState(initialChunks);
     const [selectedChunk, setSelectedChunk] = useState<MapsGroundingChunk | null>(initialChunks[0] || null);
@@ -124,13 +115,39 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
     const [isLoading, setIsLoading] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const chatContentRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<google.maps.maps3d.Map3DElement | null>(null);
 
-    // Effect to scroll chat view down when new messages are added
     useEffect(() => {
         if (chatContentRef.current) {
             chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
         }
     }, [messages]);
+
+    const initialCenter = useMemo(() => {
+        const firstChunkWithCoords = initialChunks.find(c => c.maps.latitude && c.maps.longitude);
+        if (firstChunkWithCoords) {
+            return { lat: firstChunkWithCoords.maps.latitude!, lng: firstChunkWithCoords.maps.longitude!, altitude: 0 };
+        }
+        return { lat: 40.7128, lng: -74.0060, altitude: 0 }; // Default to NYC
+    }, [initialChunks]);
+
+    useEffect(() => {
+        if (selectedChunk && mapRef.current) {
+            const { latitude, longitude } = selectedChunk.maps;
+            if (latitude && longitude) {
+                mapRef.current.flyCameraTo({
+                    endCamera: {
+                        center: { lat: latitude, lng: longitude, altitude: 200 },
+                        range: 1500,
+                        tilt: 60,
+                        heading: 0
+                    },
+                    durationMillis: 1000
+                });
+            }
+        }
+    }, [selectedChunk]);
+
 
     const handleSendMessage = async () => {
         const text = inputValue.trim();
@@ -161,7 +178,7 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
                     finalGroundingChunks = update.payload;
                     const mapChunks = finalGroundingChunks.filter((c): c is MapsGroundingChunk => 'maps' in c);
                     setChunks(mapChunks);
-                    if (mapChunks.length > 0) setSelectedChunk(mapChunks[0]); else setSelectedChunk(null);
+                    if (mapChunks.length > 0 && !selectedChunk) setSelectedChunk(mapChunks[0]);
                 }
             },
             () => { // onFinish
@@ -179,15 +196,6 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
         );
     };
 
-    const getPinPosition = (chunk: MapsGroundingChunk) => {
-        const x = simpleHash(chunk.maps.title);
-        const y = simpleHash(chunk.maps.uri);
-        const padding = 0.08; // 8% padding from edges
-        const top = (padding + y * (1 - padding * 2)) * 100;
-        const left = (padding + x * (1 - padding * 2)) * 100;
-        return { top: `${top}%`, left: `${left}%` };
-    };
-
     if (!isOpen) return null;
 
     return (
@@ -200,15 +208,22 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
             </header>
 
             <div className="flex-1 relative overflow-hidden">
-                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://www.gstatic.com/ai/devsite/places-in-map.png')" }}>
-                    {chunks.map((chunk, index) => (
-                        <button key={index} onClick={() => setSelectedChunk(chunk)} style={getPinPosition(chunk)} className="absolute transform -translate-x-1/2 -translate-y-full transition-transform hover:scale-110">
-                            <MapPinIcon className={`size-10 drop-shadow-lg ${selectedChunk?.maps.uri === chunk.maps.uri ? 'text-orange-500' : 'text-gray-700'}`} style={{ fill: 'currentColor' }}/>
-                        </button>
-                    ))}
-                </div>
+                <APIProvider apiKey={process.env.API_KEY!} libraries={['maps3d']}>
+                    <Map3D ref={mapRef} center={initialCenter} range={15000} tilt={45} heading={0}>
+                        {chunks.map((chunk, index) => (
+                            (chunk.maps.latitude && chunk.maps.longitude) && (
+                                <Marker3D
+                                    key={chunk.maps.uri}
+                                    position={{ lat: chunk.maps.latitude, lng: chunk.maps.longitude, altitude: 100 }}
+                                    onClick={() => setSelectedChunk(chunk)}
+                                    color={selectedChunk?.maps.uri === chunk.maps.uri ? '#EA4335' : '#4285F4'}
+                                    glyph={`${index + 1}`}
+                                />
+                            )
+                        ))}
+                    </Map3D>
+                </APIProvider>
 
-                {/* Chat Overlay */}
                 <div ref={chatContentRef} className="absolute top-4 left-4 max-w-sm max-h-60 overflow-y-auto space-y-2 pointer-events-auto">
                     {messages.map(msg => (
                         <div key={msg.id} className={`max-w-xs text-sm p-2.5 rounded-xl shadow-lg ${msg.type === 'USER' ? 'bg-user-message text-foreground ml-auto' : 'bg-ai-message text-foreground'}`}>
@@ -217,7 +232,6 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
                     ))}
                 </div>
 
-                {/* Selected Place Detail Card */}
                 <div className={`absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 ease-in-out ${selectedChunk ? 'translate-y-0' : 'translate-y-full'}`}>
                     <div className="max-w-lg mx-auto bg-card rounded-2xl shadow-2xl p-4 border border-default">
                         {selectedChunk && (

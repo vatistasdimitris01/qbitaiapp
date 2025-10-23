@@ -11,39 +11,39 @@ const PlacesListCard: React.FC<PlacesListCardProps> = ({ chunks, t }) => {
     if (!chunks || chunks.length === 0) {
         return null;
     }
-    
-    const locationCount = chunks.length;
 
     return (
-        <div className="not-prose my-4 bg-card border border-default rounded-xl overflow-hidden max-w-sm animate-fade-in-up">
-            <div className="p-4">
-                <div className="flex items-center gap-2 text-foreground">
-                    <MapPinIcon className="size-5" />
-                    <h4 className="font-semibold">{t('mapsCard.title')}</h4>
+        <div className="not-prose my-4 bg-card border border-default rounded-xl overflow-hidden max-w-lg w-full animate-fade-in-up">
+            <div className="p-4 border-b border-default">
+                <div className="flex items-center gap-3">
+                    <MapPinIcon className="size-5 text-muted-foreground" />
+                    <h4 className="font-semibold text-foreground">{t('mapsCard.title')}</h4>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">{t('mapsCard.placesFound', { count: locationCount.toString() })}</p>
-                <ul className="space-y-3">
-                    {chunks.map((chunk) => (
-                        <li key={chunk.maps.uri}>
+            </div>
+            <div className="divide-y divide-default">
+                {chunks.map((chunk, index) => (
+                    <div key={chunk.maps.uri || index} className="p-4">
+                        <div className="flex flex-col items-start">
+                            <p className="font-semibold text-foreground">{chunk.maps.title}</p>
+                            
+                            {chunk.maps.placeAnswerSources?.[0]?.reviewSnippets?.[0]?.quote && (
+                                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                                    {chunk.maps.placeAnswerSources[0].reviewSnippets[0].quote}
+                                </p>
+                            )}
+                            
                             <a 
                                 href={chunk.maps.uri}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-between p-3 rounded-lg bg-token-surface-secondary hover:bg-border transition-colors group"
+                                className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline mt-3"
                             >
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-token-primary truncate pr-2">{chunk.maps.title}</p>
-                                     {chunk.maps.placeAnswerSources?.[0]?.reviewSnippets?.[0] && (
-                                     <blockquote className="mt-1.5 text-xs text-muted-foreground border-l-2 border-default pl-2 italic truncate">
-                                        "{chunk.maps.placeAnswerSources[0].reviewSnippets[0].quote}"
-                                     </blockquote>
-                                )}
-                                </div>
-                                <ArrowRightIcon className="size-4 text-token-secondary group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                                <span>{t('mapsCard.directions')}</span>
+                                <ArrowRightIcon className="size-3.5" />
                             </a>
-                        </li>
-                    ))}
-                </ul>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

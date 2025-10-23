@@ -200,7 +200,7 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
             </header>
 
             <div className="flex-1 relative overflow-hidden">
-                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://storage.googleapis.com/aistudio-hosting/generative-ai-studio/assets/map-background.png')" }}>
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://www.gstatic.com/ai/devsite/places-in-map.png')" }}>
                     {chunks.map((chunk, index) => (
                         <button key={index} onClick={() => setSelectedChunk(chunk)} style={getPinPosition(chunk)} className="absolute transform -translate-x-1/2 -translate-y-full transition-transform hover:scale-110">
                             <MapPinIcon className={`size-10 drop-shadow-lg ${selectedChunk?.maps.uri === chunk.maps.uri ? 'text-orange-500' : 'text-gray-700'}`} style={{ fill: 'currentColor' }}/>

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, MessageContent, AIStatus, GroundingChunk, MapsGroundingChunk } from '../types';
@@ -7,7 +8,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import PlacesCard from './PlacesCard';
+import PlacesCard from './PlacesListCard';
 
 type ExecutionResult = {
   output: string | null;

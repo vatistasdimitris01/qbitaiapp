@@ -10,12 +10,33 @@ export enum MessageType {
   AGENT_PLAN = 'AGENT_PLAN',
 }
 
-export interface GroundingChunk {
+export interface WebGroundingChunk {
     web: {
         uri: string;
         title: string;
     };
 }
+
+export interface MapsPlaceReviewSnippet {
+    uri: string;
+    quote: string;
+    author: string;
+}
+
+export interface MapsPlaceAnswerSource {
+    reviewSnippets: MapsPlaceReviewSnippet[];
+}
+
+export interface MapsGroundingChunk {
+    maps: {
+        uri: string;
+        title: string;
+        placeAnswerSources: MapsPlaceAnswerSource[];
+    }
+}
+
+export type GroundingChunk = WebGroundingChunk | MapsGroundingChunk;
+
 
 export interface CodeBlockContent {
     lang: string;
@@ -37,7 +58,7 @@ export interface FileAttachment {
 
 export type Tool = 'web-search' | 'code-execution' | 'agent-mode' | null;
 
-export type MessageContent = string | GroundingChunk[] | CodeBlockContent | AgentPlanContent;
+export type MessageContent = string | CodeBlockContent | AgentPlanContent;
 
 export interface Message {
   id: string;
@@ -50,6 +71,7 @@ export interface Message {
     candidatesTokenCount: number;
     totalTokenCount: number;
   };
+  groundingChunks?: GroundingChunk[];
 }
 
 export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';
@@ -78,6 +100,8 @@ export interface Persona {
 export interface LocationInfo {
     city: string;
     country: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface Conversation {

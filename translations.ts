@@ -144,6 +144,10 @@ export const translations = {
       allow: 'Allow',
       dismiss: 'Dismiss',
     },
+    mapsCard: {
+      title: 'Local Places',
+      directions: 'Directions',
+    },
   },
   el: {
     loader: {
@@ -282,6 +286,10 @@ export const translations = {
       message: 'Επιτρέψτε την πρόσβαση στην τοποθεσία για να οριστεί αυτόματα η γλώσσα στην προεπιλογή της περιοχής σας.',
       allow: 'Αποδοχή',
       dismiss: 'Απόρριψη',
+    },
+    mapsCard: {
+      title: 'Τοπικά Μέρη',
+      directions: 'Οδηγίες',
     },
   },
   es: {
@@ -422,6 +430,10 @@ export const translations = {
       allow: 'Permitir',
       dismiss: 'Descartar',
     },
+    mapsCard: {
+      title: 'Lugares Locales',
+      directions: 'Direcciones',
+    },
   },
   fr: {
     loader: {
@@ -561,6 +573,10 @@ export const translations = {
       allow: 'Autoriser',
       dismiss: 'Rejeter',
     },
+    mapsCard: {
+      title: 'Lieux Locaux',
+      directions: 'Itinéraire',
+    },
   },
   de: {
     loader: {
@@ -699,6 +715,10 @@ export const translations = {
       message: 'Erlauben Sie den Standortzugriff, um die Sprache automatisch auf die Voreinstellung Ihrer Region einzustellen.',
       allow: 'Erlauben',
       dismiss: 'Ablehnen',
+    },
+    mapsCard: {
+      title: 'Orte in der Nähe',
+      directions: 'Route',
     },
   },
 };

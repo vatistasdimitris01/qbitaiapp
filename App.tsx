@@ -474,6 +474,11 @@ const App: React.FC = () => {
                             msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg
                         );
                         break;
+                    case 'grounding':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, groundingChunks: update.payload } : msg
+                        );
+                        break;
                 }
                 return { ...c, messages: newMessages };
             }));
@@ -583,6 +588,11 @@ const App: React.FC = () => {
                             msg.id === messageIdToRegenerate 
                                 ? { ...msg, usageMetadata: update.payload } 
                                 : msg
+                        );
+                        break;
+                    case 'grounding':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === messageIdToRegenerate ? { ...msg, groundingChunks: update.payload } : msg
                         );
                         break;
                 }

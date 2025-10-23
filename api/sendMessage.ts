@@ -22,6 +22,8 @@ interface ApiAttachment {
 interface LocationInfo {
     city: string;
     country: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 const languageMap: { [key: string]: string } = {
@@ -115,6 +117,22 @@ export default async function handler(req: Request) {
             ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`
             : baseSystemInstruction;
             
+        const tools: any[] = [{ googleSearch: {} }];
+        let toolConfig: any = {};
+        
+        const loc = location as LocationInfo;
+        if (loc && loc.latitude && loc.longitude) {
+            tools.push({ googleMaps: {} });
+            toolConfig = {
+                retrievalConfig: {
+                    latLng: {
+                        latitude: loc.latitude,
+                        longitude: loc.longitude
+                    }
+                }
+            };
+        }
+
         const responseStream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
@@ -126,7 +144,8 @@ export default async function handler(req: Request) {
                         contents: contents,
                         config: {
                             systemInstruction: finalSystemInstruction,
-                            tools: [{googleSearch: {}}], // Use the built-in Google Search tool
+                            tools: tools,
+                            ...(Object.keys(toolConfig).length > 0 && { toolConfig: toolConfig })
                         },
                     });
 
@@ -137,13 +156,14 @@ export default async function handler(req: Request) {
                             write({ type: 'chunk', payload: chunk.text });
                         }
                         
+                        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+                            write({ type: 'grounding', payload: chunk.candidates[0].groundingMetadata.groundingChunks });
+                        }
+                        
                         if (chunk.usageMetadata && !usageMetadataSent) {
                             write({ type: 'usage', payload: chunk.usageMetadata });
                             usageMetadataSent = true;
                         }
-
-                        // Grounding metadata is implicitly used by the model to generate the text with citations.
-                        // We no longer need to process it on the server.
                     }
 
                     write({ type: 'end' });

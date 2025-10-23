@@ -7,7 +7,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import PlacesListCard from './PlacesListCard';
+import PlacesCard from './PlacesCard';
 
 type ExecutionResult = {
   output: string | null;
@@ -461,8 +461,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             )}
                         </>
                     ) : (
-                        <div className="w-fit max-w-full">
-                            {mapChunks.length > 0 && <PlacesListCard chunks={mapChunks} t={t} />}
+                        <div className="w-full">
+                            {mapChunks.length > 0 && <PlacesCard chunks={mapChunks} t={t} />}
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {

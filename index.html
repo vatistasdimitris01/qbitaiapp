@@ -77,24 +77,29 @@ window.mermaid = mermaid;
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
---background: #f8f9fa;
---foreground: #111827;
---muted-foreground: #6b7280;
---sidebar-bg: #ffffff;
---sidebar-foreground: #374151;
---sidebar-muted-foreground: #9ca3af;
---sidebar-active-bg: #f3f4f6;
---sidebar-active-foreground: #111827;
---sidebar-border: #e5e7eb;
---card: #ffffff;
---border: #e5e7eb;
---ai-message-bg: #ffffff;
---user-message-bg: #e5e7eb; /* Updated to gray-200 */
---token-surface: #ffffff;
---token-surface-secondary: #f3f4f6;
---token-text-primary: #171717;
---token-text-secondary: #6e6e6e;
---token-border: #e5e5e5;
+--background: #FFFFFF;
+--foreground: #1D1D1D;
+--muted-foreground: #AFAFAF;
+--sidebar-bg: #FFFFFF;
+--sidebar-foreground: #2D2D2D;
+--sidebar-muted-foreground: #AFAFAF;
+--sidebar-active-bg: #EEEEEE;
+--sidebar-active-foreground: #1D1D1D;
+--sidebar-border: #EEEEEE;
+--card: #FDFDFD;
+--border: #EEEEEE;
+--ai-message-bg: #FDFDFD;
+--user-message-bg: #EEEEEE;
+--token-surface: #FFFFFF;
+--token-surface-secondary: #FAFAFA;
+--token-text-primary: #1D1D1D;
+--token-text-secondary: #AFAFAF;
+--token-border: #EEEEEE;
+/* Accents */
+--accent-blue: #0084FF;
+--accent-red: #FF3B30;
+--accent-orange: #FF9500;
+--accent-green: #34C759;
 /* New vars for CodeExecutor */
 --bg-primary: var(--background);
 --bg-secondary: var(--card);
@@ -105,34 +110,39 @@ window.mermaid = mermaid;
 --text-tertiary: var(--sidebar-muted-foreground);
 --border-primary: var(--border);
 /* Code Block Theme */
---code-bg: #f8fafc; /* slate-50 */
---code-text-default: #334155; /* slate-700 */
---code-text-comment: #64748b; /* slate-500 */
---code-text-keyword: #7e22ce; /* purple-700 */
---code-text-string: #0284c7; /* sky-600 */
---code-text-number: #be185d; /* pink-700 */
---code-text-function: #ca8a04; /* yellow-600 */
---code-text-tag: #4338ca; /* indigo-700 */
+--code-bg: #f8fafc;
+--code-text-default: #334155;
+--code-text-comment: #64748b;
+--code-text-keyword: #7e22ce;
+--code-text-string: #0284c7;
+--code-text-number: #be185d;
+--code-text-function: #ca8a04;
+--code-text-tag: #4338ca;
 }
 .dark {
---background: #09090b;
---foreground: #f4f4f5;
---muted-foreground: #a1a1aa;
+--background: #111111;
+--foreground: #F1F1F1;
+--muted-foreground: #AFAFAF;
 --sidebar-bg: #000000;
---sidebar-foreground: #a1a1aa;
---sidebar-muted-foreground: #52525b;
---sidebar-active-bg: #18181b;
---sidebar-active-foreground: #f4f4f5;
---sidebar-border: #27272a;
---card: #18181b;
---border: #27272a;
---ai-message-bg: #27272a;
---user-message-bg: #374151; /* Updated to gray-700 */
---token-surface: #18181b;
---token-surface-secondary: #27272a;
---token-text-primary: #f4f4f5;
---token-text-secondary: #a1a1aa;
---token-border: #27272a;
+--sidebar-foreground: #D2D2D2;
+--sidebar-muted-foreground: #AFAFAF;
+--sidebar-active-bg: #1C1C1C;
+--sidebar-active-foreground: #F1F1F1;
+--sidebar-border: #2C2C2C;
+--card: #1C1C1C;
+--border: #2C2C2C;
+--ai-message-bg: #2C2C2C;
+--user-message-bg: #3A3A3A;
+--token-surface: #1C1C1C;
+--token-surface-secondary: #2C2C2C;
+--token-text-primary: #F1F1F1;
+--token-text-secondary: #AFAFAF;
+--token-border: #2C2C2C;
+/* Accents */
+--accent-blue: #0A84FF;
+--accent-red: #FF453A;
+--accent-orange: #FF9F0A;
+--accent-green: #30D15B;
 /* New vars for CodeExecutor */
 --bg-primary: var(--background);
 --bg-secondary: var(--card);
@@ -143,14 +153,14 @@ window.mermaid = mermaid;
 --text-tertiary: var(--sidebar-muted-foreground);
 --border-primary: var(--border);
 /* Code Block Theme */
---code-bg: #1e293b; /* slate-800 */
---code-text-default: #e2e8f0; /* slate-200 */
---code-text-comment: #94a3b8; /* slate-400 */
---code-text-keyword: #d8b4fe; /* purple-300 */
---code-text-string: #a5b4fc; /* indigo-300 */
---code-text-number: #f59e0b; /* amber-500 */
---code-text-function: #f472b6; /* pink-400 */
---code-text-tag: #60a5fa; /* blue-400 */
+--code-bg: #1e293b;
+--code-text-default: #e2e8f0;
+--code-text-comment: #94a3b8;
+--code-text-keyword: #d8b4fe;
+--code-text-string: #a5b4fc;
+--code-text-number: #f59e0b;
+--code-text-function: #f472b6;
+--code-text-tag: #60a5fa;
 }
 html {
 -webkit-font-smoothing: antialiased;

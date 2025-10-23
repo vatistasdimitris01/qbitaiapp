@@ -23,6 +23,7 @@ interface ChatMessageProps {
     isLoading: boolean;
     aiStatus: AIStatus;
     onShowAnalysis: (code: string, lang: string) => void;
+    onShowMap: (chunks: MapsGroundingChunk[]) => void;
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
     onFixRequest: (code: string, lang: string, error: string) => void;
@@ -58,7 +59,7 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, onShowMap, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -456,7 +457,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         </>
                     ) : (
                         <div className="w-fit max-w-full">
-                            {mapChunks.length > 0 && <MapsCard chunks={mapChunks} t={t} />}
+                            {mapChunks.length > 0 && <MapsCard chunks={mapChunks} onShowMap={() => onShowMap(mapChunks)} t={t} />}
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {

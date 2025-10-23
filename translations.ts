@@ -147,6 +147,15 @@ export const translations = {
     mapsCard: {
       title: 'Local Places',
       directions: 'Directions',
+      placesFound: '{count} places found',
+    },
+    mapView: {
+      header: 'Explore on Map',
+      backToChat: 'Back to Chat',
+      inputPlaceholder: 'Ask about nearby places...',
+      send: 'Send',
+      welcome: 'Ask for places to see them on the map.',
+      welcomeTitle: 'Qbit Maps',
     },
   },
   el: {
@@ -290,6 +299,15 @@ export const translations = {
     mapsCard: {
       title: 'Τοπικά Μέρη',
       directions: 'Οδηγίες',
+      placesFound: 'Βρέθηκαν {count} μέρη',
+    },
+    mapView: {
+      header: 'Εξερεύνηση στον Χάρτη',
+      backToChat: 'Επιστροφή στη συνομιλία',
+      inputPlaceholder: 'Ρωτήστε για κοντινά μέρη...',
+      send: 'Αποστολή',
+      welcome: 'Ρωτήστε για μέρη για να τα δείτε στο χάρτη.',
+      welcomeTitle: 'Χάρτες Qbit',
     },
   },
   es: {
@@ -433,6 +451,15 @@ export const translations = {
     mapsCard: {
       title: 'Lugares Locales',
       directions: 'Direcciones',
+      placesFound: '{count} lugares encontrados',
+    },
+    mapView: {
+      header: 'Explorar en el Mapa',
+      backToChat: 'Volver al Chat',
+      inputPlaceholder: 'Pregunta por lugares cercanos...',
+      send: 'Enviar',
+      welcome: 'Pide lugares para verlos en el mapa.',
+      welcomeTitle: 'Mapas de Qbit',
     },
   },
   fr: {
@@ -576,6 +603,15 @@ export const translations = {
     mapsCard: {
       title: 'Lieux Locaux',
       directions: 'Itinéraire',
+      placesFound: '{count} lieux trouvés',
+    },
+    mapView: {
+      header: 'Explorer sur la carte',
+      backToChat: 'Retour au chat',
+      inputPlaceholder: 'Renseignez-vous sur les lieux...',
+      send: 'Envoyer',
+      welcome: 'Demandez des lieux pour les voir sur la carte.',
+      welcomeTitle: 'Cartes Qbit',
     },
   },
   de: {
@@ -719,6 +755,15 @@ export const translations = {
     mapsCard: {
       title: 'Orte in der Nähe',
       directions: 'Route',
+      placesFound: '{count} Orte gefunden',
+    },
+    mapView: {
+      header: 'Auf Karte erkunden',
+      backToChat: 'Zurück zum Chat',
+      inputPlaceholder: 'Fragen Sie nach Orten in der Nähe...',
+      send: 'Senden',
+      welcome: 'Fragen Sie nach Orten, um sie auf der Karte zu sehen.',
+      welcomeTitle: 'Qbit Karten',
     },
   },
 };

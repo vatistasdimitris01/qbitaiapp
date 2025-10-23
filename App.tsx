@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk, MapsGroundingChunk } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -11,7 +11,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
+import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon, ChevronLeftIcon, ArrowUpIcon, MapPinIcon, BrainIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -91,6 +91,173 @@ const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
   );
 };
 
+// --- MapView Component and its dependencies ---
+
+interface MapViewProps {
+    isOpen: boolean;
+    onClose: () => void;
+    initialChunks: MapsGroundingChunk[];
+    conversationHistory: Message[];
+    onTurnComplete: (messages: Message[]) => void;
+    location: LocationInfo | null;
+    language: string;
+    t: (key: string, params?: Record<string, string>) => string;
+}
+
+// A simple hashing function to create pseudo-random, but deterministic positions for map pins.
+// This is a fallback for when real coordinates are not provided by the API.
+const simpleHash = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    const a = Math.abs((hash * hash) % 10000);
+    return a / 10000;
+};
+
+const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conversationHistory, onTurnComplete, location, language, t }) => {
+    const [chunks, setChunks] = useState(initialChunks);
+    const [selectedChunk, setSelectedChunk] = useState<MapsGroundingChunk | null>(initialChunks[0] || null);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [inputValue, setInputValue] = useState('');
+    const chatContentRef = useRef<HTMLDivElement>(null);
+
+    // Effect to scroll chat view down when new messages are added
+    useEffect(() => {
+        if (chatContentRef.current) {
+            chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSendMessage = async () => {
+        const text = inputValue.trim();
+        if (!text || isLoading) return;
+
+        const userMessage: Message = { id: `map-user-${Date.now()}`, type: MessageType.USER, content: text };
+        const aiMessageId = `map-ai-${Date.now()}`;
+        const aiMessage: Message = { id: aiMessageId, type: MessageType.AI_RESPONSE, content: '' };
+        
+        setMessages(prev => [...prev, userMessage, aiMessage]);
+        setInputValue('');
+        setIsLoading(true);
+
+        const fullHistory = [...conversationHistory, ...messages, userMessage];
+
+        let finalAiContent = '';
+        let finalGroundingChunks: GroundingChunk[] = [];
+        const controller = new AbortController();
+
+        await streamMessageToAI(
+            fullHistory, text, [], undefined, location, language, controller.signal,
+            (update) => {
+                if (update.type === 'chunk') {
+                    finalAiContent += update.payload;
+                    setMessages(prev => prev.map(m => m.id === aiMessageId ? { ...m, content: finalAiContent } : m));
+                }
+                if (update.type === 'grounding') {
+                    finalGroundingChunks = update.payload;
+                    const mapChunks = finalGroundingChunks.filter((c): c is MapsGroundingChunk => 'maps' in c);
+                    setChunks(mapChunks);
+                    if (mapChunks.length > 0) setSelectedChunk(mapChunks[0]); else setSelectedChunk(null);
+                }
+            },
+            () => { // onFinish
+                setIsLoading(false);
+                const completeAiMessage: Message = { id: aiMessageId, type: MessageType.AI_RESPONSE, content: finalAiContent, groundingChunks: finalGroundingChunks };
+                setMessages(prev => prev.map(m => m.id === aiMessageId ? completeAiMessage : m));
+                onTurnComplete([userMessage, completeAiMessage]);
+            },
+            (error) => { // onError
+                setIsLoading(false);
+                const errorMessage: Message = { id: aiMessageId, type: MessageType.ERROR, content: error };
+                setMessages(prev => prev.map(m => m.id === aiMessageId ? errorMessage : m));
+                onTurnComplete([userMessage, errorMessage]);
+            }
+        );
+    };
+
+    const getPinPosition = (chunk: MapsGroundingChunk) => {
+        const x = simpleHash(chunk.maps.title);
+        const y = simpleHash(chunk.maps.uri);
+        const padding = 0.08; // 8% padding from edges
+        const top = (padding + y * (1 - padding * 2)) * 100;
+        const left = (padding + x * (1 - padding * 2)) * 100;
+        return { top: `${top}%`, left: `${left}%` };
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-background z-50 flex flex-col animate-fade-in-up">
+            <header className="flex items-center gap-4 p-4 border-b border-default flex-shrink-0">
+                <button onClick={onClose} className="p-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ChevronLeftIcon className="size-6" />
+                </button>
+                <h2 className="text-lg font-semibold">{t('mapView.header')}</h2>
+            </header>
+
+            <div className="flex-1 relative overflow-hidden">
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://storage.googleapis.com/aistudio-hosting/generative-ai-studio/assets/map-background.png')" }}>
+                    {chunks.map((chunk, index) => (
+                        <button key={index} onClick={() => setSelectedChunk(chunk)} style={getPinPosition(chunk)} className="absolute transform -translate-x-1/2 -translate-y-full transition-transform hover:scale-110">
+                            <MapPinIcon className={`size-10 drop-shadow-lg ${selectedChunk?.maps.uri === chunk.maps.uri ? 'text-orange-500' : 'text-gray-700'}`} style={{ fill: 'currentColor' }}/>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Chat Overlay */}
+                <div ref={chatContentRef} className="absolute top-4 left-4 max-w-sm max-h-60 overflow-y-auto space-y-2 pointer-events-auto">
+                    {messages.map(msg => (
+                        <div key={msg.id} className={`max-w-xs text-sm p-2.5 rounded-xl shadow-lg ${msg.type === 'USER' ? 'bg-user-message text-foreground ml-auto' : 'bg-ai-message text-foreground'}`}>
+                            {typeof msg.content === 'string' && msg.content}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Selected Place Detail Card */}
+                <div className={`absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 ease-in-out ${selectedChunk ? 'translate-y-0' : 'translate-y-full'}`}>
+                    <div className="max-w-lg mx-auto bg-card rounded-2xl shadow-2xl p-4 border border-default">
+                        {selectedChunk && (
+                            <div>
+                                <h3 className="font-bold text-lg">{selectedChunk.maps.title}</h3>
+                                {selectedChunk.maps.placeAnswerSources?.[0]?.reviewSnippets?.[0] && (
+                                     <blockquote className="mt-2 text-sm text-muted-foreground border-l-2 border-default pl-3 italic">
+                                        "{selectedChunk.maps.placeAnswerSources[0].reviewSnippets[0].quote}"
+                                     </blockquote>
+                                )}
+                                <a href={selectedChunk.maps.uri} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block text-sm font-semibold text-orange-500 hover:text-orange-600">
+                                    {t('mapsCard.directions')} &rarr;
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <footer className="p-4 border-t border-default flex-shrink-0 bg-background">
+                <div className="max-w-lg mx-auto relative">
+                     <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder={t('mapView.inputPlaceholder')}
+                        className="w-full pl-4 pr-12 py-3 bg-token-surface-secondary border border-default rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        disabled={isLoading}
+                    />
+                    <button onClick={handleSendMessage} disabled={isLoading || !inputValue.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 bg-neutral-900 text-white rounded-full flex items-center justify-center hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-gray-200 disabled:opacity-50">
+                        <ArrowUpIcon className="size-5" />
+                    </button>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -111,6 +278,7 @@ const App: React.FC = () => {
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [mapViewState, setMapViewState] = useState<{ isOpen: boolean; chunks: MapsGroundingChunk[] }>({ isOpen: false, chunks: [] });
 
 
   const mainContentRef = useRef<HTMLElement>(null);
@@ -687,6 +855,19 @@ ${error}
       setIsSidebarOpen(false); // Close sidebar after selecting a conversation
   };
 
+  const handleShowMap = (chunks: MapsGroundingChunk[]) => {
+    setMapViewState({ isOpen: true, chunks });
+  };
+
+  const handleAddMessagesToConversation = (messages: Message[]) => {
+      if (!activeConversationId) return;
+      setConversations(prev => prev.map(c =>
+          c.id === activeConversationId
+              ? { ...c, messages: [...c.messages, ...messages] }
+              : c
+      ));
+  };
+
   if (!isAppReady) {
     return <Loader t={t} />;
   }
@@ -752,6 +933,7 @@ ${error}
                             isLoading={isCurrentlyLoading}
                             aiStatus={currentAiStatus}
                             onShowAnalysis={handleShowAnalysis}
+                            onShowMap={handleShowMap}
                             executionResults={executionResults}
                             onStoreExecutionResult={handleStoreExecutionResult}
                             onFixRequest={handleFixCodeRequest}
@@ -804,6 +986,18 @@ ${error}
             onClose={() => setAnalysisModalContent(null)}
             t={t}
         />
+      )}
+      {mapViewState.isOpen && (
+          <MapView
+              isOpen={mapViewState.isOpen}
+              onClose={() => setMapViewState({ isOpen: false, chunks: [] })}
+              initialChunks={mapViewState.chunks}
+              conversationHistory={activeConversation?.messages || []}
+              onTurnComplete={handleAddMessagesToConversation}
+              location={userLocation}
+              language={lang}
+              t={t}
+          />
       )}
     </div>
   );

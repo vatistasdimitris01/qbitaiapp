@@ -31,6 +31,8 @@ export interface MapsGroundingChunk {
     maps: {
         uri: string;
         title: string;
+        latitude?: number;
+        longitude?: number;
         placeAnswerSources: MapsPlaceAnswerSource[];
     }
 }

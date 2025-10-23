@@ -20,6 +20,8 @@ export interface GroundingChunk {
 export interface CitationSource {
   url: string;
   title: string;
+  description?: string;
+  quote?: string;
 }
 
 export interface Citation {

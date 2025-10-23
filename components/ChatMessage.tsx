@@ -1,13 +1,27 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, MessageContent, AIStatus, Citation } from '../types';
+import type { Message, MessageContent, AIStatus, Citation, CitationSource } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import CitationPill from './CitationPill';
+import {
+    InlineCitation,
+    InlineCitationCard,
+    InlineCitationCardBody,
+    InlineCitationCardTrigger,
+    InlineCitationCarousel,
+    InlineCitationCarouselContent,
+    InlineCitationCarouselItem,
+    InlineCitationCarouselHeader,
+    InlineCitationCarouselIndex,
+    InlineCitationCarouselPrev,
+    InlineCitationCarouselNext,
+    InlineCitationSource,
+    InlineCitationQuote,
+} from './InlineCitation';
 
 type ExecutionResult = {
   output: string | null;
@@ -32,33 +46,50 @@ interface ChatMessageProps {
 }
 
 const MessageContentRenderer: React.FC<{ content: string; citations?: Citation[]; renderer: any }> = ({ content, citations = [], renderer }) => {
-    if (!citations.length) {
-        const html = marked.parse(content, { breaks: true, gfm: true, renderer }) as string;
-        return <span dangerouslySetInnerHTML={{ __html: html }} />;
-    }
+    const citationMap = useMemo(() => {
+        const map = new Map<string, Citation>();
+        citations.forEach(c => map.set(c.number, c));
+        return map;
+    }, [citations]);
 
-    const citationMap = new Map<string, Citation>();
-    citations.forEach(c => citationMap.set(c.number, c));
-
-    // Split by groups of citation markers e.g., [1], [1][2]
-    const parts = content.split(/((?:\[\d+\])+)/g);
+    // Split by single citation markers e.g., [1]
+    const parts = content.split(/(\[\d+\])/g);
 
     return (
         <>
             {parts.map((part, index) => {
-                // Check if the part is a citation group
-                if (/^((?:\[\d+\])+)$/.test(part)) {
-                    // Extract individual markers e.g., "[1][2]" -> ["[1]", "[2]"]
-                    const individualMarkers = part.match(/\[\d+\]/g) || [];
-                    return individualMarkers.map((marker, i) => {
-                        const number = marker.replace(/[\[\]]/g, '');
-                        const citation = citationMap.get(number);
-                        if (citation && citation.sources.length > 0) {
-                            return <CitationPill key={`${index}-${i}`} source={citation.sources[0]} />;
-                        }
-                        return marker; // Render as text if not found
-                    });
-                } else if (part) {
+                const citationMatch = part.match(/\[(\d+)\]/);
+                if (citationMatch) {
+                    const number = citationMatch[1];
+                    const citation = citationMap.get(number);
+                    if (citation && citation.sources.length > 0) {
+                        return (
+                            <InlineCitation key={index}>
+                                <InlineCitationCard>
+                                    <InlineCitationCardTrigger number={citation.number} sources={citation.sources} />
+                                    <InlineCitationCardBody>
+                                        <InlineCitationCarousel sources={citation.sources}>
+                                            <InlineCitationCarouselHeader>
+                                                <InlineCitationCarouselPrev />
+                                                <InlineCitationCarouselIndex />
+                                                <InlineCitationCarouselNext />
+                                            </InlineCitationCarouselHeader>
+                                            <InlineCitationCarouselContent>
+                                                {citation.sources.map((source, i) => (
+                                                    <InlineCitationCarouselItem key={i}>
+                                                        <InlineCitationSource {...source} />
+                                                        {source.quote && <InlineCitationQuote>{source.quote}</InlineCitationQuote>}
+                                                    </InlineCitationCarouselItem>
+                                                ))}
+                                            </InlineCitationCarouselContent>
+                                        </InlineCitationCarousel>
+                                    </InlineCitationCardBody>
+                                </InlineCitationCard>
+                            </InlineCitation>
+                        );
+                    }
+                }
+                if (part) {
                     const html = marked.parse(part, { breaks: true, gfm: true, renderer }) as string;
                     return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                 }

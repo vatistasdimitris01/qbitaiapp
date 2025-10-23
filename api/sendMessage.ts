@@ -91,7 +91,7 @@ export default async function handler(req: Request) {
     1. Insert numeric markers in the text, like [1], [2], etc., immediately after the information you are citing.
     2. A single piece of information might have multiple sources; cite them like [1][2].
     3. After your main response, you MUST append a JSON code block containing the citation data. This block MUST start with \`\`\`json:citations and end with \`\`\`.
-    4. The JSON must be an array of objects. Each object needs a "number" (as a string, e.g., "1") and a "sources" array. Each source object needs a "url" and "title" from the search results.
+    4. The JSON must be an array of objects. Each object needs a "number" (as a string, e.g., "1") and a "sources" array. Each source object needs a "url", "title", and can optionally include a "description" of the source and a "quote" of the relevant text from the search results.
     5. DO NOT include the "Citations" JSON block if you did not use Google Search.
 - **Example Citation Format**:
 The sky appears blue due to a phenomenon called Rayleigh scattering [1]. Sunlight reaches Earth's atmosphere and is scattered in all directions by the tiny molecules of gas and other particles in the air [1][2].
@@ -100,7 +100,7 @@ The sky appears blue due to a phenomenon called Rayleigh scattering [1]. Sunligh
   {
     "number": "1",
     "sources": [
-      { "url": "https://spaceplace.nasa.gov/blue-sky/en/", "title": "Why Is the Sky Blue? | NASA Space Place" }
+      { "url": "https://spaceplace.nasa.gov/blue-sky/en/", "title": "Why Is the Sky Blue? | NASA Space Place", "description": "NASA's explanation of Rayleigh scattering and why the sky is blue.", "quote": "Sunlight reaches Earth's atmosphere and is scattered in all directions by all the gases and particles in the air." }
     ]
   },
   {

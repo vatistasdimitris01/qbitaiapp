@@ -12,10 +12,9 @@ import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
 import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon, ChevronLeftIcon, ArrowUpIcon, MapPinIcon, BrainIcon } from './components/icons';
-import { APIProvider } from '@vis.gl/react-google-maps';
-import { Map3D } from './components/map/Map3D';
-import { Marker3D } from './components/map/Marker3D';
-
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 type Language = keyof typeof translations;
 
@@ -108,47 +107,75 @@ interface MapViewProps {
     t: (key: string, params?: Record<string, string>) => string;
 }
 
+const placeIcon = L.icon({
+    iconUrl: '/pin.svg',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40]
+});
+
+const userIcon = L.divIcon({
+    html: `<div class="relative flex h-5 w-5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span><span class="relative inline-flex rounded-full h-5 w-5 bg-sky-500 border-2 border-white"></span></div>`,
+    className: '',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+});
+
+
+const FlyToMarker: React.FC<{ position: L.LatLngExpression, zoom?: number }> = ({ position, zoom = 14 }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.flyTo(position, zoom);
+    }, [position, zoom, map]);
+    return null;
+};
+
+type TileStyle = 'dark' | 'light' | 'satellite';
+
+const mapStyles: Record<TileStyle, { url: string; attribution: string; subdomains?: string[] }> = {
+    dark: {
+        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        attribution: "© OpenStreetMap, © CartoDB"
+    },
+    light: {
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        attribution: "© OpenStreetMap, © CartoDB"
+    },
+    satellite: {
+        url: "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attribution: "© Google",
+        subdomains: ["mt0", "mt1", "mt2", "mt3"]
+    },
+};
+
 const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conversationHistory, onTurnComplete, location, language, t }) => {
     const [chunks, setChunks] = useState(initialChunks);
     const [selectedChunk, setSelectedChunk] = useState<MapsGroundingChunk | null>(initialChunks[0] || null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [inputValue, setInputValue] = useState('');
+    const [tileStyle, setTileStyle] = useState<TileStyle>('dark');
     const chatContentRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<google.maps.maps3d.Map3DElement | null>(null);
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
+    useEffect(() => {
+      setTileStyle(theme);
+    }, [theme]);
+    
     useEffect(() => {
         if (chatContentRef.current) {
             chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
         }
     }, [messages]);
 
-    const initialCenter = useMemo(() => {
+    const initialCenter = useMemo((): [number, number] => {
         const firstChunkWithCoords = initialChunks.find(c => c.maps.latitude && c.maps.longitude);
         if (firstChunkWithCoords) {
-            return { lat: firstChunkWithCoords.maps.latitude!, lng: firstChunkWithCoords.maps.longitude!, altitude: 0 };
+            return [firstChunkWithCoords.maps.latitude!, firstChunkWithCoords.maps.longitude!];
         }
-        return { lat: 40.7128, lng: -74.0060, altitude: 0 }; // Default to NYC
-    }, [initialChunks]);
-
-    useEffect(() => {
-        if (selectedChunk && mapRef.current) {
-            const { latitude, longitude } = selectedChunk.maps;
-            if (latitude && longitude) {
-                mapRef.current.flyCameraTo({
-                    endCamera: {
-                        center: { lat: latitude, lng: longitude, altitude: 200 },
-                        range: 1500,
-                        tilt: 60,
-                        heading: 0
-                    },
-                    durationMillis: 1000
-                });
-            }
-        }
-    }, [selectedChunk]);
-
-
+        return location ? [location.latitude || 40.7128, location.longitude || -74.0060] : [40.7128, -74.0060]; // Default to user location or NYC
+    }, [initialChunks, location]);
+    
     const handleSendMessage = async () => {
         const text = inputValue.trim();
         if (!text || isLoading) return;
@@ -177,8 +204,18 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
                 if (update.type === 'grounding') {
                     finalGroundingChunks = update.payload;
                     const mapChunks = finalGroundingChunks.filter((c): c is MapsGroundingChunk => 'maps' in c);
-                    setChunks(mapChunks);
-                    if (mapChunks.length > 0 && !selectedChunk) setSelectedChunk(mapChunks[0]);
+                    if (mapChunks.length > 0) {
+                        setChunks(prev => {
+                            const newChunks = [...prev];
+                            mapChunks.forEach(mc => {
+                                if (!newChunks.some(c => c.maps.uri === mc.maps.uri)) {
+                                    newChunks.push(mc);
+                                }
+                            });
+                            return newChunks;
+                        });
+                        setSelectedChunk(mapChunks[0]);
+                    }
                 }
             },
             () => { // onFinish
@@ -208,19 +245,45 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
             </header>
 
             <div className="flex-1 relative overflow-hidden">
-                <Map3D ref={mapRef} center={initialCenter} range={15000} tilt={45} heading={0}>
+                <MapContainer center={initialCenter} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: 'var(--background)' }} zoomControl={false}>
+                    <TileLayer {...mapStyles[tileStyle]} />
+                    
                     {chunks.map((chunk, index) => (
                         (chunk.maps.latitude && chunk.maps.longitude) && (
-                            <Marker3D
+                            <Marker
                                 key={chunk.maps.uri}
-                                position={{ lat: chunk.maps.latitude, lng: chunk.maps.longitude, altitude: 100 }}
-                                onClick={() => setSelectedChunk(chunk)}
-                                color={selectedChunk?.maps.uri === chunk.maps.uri ? '#EA4335' : '#4285F4'}
-                                glyph={`${index + 1}`}
-                            />
+                                position={[chunk.maps.latitude, chunk.maps.longitude]}
+                                icon={placeIcon}
+                                eventHandlers={{ click: () => setSelectedChunk(chunk) }}
+                            >
+                               <Popup>{chunk.maps.title}</Popup>
+                            </Marker>
                         )
                     ))}
-                </Map3D>
+                    
+                    {location?.latitude && location?.longitude && (
+                        <Marker position={[location.latitude, location.longitude]} icon={userIcon}>
+                            <Popup>You are here</Popup>
+                        </Marker>
+                    )}
+
+                    {selectedChunk?.maps.latitude && selectedChunk?.maps.longitude && (
+                        <FlyToMarker position={[selectedChunk.maps.latitude, selectedChunk.maps.longitude]} />
+                    )}
+                </MapContainer>
+                
+                <div className="absolute z-[1000] top-2 right-2 bg-card/80 backdrop-blur-sm text-foreground p-1.5 rounded-lg text-sm border border-default shadow-lg">
+                    <select
+                        value={tileStyle}
+                        onChange={(e) => setTileStyle(e.target.value as TileStyle)}
+                        className="bg-transparent outline-none"
+                    >
+                        <option value="dark">🖤 Dark</option>
+                        <option value="light">⚪ Light</option>
+                        <option value="satellite">🛰️ Satellite</option>
+                    </select>
+                </div>
+
 
                 <div ref={chatContentRef} className="absolute top-4 left-4 max-w-sm max-h-60 overflow-y-auto space-y-2 pointer-events-auto">
                     {messages.map(msg => (
@@ -268,7 +331,6 @@ const MapView: React.FC<MapViewProps> = ({ isOpen, onClose, initialChunks, conve
         </div>
     );
 };
-
 
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
@@ -885,8 +947,7 @@ ${error}
   }
 
   return (
-    <APIProvider apiKey={process.env.API_KEY!} libraries={['maps', 'maps3d', 'places']}>
-        <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
+    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {/* Floating Sidebar Toggle Button */}
         <button
             onClick={() => setIsSidebarOpen(true)}
@@ -1012,8 +1073,7 @@ ${error}
                 t={t}
             />
         )}
-        </div>
-    </APIProvider>
+    </div>
   );
 };
 

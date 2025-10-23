@@ -75,8 +75,6 @@ window.mermaid = mermaid;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
 :root {
 --background: #f8f9fa;
@@ -479,15 +477,6 @@ margin-left: 1px;
     font-size: 0.85em;
   }
 }
-/* Leaflet custom styles */
-.leaflet-container {
-    background-color: var(--background);
-}
-.leaflet-popup-content-wrapper, .leaflet-popup-tip {
-    background: var(--card);
-    color: var(--foreground);
-    box-shadow: 0 3px 14px rgba(0,0,0,0.4);
-}
 </style>
 <script type="importmap">
 {
@@ -501,10 +490,7 @@ margin-left: 1px;
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
     "marked": "https://aistudiocdn.com/marked@^16.3.0",
     "perf_hooks": "https://aistudiocdn.com/perf_hooks@^0.0.1",
-    "buffer": "https://aistudiocdn.com/buffer@^6.0.3",
-    "react-leaflet": "https://aistudiocdn.com/react-leaflet@^4.2.1",
-    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
-    "leaflet/": "https://aistudiocdn.com/leaflet@^1.9.4/"
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
   }
 }
 </script>

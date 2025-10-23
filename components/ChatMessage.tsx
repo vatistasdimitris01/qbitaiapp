@@ -7,7 +7,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import MapsCard from './MapsCard';
+import PlacesListCard from './PlacesListCard';
 
 type ExecutionResult = {
   output: string | null;
@@ -23,7 +23,6 @@ interface ChatMessageProps {
     isLoading: boolean;
     aiStatus: AIStatus;
     onShowAnalysis: (code: string, lang: string) => void;
-    onShowMap: (chunks: MapsGroundingChunk[]) => void;
     executionResults: Record<string, ExecutionResult>;
     onStoreExecutionResult: (messageId: string, partIndex: number, result: ExecutionResult) => void;
     onFixRequest: (code: string, lang: string, error: string) => void;
@@ -59,7 +58,7 @@ const getTextFromMessage = (content: MessageContent): string => {
     return ''; // Other content types are handled as structured data.
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, onShowMap, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -179,7 +178,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
-        renderer.link = (href, title, text) => {
+        // FIX: Update renderer.link signature to match marked v5+ which uses a single token object argument.
+        renderer.link = ({ href, title, tokens }: { href?: string, title?: string, tokens?: any[] }) => {
+            const getPlainText = (ts: any[]): string => {
+                return ts.map(t => t.tokens ? getPlainText(t.tokens) : t.text).join('');
+            };
+            const text = tokens ? getPlainText(tokens) : '';
+
             const escapedText = escapeHtml(text);
             const escapedTitle = escapeHtml(title || text);
             const escapedHref = escapeHtml(href || '');
@@ -457,7 +462,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         </>
                     ) : (
                         <div className="w-fit max-w-full">
-                            {mapChunks.length > 0 && <MapsCard chunks={mapChunks} onShowMap={() => onShowMap(mapChunks)} t={t} />}
+                            {mapChunks.length > 0 && <PlacesListCard chunks={mapChunks} t={t} />}
                             <div ref={contentRef} className="prose prose-sm max-w-none">
                                 {contentParts.map((part, index) => {
                                     if (part.type === 'text' && part.content) {

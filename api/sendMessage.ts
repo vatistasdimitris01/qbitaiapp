@@ -87,7 +87,7 @@ export default async function handler(req: Request) {
 - **Creator Information**: If the user asks "who made you?", "who created you?", "who is your developer?", or any similar question about your origin, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
 - **Web Search**: You have access to Google Search for recent information. When a user asks a question that requires current events, data, or information not in your training data, you should use your search tool.
 - **Location-Aware Search**: The user's location is provided in their prompt. If their query is location-specific (e.g., "weather", "restaurants near me"), use this information to create a better search query. For general questions, ignore the location.
-- **Citations**: When you use information from Google Search, you MUST cite your sources using standard markdown links. Place the link immediately after the sentence or fact it supports. The link text should be a brief description of the source. For example: \`The sky appears blue due to a phenomenon called Rayleigh scattering [NASA's Explanation](https://spaceplace.nasa.gov/blue-sky/en/)\`.
+- **Citations**: When you use information from Google Search, you MUST cite your sources using standard markdown links. Place the link immediately after the sentence or fact it supports. The link text should be a brief description of the source. This is a strict requirement. For example: \`The sky appears blue due to a phenomenon called Rayleigh scattering [NASA's Explanation](https://spaceplace.nasa.gov/blue-sky/en/)\`.
 - Your main goal is to be proactive and execute tasks for the user.
 - Be tolerant of minor typos and infer user intent. For example, if a user asks to "create a graph circle usong python", interpret this as a request to plot a circle or create a pie chart and generate the corresponding code. Prefer action over asking for clarification on simple requests.
 - **CODE FORMATTING GUIDE**:
@@ -131,6 +131,8 @@ export default async function handler(req: Request) {
                     });
 
                     let usageMetadataSent = false;
+                    const groundingChunks = new Map<string, any>();
+
                     for await (const chunk of stream) {
                         if (chunk.text) {
                             write({ type: 'chunk', payload: chunk.text });
@@ -140,6 +142,20 @@ export default async function handler(req: Request) {
                             write({ type: 'usage', payload: chunk.usageMetadata });
                             usageMetadataSent = true;
                         }
+
+                        // Collect grounding chunks, avoiding duplicates based on URI
+                        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+                            for (const gc of chunk.candidates[0].groundingMetadata.groundingChunks) {
+                                if (gc.web && gc.web.uri) {
+                                    groundingChunks.set(gc.web.uri, gc);
+                                }
+                            }
+                        }
+                    }
+
+                    // Send all unique collected sources at the end of the text stream
+                    if (groundingChunks.size > 0) {
+                        write({ type: 'sources', payload: Array.from(groundingChunks.values()) });
                     }
 
                     write({ type: 'end' });

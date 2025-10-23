@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, MessageContent, AIStatus } from '../types';
+import type { Message, MessageContent, AIStatus, GroundingChunk } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, SearchIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
@@ -79,6 +79,40 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const typingTimeoutRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const isAnimating = useRef(false);
+
+    if (message.type === MessageType.AI_SOURCES) {
+        const sources = message.content as GroundingChunk[];
+        if (!sources || sources.length === 0) return null;
+
+        return (
+            <div className="flex w-full my-4 justify-start animate-fade-in-up">
+                <div className="w-full max-w-3xl">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
+                        <SearchIcon className="size-4 flex-shrink-0" />
+                        <span className="font-medium">{t('chat.message.grounding')}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {sources.map((source, index) => (
+                            <a 
+                                key={index} 
+                                href={source.web.uri} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block p-3 bg-token-surface-secondary border border-default rounded-lg hover:bg-border transition-colors group"
+                            >
+                                <div className="font-medium text-sm text-foreground truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                    {source.web.title || getDomain(source.web.uri)}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1 truncate">
+                                    {getDomain(source.web.uri)}
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (

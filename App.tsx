@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
+import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk } from './types';
 import { MessageType } from './types';
 import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
@@ -474,6 +474,22 @@ const App: React.FC = () => {
                             msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg
                         );
                         break;
+                    case 'sources':
+                        const sourcesMessageId = `sources-${aiMessageId}`;
+                        const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessageId);
+                        
+                        const sourcesMessage: Message = {
+                            id: sourcesMessageId,
+                            type: MessageType.AI_SOURCES,
+                            content: update.payload as GroundingChunk[],
+                        };
+
+                        if (existingSourcesIndex === -1) {
+                            newMessages.push(sourcesMessage);
+                        } else {
+                            newMessages[existingSourcesIndex] = sourcesMessage;
+                        }
+                        break;
                 }
                 return { ...c, messages: newMessages };
             }));
@@ -551,17 +567,15 @@ const App: React.FC = () => {
             setConversations(prev => prev.map(c => {
                 if (c.id !== activeConversationId) return c;
                 let newMessages = [...c.messages];
-                const targetMsgIndex = newMessages.findIndex(m => m.id === messageIdToRegenerate);
-
-                if (targetMsgIndex === -1) return c;
-
+                
                 switch (update.type) {
                     case 'chunk':
                         setAiStatus('generating');
-                        newMessages[targetMsgIndex] = {
-                            ...newMessages[targetMsgIndex],
-                            content: (newMessages[targetMsgIndex].content as string) + update.payload
-                        };
+                        newMessages = newMessages.map(msg => 
+                            msg.id === messageIdToRegenerate 
+                                ? { ...msg, content: (msg.content as string) + update.payload } 
+                                : msg
+                        );
                         break;
                     case 'searching':
                          setAiStatus('searching');
@@ -570,6 +584,7 @@ const App: React.FC = () => {
                             type: MessageType.AGENT_ACTION,
                             content: `Searching for: "${update.payload}"`,
                         };
+                        const targetMsgIndex = newMessages.findIndex(m => m.id === messageIdToRegenerate);
                          if (targetMsgIndex > -1) {
                              const existingSearchIndex = newMessages.findIndex(m => m.id === searchActionMessage.id);
                              if (existingSearchIndex === -1) {
@@ -580,10 +595,27 @@ const App: React.FC = () => {
                          }
                         break;
                     case 'usage':
-                        newMessages[targetMsgIndex] = {
-                            ...newMessages[targetMsgIndex],
-                            usageMetadata: update.payload
+                        newMessages = newMessages.map(msg => 
+                            msg.id === messageIdToRegenerate 
+                                ? { ...msg, usageMetadata: update.payload } 
+                                : msg
+                        );
+                        break;
+                    case 'sources':
+                        const sourcesMessageId = `sources-${messageIdToRegenerate}`;
+                        const existingSourcesIndex = newMessages.findIndex(m => m.id === sourcesMessageId);
+                        
+                        const sourcesMessage: Message = {
+                            id: sourcesMessageId,
+                            type: MessageType.AI_SOURCES,
+                            content: update.payload as GroundingChunk[],
                         };
+
+                        if (existingSourcesIndex === -1) {
+                            newMessages.push(sourcesMessage);
+                        } else {
+                            newMessages[existingSourcesIndex] = sourcesMessage;
+                        }
                         break;
                 }
                 return { ...c, messages: newMessages };
@@ -732,7 +764,7 @@ ${error}
             {activeConversation && activeConversation.messages.length > 0 ? (
               activeConversation.messages.map((msg, index) => {
                 const isLastMessage = index === activeConversation.messages.length - 1;
-                const isCurrentlyLoading = isLoading && isLastMessage;
+                const isCurrentlyLoading = isLoading && isLastMessage && msg.type !== MessageType.AI_SOURCES;
                 const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
                 return <ChatMessage
                             key={msg.id}

@@ -20,7 +20,7 @@ interface SettingsModalProps {
   conversations: Conversation[];
   setConversations: (conversations: Conversation[]) => void;
   activeConversationId: string | null;
-  t: (key: string, params?: Record<string, string>) => string;
+  t: (key: string, params?: Record<string, string>) => void;
 }
 
 type SettingsTab = 'General' | 'Personalization' | 'Usage' | 'API';
@@ -90,6 +90,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>('General');
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
   const [activeSnippet, setActiveSnippet] = useState('curl');
+  const [activeToolSnippet, setActiveToolSnippet] = useState('curl');
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   const usageStats = useMemo(() => {
@@ -171,18 +172,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const curlSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "Hello, world!"}'`;
+  -d '{"message": "Latest news on AI?"}'`;
 
   const pythonSnippet = `import requests
 import json
 
 url = "https://aiqbit.vercel.app/api/chat"
-payload = {"message": "Hello, world!"}
+payload = {"message": "Latest news on AI?"}
 headers = {"Content-Type": "application/json"}
 
 try:
     response = requests.post(url, data=json.dumps(payload), headers=headers)
-    response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+    response.raise_for_status()
     print(response.json())
 except requests.exceptions.RequestException as e:
     print(f"Error: {e}")`;
@@ -192,25 +193,20 @@ except requests.exceptions.RequestException as e:
     const response = await fetch("https://aiqbit.vercel.app/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Hello, world!" }),
+      body: JSON.stringify({ message: "Latest news on AI?" }),
     });
-
-    if (!response.ok) {
-      throw new Error(\`HTTP error! status: \${response.status}\`);
-    }
-
+    if (!response.ok) throw new Error(\`HTTP error! \${response.status}\`);
     const data = await response.json();
-    console.log(data);
+    console.log(data.response);
   } catch (error) {
     console.error("API call failed:", error);
   }
 }
-
 callApi();`;
   
   const reactSnippet = `import React, { useState, useEffect } from 'react';
 
-function ChatComponent() {
+function AiNewsComponent() {
   const [response, setResponse] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -221,13 +217,9 @@ function ChatComponent() {
         const res = await fetch("https://aiqbit.vercel.app/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "Give me a React hook example" }),
+          body: JSON.stringify({ message: "Latest news on AI?" }),
         });
-
-        if (!res.ok) {
-          throw new Error(\`HTTP error! status: \${res.status}\`);
-        }
-
+        if (!res.ok) throw new Error(\`HTTP error! \${res.status}\`);
         const data = await res.json();
         setResponse(data.response);
       } catch (e) {
@@ -236,25 +228,196 @@ function ChatComponent() {
         setIsLoading(false);
       }
     };
-
     fetchResponse();
   }, []);
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <div>Loading news...</div>;
   if (error) return <div>Error: {error}</div>;
   
   return (
     <div>
-      <h1>AI Response:</h1>
-      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-        {response}
-      </pre>
+      <h1>AI News:</h1>
+      <pre style={{ whiteSpace: 'pre-wrap' }}>{response}</pre>
     </div>
   );
+}`;
+
+const toolDefinition = `const weatherTool = {
+  name: 'get_current_weather',
+  description: 'Get the current weather in a given location',
+  parameters: {
+    type: 'OBJECT',
+    properties: {
+      location: {
+        type: 'STRING',
+        description: 'The city and state, e.g. San Francisco, CA',
+      },
+      unit: {
+        type: 'STRING',
+        enum: ['celsius', 'fahrenheit'],
+      },
+    },
+    required: ['location'],
+  },
+};`;
+
+const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
+-H "Content-Type: application/json" \\
+-d '{
+  "message": "What is the weather like in Boston?",
+  "tools": [
+    {
+      "name": "get_current_weather",
+      "description": "Get the current weather in a given location",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "location": {
+            "type": "STRING",
+            "description": "The city and state, e.g. San Francisco, CA"
+          },
+          "unit": { "type": "STRING", "enum": ["celsius", "fahrenheit"] }
+        },
+        "required": ["location"]
+      }
+    }
+  ]
+}'`;
+
+const pythonToolSnippet = `import requests
+import json
+
+url = "https://aiqbit.vercel.app/api/chat"
+
+payload = {
+    "message": "What is the weather like in Boston?",
+    "tools": [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather for a given location",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "location": {
+                        "type": "STRING",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                    "unit": {"type": "STRING", "enum": ["celsius", "fahrenheit"]},
+                },
+                "required": ["location"],
+            },
+        }
+    ]
 }
 
-export default ChatComponent;
-`;
+headers = {"Content-Type": "application/json"}
+
+try:
+    response = requests.post(url, data=json.dumps(payload), headers=headers)
+    response.raise_for_status()
+    
+    # The response will contain a 'functionCalls' object
+    print(response.json())
+    
+except requests.exceptions.RequestException as e:
+    print(f"Error: {e}")`;
+
+const jsToolSnippet = `async function getWeather() {
+  const weatherTool = {
+    name: "get_current_weather",
+    description: "Get the current weather for a given location",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "The city and state, e.g. San Francisco, CA",
+        },
+        unit: { type: "STRING", enum: ["celsius", "fahrenheit"] },
+      },
+      required: ["location"],
+    },
+  };
+
+  try {
+    const response = await fetch("https://aiqbit.vercel.app/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "What is the weather like in Boston?",
+        tools: [weatherTool],
+      }),
+    });
+
+    if (!response.ok) throw new Error(\`HTTP error! \${response.status}\`);
+    
+    const data = await response.json();
+    console.log(data.functionCalls);
+    // Example output: [{ name: 'get_current_weather', args: { location: 'Boston, MA' } }]
+
+  } catch (error) {
+    console.error("API call failed:", error);
+  }
+}
+getWeather();`;
+
+const reactToolSnippet = `import React, { useState, useEffect } from 'react';
+
+const weatherTool = {
+  name: "get_current_weather",
+  description: "Get the current weather in a given location",
+  parameters: { /* ... parameters from JS example ... */ },
+};
+
+function WeatherWidget() {
+  const [functionCall, setFunctionCall] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchWeatherCall = async () => {
+      try {
+        const res = await fetch("https://aiqbit.vercel.app/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "What is the weather like in Boston?",
+            tools: [weatherTool],
+          }),
+        });
+        if (!res.ok) throw new Error(\`HTTP error! \${res.status}\`);
+        const data = await res.json();
+        if (data.functionCalls) {
+          setFunctionCall(data.functionCalls[0]);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    };
+    fetchWeatherCall();
+  }, []);
+
+  if (error) return <div>Error: {error}</div>;
+  if (!functionCall) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h2>AI wants to call a function:</h2>
+      <pre>{JSON.stringify(functionCall, null, 2)}</pre>
+      {/* You would now execute this function and send the result back */}
+    </div>
+  );
+}`;
+
+const exampleToolResponse = `{
+  "functionCalls": [
+    {
+      "name": "get_current_weather",
+      "args": {
+        "location": "Boston, MA"
+      }
+    }
+  ]
+}`;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center sm:p-4" onClick={onClose}>
@@ -386,29 +549,47 @@ export default ChatComponent;
               </section>
             )}
             {activeTab === 'API' && (
-              <section>
-                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.api.title')}</h3>
-                <p className="text-sm text-token-secondary mb-6">{t('settings.api.description')}</p>
-                
-                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-token-primary">{t('settings.api.endpoint')}</label>
-                    <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2 font-mono text-sm border rounded-md bg-token-surface-secondary border-token text-token-primary" />
-                 </div>
+              <section className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.api.title')}</h3>
+                  <p className="text-sm text-token-secondary mb-6">{t('settings.api.description')}</p>
+                  <div className="space-y-2">
+                      <label className="text-sm font-medium text-token-primary">{t('settings.api.endpoint')}</label>
+                      <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2 font-mono text-sm border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                  </div>
+                  <div className="mt-6">
+                      <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
+                          {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
+                              <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                                  {lang === 'javascript' ? 'Node.js' : lang}
+                              </button>
+                          ))}
+                      </div>
+                      {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
+                      {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
+                      {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
+                      {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
+                  </div>
+                </div>
 
-                 <div className="mt-6">
+                <div className="border-t border-token pt-8">
+                   <h4 className="text-base font-semibold text-token-primary mb-1">{t('settings.api.toolsTitle')}</h4>
+                   <p className="text-sm text-token-secondary mb-6">{t('settings.api.toolsDescription')}</p>
                     <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
-                        {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
-                             <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
-                                {lang === 'javascript' ? 'Node.js' : lang}
-                             </button>
-                        ))}
+                          {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
+                              <button key={lang} onClick={() => setActiveToolSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeToolSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                                  {lang === 'javascript' ? 'Node.js' : lang}
+                              </button>
+                          ))}
                     </div>
-                    {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
-                    {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
-                    {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
-                    {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
-                 </div>
+                    {activeToolSnippet === 'curl' && <CodeSnippet lang="bash" code={curlToolSnippet} t={t} />}
+                    {activeToolSnippet === 'python' && <CodeSnippet lang="python" code={pythonToolSnippet} t={t} />}
+                    {activeToolSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsToolSnippet} t={t} />}
+                    {activeToolSnippet === 'react' && <CodeSnippet lang="jsx" code={reactToolSnippet} t={t} />}
 
+                    <h5 className="text-sm font-semibold text-token-primary mt-6">{t('settings.api.exampleResponse')}</h5>
+                    <CodeSnippet lang="json" code={exampleToolResponse} t={t} />
+                </div>
               </section>
             )}
           </div>

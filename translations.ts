@@ -140,8 +140,11 @@ export const translations = {
       },
       api: {
         title: 'Developer API',
-        description: 'Use our free, rate-limited API endpoint for simple AI queries with web search capabilities. No API key required.',
+        description: 'Use our free, rate-limited API endpoint for simple AI queries. By default, it uses web search. You can also provide custom tools for function calling.',
         endpoint: 'API Endpoint',
+        toolsTitle: 'Advanced: Using Tools (Function Calling)',
+        toolsDescription: 'Provide custom tool definitions to have the AI return structured JSON for calling your own functions or APIs. This allows for powerful integrations, like fetching real-time data or interacting with external services.',
+        exampleResponse: 'Example Function Call Response',
       },
     },
     // Location Banner
@@ -286,8 +289,11 @@ export const translations = {
       },
       api: {
         title: 'API για Προγραμματιστές',
-        description: 'Χρησιμοποιήστε το δωρεάν API μας για απλά ερωτήματα AI με δυνατότητα αναζήτησης στο διαδίκτυο. Δεν απαιτείται κλειδί API.',
+        description: 'Χρησιμοποιήστε το δωρεάν API μας για απλά ερωτήματα AI. Από προεπιλογή, χρησιμοποιεί αναζήτηση ιστού. Μπορείτε επίσης να παρέχετε προσαρμοσμένα εργαλεία για κλήση συναρτήσεων.',
         endpoint: 'Endpoint του API',
+        toolsTitle: 'Για προχωρημένους: Χρήση Εργαλείων (Κλήση Συναρτήσεων)',
+        toolsDescription: 'Παρέχετε προσαρμοσμένους ορισμούς εργαλείων για να λαμβάνετε δομημένο JSON από την AI για την κλήση των δικών σας συναρτήσεων ή API. Αυτό επιτρέπει ισχυρές ενσωματώσεις, όπως η λήψη δεδομένων σε πραγματικό χρόνο.',
+        exampleResponse: 'Παράδειγμα Απόκρισης Κλήσης Συνάρτησης',
       },
     },
     location: {
@@ -431,8 +437,11 @@ export const translations = {
       },
       api: {
         title: 'API para Desarrolladores',
-        description: 'Utilice nuestro endpoint de API gratuito y con límite de velocidad para consultas simples de IA con capacidades de búsqueda web. No se requiere clave de API.',
+        description: 'Utilice nuestro endpoint de API gratuito para consultas simples de IA. Por defecto, utiliza la búsqueda web. También puede proporcionar herramientas personalizadas para la llamada de funciones.',
         endpoint: 'Endpoint de la API',
+        toolsTitle: 'Avanzado: Uso de Herramientas (Llamada de Funciones)',
+        toolsDescription: 'Proporcione definiciones de herramientas personalizadas para que la IA devuelva JSON estructurado para llamar a sus propias funciones o API. Esto permite integraciones potentes, como obtener datos en tiempo real.',
+        exampleResponse: 'Respuesta de Ejemplo de Llamada de Función',
       },
     },
     location: {
@@ -576,8 +585,11 @@ export const translations = {
       },
       api: {
         title: 'API Développeur',
-        description: "Utilisez notre point de terminaison d'API gratuit et à débit limité pour des requêtes IA simples avec des capacités de recherche Web. Aucune clé API n'est requise.",
+        description: "Utilisez notre point de terminaison d'API gratuit pour des requêtes IA simples. Par défaut, il utilise la recherche web. Vous pouvez également fournir des outils personnalisés pour l'appel de fonctions.",
         endpoint: "Point de terminaison de l'API",
+        toolsTitle: 'Avancé : Utilisation des Outils (Appel de Fonctions)',
+        toolsDescription: "Fournissez des définitions d'outils personnalisées pour que l'IA renvoie du JSON structuré afin d'appeler vos propres fonctions ou API. Cela permet des intégrations puissantes, comme la récupération de données en temps réel.",
+        exampleResponse: "Exemple de Réponse d'Appel de Fonction",
       },
     },
     location: {
@@ -721,8 +733,11 @@ export const translations = {
       },
       api: {
         title: 'Entwickler-API',
-        description: 'Nutzen Sie unseren kostenlosen, rate-limitierten API-Endpunkt für einfache KI-Abfragen mit Websuchfunktionen. Kein API-Schlüssel erforderlich.',
+        description: 'Nutzen Sie unseren kostenlosen API-Endpunkt für einfache KI-Abfragen. Standardmäßig wird die Websuche verwendet. Sie können auch benutzerdefinierte Tools für Funktionsaufrufe bereitstellen.',
         endpoint: 'API-Endpunkt',
+        toolsTitle: 'Erweitert: Verwendung von Tools (Funktionsaufrufe)',
+        toolsDescription: 'Stellen Sie benutzerdefinierte Tool-Definitionen bereit, damit die KI strukturiertes JSON zum Aufrufen Ihrer eigenen Funktionen oder APIs zurückgibt. Dies ermöglicht leistungsstarke Integrationen, wie das Abrufen von Echtzeitdaten.',
+        exampleResponse: 'Beispiel für eine Funktionsaufruf-Antwort',
       },
     },
     location: {

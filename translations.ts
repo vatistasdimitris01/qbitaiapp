@@ -97,6 +97,7 @@ export const translations = {
         general: 'General',
         personalization: 'Personalization',
         usage: 'Usage',
+        api: 'API Access',
       },
       general: {
         title: 'General',
@@ -136,6 +137,11 @@ export const translations = {
         input: 'Input',
         output: 'Output',
         totalCost: 'Total cost',
+      },
+      api: {
+        title: 'Developer API',
+        description: 'Use our free, rate-limited API endpoint for simple AI queries with web search capabilities. No API key required.',
+        endpoint: 'API Endpoint',
       },
     },
     // Location Banner
@@ -237,6 +243,7 @@ export const translations = {
         general: 'Γενικά',
         personalization: 'Εξατομίκευση',
         usage: 'Χρήση',
+        api: 'Πρόσβαση API',
       },
       general: {
         title: 'Γενικά',
@@ -276,6 +283,11 @@ export const translations = {
         input: 'Είσοδος',
         output: 'Έξοδος',
         totalCost: 'Συνολικό κόστος',
+      },
+      api: {
+        title: 'API για Προγραμματιστές',
+        description: 'Χρησιμοποιήστε το δωρεάν API μας για απλά ερωτήματα AI με δυνατότητα αναζήτησης στο διαδίκτυο. Δεν απαιτείται κλειδί API.',
+        endpoint: 'Endpoint του API',
       },
     },
     location: {
@@ -376,6 +388,7 @@ export const translations = {
         general: 'General',
         personalization: 'Personalización',
         usage: 'Uso',
+        api: 'Acceso API',
       },
       general: {
         title: 'General',
@@ -415,6 +428,11 @@ export const translations = {
         input: 'Entrada',
         output: 'Salida',
         totalCost: 'Costo total',
+      },
+      api: {
+        title: 'API para Desarrolladores',
+        description: 'Utilice nuestro endpoint de API gratuito y con límite de velocidad para consultas simples de IA con capacidades de búsqueda web. No se requiere clave de API.',
+        endpoint: 'Endpoint de la API',
       },
     },
     location: {
@@ -515,6 +533,7 @@ export const translations = {
         general: 'Général',
         personalization: 'Personnalisation',
         usage: 'Utilisation',
+        api: 'Accès API',
       },
       general: {
         title: 'Général',
@@ -554,6 +573,11 @@ export const translations = {
         input: 'Entrée',
         output: 'Sortie',
         totalCost: 'Coût total',
+      },
+      api: {
+        title: 'API Développeur',
+        description: "Utilisez notre point de terminaison d'API gratuit et à débit limité pour des requêtes IA simples avec des capacités de recherche Web. Aucune clé API n'est requise.",
+        endpoint: "Point de terminaison de l'API",
       },
     },
     location: {
@@ -654,6 +678,7 @@ export const translations = {
         general: 'Allgemein',
         personalization: 'Personalisierung',
         usage: 'Nutzung',
+        api: 'API-Zugang',
       },
       general: {
         title: 'Allgemein',
@@ -693,6 +718,11 @@ export const translations = {
         input: 'Eingabe',
         output: 'Ausgabe',
         totalCost: 'Gesamtkosten',
+      },
+      api: {
+        title: 'Entwickler-API',
+        description: 'Nutzen Sie unseren kostenlosen, rate-limitierten API-Endpunkt für einfache KI-Abfragen mit Websuchfunktionen. Kein API-Schlüssel erforderlich.',
+        endpoint: 'API-Endpunkt',
       },
     },
     location: {

@@ -1,8 +1,9 @@
 
 
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Conversation, Persona, MessageType } from '../types';
-import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon } from './icons';
+import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon, TerminalIcon, CheckIcon, CopyIcon } from './icons';
 import { translations } from '../translations';
 
 type Language = keyof typeof translations;
@@ -19,10 +20,10 @@ interface SettingsModalProps {
   conversations: Conversation[];
   setConversations: (conversations: Conversation[]) => void;
   activeConversationId: string | null;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string>) => string;
 }
 
-type SettingsTab = 'General' | 'Personalization' | 'Usage';
+type SettingsTab = 'General' | 'Personalization' | 'Usage' | 'API';
 
 // Pricing for gemini-2.5-flash
 const INPUT_PRICE_PER_1M_TOKENS = 0.35;
@@ -42,12 +43,53 @@ const languageNames: Record<Language, string> = {
 };
 
 
+const CodeSnippet: React.FC<{ lang: string; code: string; t: (key: string, params?: Record<string, string>) => string }> = ({ lang, code, t }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const [highlightedCode, setHighlightedCode] = useState('');
+
+    useEffect(() => {
+        if ((window as any).hljs) {
+            try {
+                const language = lang === 'jsx' ? 'javascript' : lang;
+                const highlighted = (window as any).hljs.highlight(code, { language, ignoreIllegals: true }).value;
+                setHighlightedCode(highlighted);
+            } catch (e) { 
+                setHighlightedCode(code.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+            }
+        } else {
+             setHighlightedCode(code.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+        }
+    }, [code, lang]);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
+    };
+
+    return (
+        <div className="bg-token-surface-secondary border border-token rounded-lg overflow-hidden my-4">
+            <div className="flex justify-between items-center px-4 py-2 bg-background/50 border-b border-token">
+                <span className="text-sm font-semibold text-token-primary capitalize">{lang}</span>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 text-xs text-token-secondary hover:text-token-primary transition-colors">
+                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                    {isCopied ? t('code.copied') : t('code.copy')}
+                </button>
+            </div>
+            <pre className="p-4 text-sm overflow-x-auto"><code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} /></pre>
+        </div>
+    );
+};
+
+
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, setPersonas,
   conversations, setConversations, activeConversationId, t
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('General');
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+  const [activeSnippet, setActiveSnippet] = useState('curl');
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   const usageStats = useMemo(() => {
@@ -127,6 +169,93 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       </button>
   );
 
+  const curlSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
+  -H "Content-Type: application/json" \\
+  -d '{"message": "Hello, world!"}'`;
+
+  const pythonSnippet = `import requests
+import json
+
+url = "https://aiqbit.vercel.app/api/chat"
+payload = {"message": "Hello, world!"}
+headers = {"Content-Type": "application/json"}
+
+try:
+    response = requests.post(url, data=json.dumps(payload), headers=headers)
+    response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+    print(response.json())
+except requests.exceptions.RequestException as e:
+    print(f"Error: {e}")`;
+    
+  const jsSnippet = `async function callApi() {
+  try {
+    const response = await fetch("https://aiqbit.vercel.app/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Hello, world!" }),
+    });
+
+    if (!response.ok) {
+      throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error("API call failed:", error);
+  }
+}
+
+callApi();`;
+  
+  const reactSnippet = `import React, { useState, useEffect } from 'react';
+
+function ChatComponent() {
+  const [response, setResponse] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResponse = async () => {
+      try {
+        const res = await fetch("https://aiqbit.vercel.app/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "Give me a React hook example" }),
+        });
+
+        if (!res.ok) {
+          throw new Error(\`HTTP error! status: \${res.status}\`);
+        }
+
+        const data = await res.json();
+        setResponse(data.response);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResponse();
+  }, []);
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  
+  return (
+    <div>
+      <h1>AI Response:</h1>
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+        {response}
+      </pre>
+    </div>
+  );
+}
+
+export default ChatComponent;
+`;
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center sm:p-4" onClick={onClose}>
       <div className="bg-token-surface shadow-xl w-full max-w-4xl h-full sm:h-[600px] sm:max-h-[85vh] flex flex-col overflow-hidden sm:rounded-2xl" onClick={e => e.stopPropagation()}>
@@ -143,6 +272,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <TabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
               <TabButton tab="Usage" label={t('settings.tabs.usage')} icon={<BarChartIcon className="size-5" />} />
+              <TabButton tab="API" label={t('settings.tabs.api')} icon={<TerminalIcon className="size-5" />} />
           </div>
 
           {/* Mobile Top Nav */}
@@ -151,6 +281,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <MobileTabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
                   <MobileTabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
                   <MobileTabButton tab="Usage" label={t('settings.tabs.usage')} icon={<BarChartIcon className="size-5" />} />
+                  <MobileTabButton tab="API" label={t('settings.tabs.api')} icon={<TerminalIcon className="size-5" />} />
               </div>
           </div>
 
@@ -252,6 +383,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                     </div>
                 </div>
+              </section>
+            )}
+            {activeTab === 'API' && (
+              <section>
+                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.api.title')}</h3>
+                <p className="text-sm text-token-secondary mb-6">{t('settings.api.description')}</p>
+                
+                 <div className="space-y-2">
+                    <label className="text-sm font-medium text-token-primary">{t('settings.api.endpoint')}</label>
+                    <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2 font-mono text-sm border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                 </div>
+
+                 <div className="mt-6">
+                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
+                        {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
+                             <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                                {lang === 'javascript' ? 'Node.js' : lang}
+                             </button>
+                        ))}
+                    </div>
+                    {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
+                    {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
+                    {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
+                    {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
+                 </div>
+
               </section>
             )}
           </div>

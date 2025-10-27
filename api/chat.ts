@@ -82,7 +82,6 @@ export default async function handler(req: Request) {
     - **Divider Rule**:
         - For longer, structured responses, add a markdown divider (\`---\`) before the follow-up questions.
         - For short, simple responses (e.g., a few sentences), **do not** include the divider. Just add the follow-up question(s) on a new line.
-// FIX: Escaped backticks to prevent breaking the template literal string.
 - **Code**: For brief code elements or names, use single backticks (\\\`code\\\`). Do not generate large, multi-line, or executable code blocks in this API.
 
 ---

@@ -12,7 +12,7 @@ declare global {
 }
 
 const LoadingSpinner = () => (
-    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -399,16 +399,32 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     };
     
     const OutputDisplay = () => {
-        const hasVisibleOutput = (typeof output === 'string' && output.trim() !== '') || (output && typeof output !== 'string');
-        const showRegularOutputBlock = hasVisibleOutput && !(lang === 'python' && typeof output === 'string' && output.startsWith('{')) && !(lang === 'react' || lang === 'jsx');
+        const isFatalError = status === 'error';
 
+        // Determine if there is any visual output to render.
+        const hasVisibleOutput = (output && typeof output !== 'string') || 
+                                 (typeof output === 'string' && output.trim() !== '') ||
+                                 (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ||
+                                 ((lang === 'react' || lang === 'jsx') && status === 'success');
+
+        const showRegularOutputBlock = hasVisibleOutput && 
+                                       !((lang === 'react' || lang === 'jsx') && status === 'success') &&
+                                       !(output && typeof output !== 'string') &&
+                                       !(lang === 'python' && typeof output === 'string' && output.startsWith('{'));
+
+        // Don't render anything if there's no output, no errors, and no files to show.
+        if (!error && !hasVisibleOutput && !downloadableFile && !htmlBlobUrl) {
+            return null;
+        }
+        
         return (
             <div className="flex flex-col gap-2">
-                {status === 'error' && error && (
-                    <div className="output-block error">
+                {/* 1. RENDER ERROR / WARNINGS */}
+                {error && (
+                    <div className={`output-block ${isFatalError ? 'error' : 'success'}`}>
                         <div className="flex justify-between items-start gap-4">
-                            <pre className="text-sm error-text whitespace-pre-wrap flex-1">{error}</pre>
-                            {onFixRequest && (
+                            <pre className={`text-sm whitespace-pre-wrap flex-1 ${isFatalError ? 'error-text' : ''}`}>{error}</pre>
+                            {isFatalError && onFixRequest && (
                                 <button
                                     onClick={() => onFixRequest(error)}
                                     title={t('code.fixCode')}
@@ -420,22 +436,17 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         </div>
                     </div>
                 )}
-    
-                {status === 'success' && (
+                
+                {/* 2. RENDER PRIMARY OUTPUT (but only if the execution was not a fatal error) */}
+                {!isFatalError && hasVisibleOutput && (
                     <>
-                        {error && (
-                            <div className="output-block success">
-                                <pre className="text-sm whitespace-pre-wrap">{error}</pre>
-                            </div>
-                        )}
-    
                         {output && typeof output !== 'string' && <div>{output}</div>}
                         
                         {output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
                             <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
                         )}
                         
-                        {output && (lang === 'react' || lang === 'jsx') && (
+                        {(lang === 'react' || lang === 'jsx') && (
                             <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
                         )}
                         
@@ -444,32 +455,33 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                                 <pre>{typeof output === 'string' ? output.trim() : ''}</pre>
                             </div>
                         )}
-                        
-                        {(downloadableFile || htmlBlobUrl) && (
-                            <div className="text-sm output-block success">
-                                <div className="flex items-center gap-2">
-                                    {downloadableFile && (
-                                        <button
-                                            onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
-                                            className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                                        >
-                                            <DownloadIcon className="size-3.5 mr-1.5" />
-                                            {t('code.downloadAgain')}
-                                        </button>
-                                    )}
-                                    {htmlBlobUrl && (
-                                        <button
-                                            onClick={() => window.open(htmlBlobUrl, '_blank')}
-                                            className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                                        >
-                                            <EyeIcon className="size-3.5 mr-1.5" />
-                                            {t('code.openInNewTab')}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </>
+                )}
+
+                {/* 3. RENDER DOWNLOADS (can appear even with warnings) */}
+                {!isFatalError && (downloadableFile || htmlBlobUrl) && (
+                     <div className="text-sm output-block success">
+                        <div className="flex items-center gap-2">
+                            {downloadableFile && (
+                                <button
+                                    onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                                    className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                                >
+                                    <DownloadIcon className="size-3.5 mr-1.5" />
+                                    {t('code.downloadAgain')}
+                                </button>
+                            )}
+                            {htmlBlobUrl && (
+                                <button
+                                    onClick={() => window.open(htmlBlobUrl, '_blank')}
+                                    className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                                >
+                                    <EyeIcon className="size-3.5 mr-1.5" />
+                                    {t('code.openInNewTab')}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 )}
             </div>
         );

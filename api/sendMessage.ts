@@ -163,12 +163,12 @@ export default async function handler(req: Request) {
         - YOUR CORRECT RESPONSE:
 \`\`\`python autorun
 import matplotlib.pyplot as plt
-labels = """Sales""", """Marketing""", """Development"""
+labels = 'Sales', 'Marketing', 'Development'
 sizes = [40, 20, 30]
 fig1, ax1 = plt.subplots()
 ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-ax1.axis("""equal""")
-plt.title("""Department Spending""")
+ax1.axis('equal')
+plt.title('Department Spending')
 plt.show()
 \`\`\`
         - YOUR INCORRECT RESPONSE:
@@ -181,7 +181,7 @@ plt.show()
 
 ### 3. 🐍 Python Coding Rules
 - **Environment**: You have access to: \`pandas\`, \`numpy\`, \`matplotlib\`, \`plotly\`, \`openpyxl\`, \`python-docx\`, \`fpdf2\`, \`scikit-learn\`, \`seaborn\`, \`sympy\`, \`pillow\`, \`beautifulsoup4\`, \`scipy\`, \`opencv-python\`, \`requests\`.
-- **Strings**: You MUST use triple quotes for ALL string literals (\`"""..."""\`). For single-line strings, the quotes must be on the same line.
+- **Strings**: Use standard Python strings. Prefer single quotes (\`'...' \`) or double quotes (\`"..."\`) for simplicity. If a string contains a quote character, use the other type to enclose it (e.g., \`"Here's a string"\`) or escape the character (e.g., \`'Here\\'s a string'\`).
 - **Plotting**: Do NOT use emojis in plot titles, labels, or any text that will be rendered in a chart image. The environment's fonts may not support them.
 - **File Naming**: If the user doesn't provide a filename for a file generation task, you MUST choose a descriptive one (e.g., \`financial_report.xlsx\`, \`project_summary.docx\`). Do not ask.
 - **File Generation Libraries**:

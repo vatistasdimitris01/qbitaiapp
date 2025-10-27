@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Conversation, Persona, MessageType } from '../types';
 import { XIcon, Trash2Icon, SettingsIcon, SquarePenIcon, BarChartIcon, TerminalIcon, CheckIcon, CopyIcon } from './icons';
@@ -20,7 +17,8 @@ interface SettingsModalProps {
   conversations: Conversation[];
   setConversations: (conversations: Conversation[]) => void;
   activeConversationId: string | null;
-  t: (key: string, params?: Record<string, string>) => void;
+  // FIX: The `t` function should return a string, not void.
+  t: (key: string, params?: Record<string, string>) => string;
 }
 
 type SettingsTab = 'General' | 'Personalization' | 'Usage' | 'API';
@@ -172,13 +170,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const curlSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "Latest news on AI?"}'`;
+  -d '{
+  "message": "Tell me the latest news on AI in the style of a pirate.",
+  "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+}'`;
 
   const pythonSnippet = `import requests
 import json
 
 url = "https://aiqbit.vercel.app/api/chat"
-payload = {"message": "Latest news on AI?"}
+payload = {
+    "message": "Tell me the latest news on AI in the style of a pirate.",
+    "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+}
 headers = {"Content-Type": "application/json"}
 
 try:
@@ -193,7 +197,10 @@ except requests.exceptions.RequestException as e:
     const response = await fetch("https://aiqbit.vercel.app/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Latest news on AI?" }),
+      body: JSON.stringify({
+        message: "Tell me the latest news on AI in the style of a pirate.",
+        userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+      }),
     });
     if (!response.ok) throw new Error(\`HTTP error! \${response.status}\`);
     const data = await response.json();
@@ -217,7 +224,10 @@ function AiNewsComponent() {
         const res = await fetch("https://aiqbit.vercel.app/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "Latest news on AI?" }),
+          body: JSON.stringify({
+            message: "Tell me the latest news on AI in the style of a pirate.",
+            userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+          }),
         });
         if (!res.ok) throw new Error(\`HTTP error! \${res.status}\`);
         const data = await res.json();
@@ -236,7 +246,7 @@ function AiNewsComponent() {
   
   return (
     <div>
-      <h1>AI News:</h1>
+      <h1>Pirate AI News:</h1>
       <pre style={{ whiteSpace: 'pre-wrap' }}>{response}</pre>
     </div>
   );
@@ -557,19 +567,22 @@ const exampleToolResponse = `{
                       <label className="text-sm font-medium text-token-primary">{t('settings.api.endpoint')}</label>
                       <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2 font-mono text-sm border rounded-md bg-token-surface-secondary border-token text-token-primary" />
                   </div>
-                  <div className="mt-6">
-                      <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
-                          {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
-                              <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
-                                  {lang === 'javascript' ? 'Node.js' : lang}
-                              </button>
-                          ))}
-                      </div>
-                      {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
-                      {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
-                      {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
-                      {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
-                  </div>
+                </div>
+
+                <div>
+                   <h4 className="text-base font-semibold text-token-primary mb-1">{t('settings.api.basicTitle')}</h4>
+                   <p className="text-sm text-token-secondary mb-6">{t('settings.api.basicDescription')}</p>
+                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
+                        {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
+                            <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                                {lang === 'javascript' ? 'Node.js' : lang}
+                            </button>
+                        ))}
+                    </div>
+                    {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
+                    {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
+                    {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
+                    {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
                 </div>
 
                 <div className="border-t border-token pt-8">
@@ -600,7 +613,7 @@ const exampleToolResponse = `{
   );
 };
 
-const PersonaEditor: React.FC<{persona: Persona, onSave: (p: Persona) => void, onClose: () => void, t: (key: string) => string}> = ({persona, onSave, onClose, t}) => {
+const PersonaEditor: React.FC<{persona: Persona, onSave: (p: Persona) => void, onClose: () => void, t: (key: string, params?: Record<string, string>) => string}> = ({persona, onSave, onClose, t}) => {
     const [name, setName] = useState(persona.name);
     const [instruction, setInstruction] = useState(persona.instruction);
 

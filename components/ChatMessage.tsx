@@ -463,13 +463,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
                                         return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
                                     }
-                                    if (part.type === 'code' && part.code) {
+                                    if (part.type === 'code') {
                                         const isExecutable = !part.noRun;
                                         const key = `${message.id}_${index}`;
                                         return (
                                             <CodeExecutor
                                                 key={key}
-                                                code={part.code}
+                                                code={part.code || ''}
                                                 lang={part.lang!}
                                                 title={part.title}
                                                 isExecutable={isExecutable}
@@ -488,7 +488,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     return null;
                                 })}
                                 
-                                {isLoading && !parsedResponseText && (aiStatus === 'thinking' || aiStatus === 'searching') && (
+                                {isLoading && !parsedResponseText.trim() && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && (
                                     <AITextLoading texts={loadingTexts} />
                                 )}
                             </div>

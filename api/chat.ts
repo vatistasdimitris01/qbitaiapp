@@ -30,7 +30,7 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { message, tools } = await req.json();
+        const { message, tools, userInstruction } = await req.json();
 
         if (typeof message !== 'string' || message.trim().length === 0) {
             return new Response(JSON.stringify({ error: 'Message is required and must be a non-empty string.' }), {
@@ -46,7 +46,7 @@ export default async function handler(req: Request) {
         
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const systemInstruction = `You are a helpful and brilliant assistant. Your primary goal is to provide clear, accurate, and well-structured information while being proactive and engaging.
+        const baseSystemInstruction = `You are a helpful and brilliant assistant. Your primary goal is to provide clear, accurate, and well-structured information while being proactive and engaging.
 
 - **Markdown Mastery**:
     - **MANDATORY FOR STRUCTURE**: You MUST use Markdown extensively to format all but the simplest responses. Structure your answers logically for maximum readability.
@@ -73,7 +73,11 @@ export default async function handler(req: Request) {
         - For short, simple responses (e.g., a few sentences), **do not** include the divider. Just add the follow-up question(s) on a new line.
 - **Inline Code**: For brief code elements, terminal commands, function names (\`print()\`), variable names (\`my_variable\`), or file names (\`hello.py\`), use single backticks. Do not generate large, executable code blocks.`;
 
-        const config: GenerateContentConfig = { systemInstruction };
+        const finalSystemInstruction = userInstruction && typeof userInstruction === 'string'
+            ? `${userInstruction}\n\n---\n\n${baseSystemInstruction}`
+            : baseSystemInstruction;
+
+        const config: GenerateContentConfig = { systemInstruction: finalSystemInstruction };
 
         // If custom tools are provided, use them. Otherwise, default to Google Search.
         if (tools && Array.isArray(tools) && tools.length > 0) {

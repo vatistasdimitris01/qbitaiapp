@@ -138,6 +138,7 @@ export default async function handler(req: Request) {
 - **File Naming**: When the user asks to create a file but does not specify a filename, you MUST choose a descriptive and appropriate filename yourself (e.g., 'report.docx', 'data_analysis.xlsx', 'sine_wave_plot.pdf'). Do not ask the user for a filename.
 - **Excel File Generation**: When asked to create an Excel file (.xlsx), you MUST use the \`openpyxl\` library.
 - After calling a file-saving function (like \`wb.save()\`), do NOT add any print statements.
+- **Infographics**: You are capable of creating simple infographics using \`matplotlib\`. To do this, combine text (\`plt.text()\`), shapes (\`matplotlib.patches\`), and simple plots within a single figure to visually represent information. This is useful for timelines, simple flowcharts, or statistical summaries. The entire infographic MUST be output as a single plot image. Use the \`autorun\` keyword for these tasks.
 - You have access to a Python environment with the following libraries: pandas, numpy, matplotlib, plotly, openpyxl, python-docx, fpdf2, scikit-learn, seaborn, sympy, pillow, beautifulsoup4, scipy, opencv-python, and requests.
 - When creating files with Python (xlsx, docx, pdf), the file saving functions are automatically handled to trigger a download for the user.`;
 

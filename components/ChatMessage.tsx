@@ -281,9 +281,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return parts;
     }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
 
-    const hasRenderableContent = useMemo(() => {
-      return contentParts.some(p => (p.type === 'text' && p.content && p.content.trim() !== '') || p.type === 'code');
-    }, [contentParts]);
+    const hasContent = useMemo(() => {
+      // A response has content if its text is not just whitespace.
+      // This is a robust way to check for empty/non-empty responses.
+      return parsedResponseText.trim().length > 0;
+    }, [parsedResponseText]);
 
 
     const handleCopy = () => {
@@ -382,8 +384,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
       }
     }, [aiStatus, t]);
 
-
-    if (!isUser && !hasRenderableContent && !isLoading && !hasThinking) {
+    // Don't render the AI message container if the response has finished and is empty.
+    if (!isUser && !isLoading && !hasContent && !hasThinking) {
       return null;
     }
 
@@ -488,13 +490,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     return null;
                                 })}
                                 
-                                {isLoading && !parsedResponseText.trim() && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && (
+                                {isLoading && !hasContent && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && (
                                     <AITextLoading texts={loadingTexts} />
                                 )}
                             </div>
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasRenderableContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
                             {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
                         </IconButton>

@@ -153,15 +153,15 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     setStatus('success');
                     let resultToPersist: ExecutionResult;
                     if (finalResult) {
-                        resultToPersist = { ...finalResult, error: '' };
+                        resultToPersist = { ...finalResult, error: stderrBuffer.trim() }; // Pass along any warnings
                     } else if (stdoutBuffer.trim()) {
-                        resultToPersist = { output: stdoutBuffer.trim(), error: '', type: 'string' };
+                        resultToPersist = { output: stdoutBuffer.trim(), error: stderrBuffer.trim(), type: 'string' };
                     } else if (currentRunDownloadableFile) {
                         const msg = t('code.fileSuccess', {filename: currentRunDownloadableFile.filename});
                         setOutput(msg);
-                        resultToPersist = { output: msg, error: '', type: 'string' };
+                        resultToPersist = { output: msg, error: stderrBuffer.trim(), type: 'string' };
                     } else {
-                        resultToPersist = { output: null, error: '', type: 'string' };
+                        resultToPersist = { output: null, error: stderrBuffer.trim(), type: 'string' };
                     }
                     
                     if (currentRunDownloadableFile) {
@@ -307,10 +307,13 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         if (persistedResult) {
             const { output: savedOutput, error: savedError, type, downloadableFile: savedFile } = persistedResult;
             
-            if (savedError) {
+            if (type === 'error') {
                 setError(savedError);
                 setStatus('error');
             } else {
+                if (savedError) { // This is now treated as warnings
+                    setError(savedError);
+                }
                 if (savedOutput !== null) {
                     if (type === 'image-base64') {
                         setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
@@ -396,71 +399,80 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     };
     
     const OutputDisplay = () => {
-      const showOutputBlock = !error && (
-        (typeof output === 'string' && output.trim() !== '') ||
-        downloadableFile ||
-        htmlBlobUrl
-      );
-    
-      return (
-        <div className="flex flex-col gap-2">
-            {error ? (
-                <div className="output-block error">
-                    <div className="flex justify-between items-start gap-4">
-                        <pre className="text-sm error-text whitespace-pre-wrap flex-1">{error}</pre>
-                        {onFixRequest && (
-                            <button
-                                onClick={() => onFixRequest(error)}
-                                title={t('code.fixCode')}
-                                className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"
-                            >
-                                <Wand2Icon className="size-5" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-            ) : null}
+        const hasVisibleOutput = (typeof output === 'string' && output.trim() !== '') || (output && typeof output !== 'string');
+        const showRegularOutputBlock = hasVisibleOutput && !(lang === 'python' && typeof output === 'string' && output.startsWith('{')) && !(lang === 'react' || lang === 'jsx');
 
-            {!error && output && typeof output !== 'string' && (
-              <div>{output}</div> // For image
-            )}
-            {!error && output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
-              <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
-            )}
-            {!error && output && (lang === 'react' || lang === 'jsx') && (
-              <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
-            )}
-            
-            {showOutputBlock && (
-              <div className="text-sm output-block success">
-                {typeof output === 'string' && output.trim() !== '' && <pre>{output.trim()}</pre>}
-                
-                {(downloadableFile || htmlBlobUrl) && (
-                  <div className={`flex items-center gap-2 ${typeof output === 'string' && output.trim() !== '' ? 'mt-2 pt-2 border-t border-token' : ''}`}>
-                    {downloadableFile && (
-                      <button
-                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
-                        className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                      >
-                        <DownloadIcon className="size-3.5 mr-1.5" />
-                        {t('code.downloadAgain')}
-                      </button>
-                    )}
-                    {htmlBlobUrl && (
-                      <button
-                        onClick={() => window.open(htmlBlobUrl, '_blank')}
-                        className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                      >
-                        <EyeIcon className="size-3.5 mr-1.5" />
-                        {t('code.openInNewTab')}
-                      </button>
-                    )}
-                  </div>
+        return (
+            <div className="flex flex-col gap-2">
+                {status === 'error' && error && (
+                    <div className="output-block error">
+                        <div className="flex justify-between items-start gap-4">
+                            <pre className="text-sm error-text whitespace-pre-wrap flex-1">{error}</pre>
+                            {onFixRequest && (
+                                <button
+                                    onClick={() => onFixRequest(error)}
+                                    title={t('code.fixCode')}
+                                    className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"
+                                >
+                                    <Wand2Icon className="size-5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 )}
-              </div>
-            )}
-        </div>
-      );
+    
+                {status === 'success' && (
+                    <>
+                        {error && (
+                            <div className="output-block success">
+                                <pre className="text-sm whitespace-pre-wrap">{error}</pre>
+                            </div>
+                        )}
+    
+                        {output && typeof output !== 'string' && <div>{output}</div>}
+                        
+                        {output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
+                            <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
+                        )}
+                        
+                        {output && (lang === 'react' || lang === 'jsx') && (
+                            <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
+                        )}
+                        
+                        {showRegularOutputBlock && (
+                            <div className="text-sm output-block success">
+                                <pre>{typeof output === 'string' ? output.trim() : ''}</pre>
+                            </div>
+                        )}
+                        
+                        {(downloadableFile || htmlBlobUrl) && (
+                            <div className="text-sm output-block success">
+                                <div className="flex items-center gap-2">
+                                    {downloadableFile && (
+                                        <button
+                                            onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                                            className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                                        >
+                                            <DownloadIcon className="size-3.5 mr-1.5" />
+                                            {t('code.downloadAgain')}
+                                        </button>
+                                    )}
+                                    {htmlBlobUrl && (
+                                        <button
+                                            onClick={() => window.open(htmlBlobUrl, '_blank')}
+                                            className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
+                                        >
+                                            <EyeIcon className="size-3.5 mr-1.5" />
+                                            {t('code.openInNewTab')}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        );
     };
     
     const isPython = lang.toLowerCase() === 'python';

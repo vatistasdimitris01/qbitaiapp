@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
 import { FileAttachment } from '../types';
 
@@ -7,6 +7,12 @@ interface ChatInputProps {
     isLoading: boolean;
     t: (key: string, params?: Record<string, string>) => string;
     onAbortGeneration: () => void;
+    initialText?: string;
+    onInitialTextConsumed?: () => void;
+}
+
+export interface ChatInputHandles {
+  focus: () => void;
 }
 
 const fileToDataURL = (file: File): Promise<string> => {
@@ -24,7 +30,7 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
 const MAX_TOTAL_SIZE_GB = 50;
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
+const ChatInput = forwardRef<ChatInputHandles, ChatInputProps>(({ onSendMessage, isLoading, t, onAbortGeneration, initialText, onInitialTextConsumed }, ref) => {
     const [text, setText] = useState('');
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -38,9 +44,22 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
         }
     }, []);
 
+    useImperativeHandle(ref, () => ({
+        focus: () => {
+            textareaRef.current?.focus();
+        },
+    }));
+
     useEffect(() => {
         adjustTextareaHeight();
     }, [text, adjustTextareaHeight]);
+
+    useEffect(() => {
+        if (initialText && onInitialTextConsumed) {
+            setText(initialText);
+            onInitialTextConsumed();
+        }
+    }, [initialText, onInitialTextConsumed]);
     
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -212,6 +231,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
             </p>
         </div>
     );
-};
+});
 
 export default ChatInput;

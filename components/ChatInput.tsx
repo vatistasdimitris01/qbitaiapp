@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
 import { FileAttachment } from '../types';
 
 interface ChatInputProps {
+    text: string;
+    onTextChange: (text: string) => void;
     onSendMessage: (message: string, attachments: FileAttachment[]) => void;
     isLoading: boolean;
     t: (key: string, params?: Record<string, string>) => string;
@@ -24,17 +26,17 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
 const MAX_TOTAL_SIZE_GB = 50;
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAbortGeneration }) => {
-    const [text, setText] = useState('');
+const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration }, ref) => {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
+    useImperativeHandle(ref, () => internalTextareaRef.current!, []);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const adjustTextareaHeight = useCallback(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            const newHeight = Math.min(textareaRef.current.scrollHeight, 200); // Max height 200px
-            textareaRef.current.style.height = `${newHeight}px`;
+        if (internalTextareaRef.current) {
+            internalTextareaRef.current.style.height = 'auto';
+            const newHeight = Math.min(internalTextareaRef.current.scrollHeight, 200); // Max height 200px
+            internalTextareaRef.current.style.height = `${newHeight}px`;
         }
     }, []);
 
@@ -94,7 +96,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setText(e.target.value);
+        onTextChange(e.target.value);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -105,10 +107,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                 messageToSend = "Refer to the following content:";
             }
             onSendMessage(messageToSend, attachments);
-            setText('');
+            onTextChange('');
             setAttachments([]);
-            if (textareaRef.current) {
-                textareaRef.current.style.height = '44px';
+            if (internalTextareaRef.current) {
+                internalTextareaRef.current.style.height = '44px';
             }
         }
     };
@@ -163,7 +165,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
                     )}
                     <div className="relative z-10">
                         <textarea
-                            ref={textareaRef}
+                            ref={internalTextareaRef}
                             dir="auto"
                             aria-label={placeholder}
                             className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-muted"
@@ -212,6 +214,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, t, onAb
             </p>
         </div>
     );
-};
+});
 
 export default ChatInput;

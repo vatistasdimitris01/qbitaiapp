@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
+import SelectionPopup from './components/SelectionPopup';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
@@ -121,7 +122,16 @@ const App: React.FC = () => {
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
+  const [chatInputText, setChatInputText] = useState('');
+  const [selectionPopup, setSelectionPopup] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
+
   const mainContentRef = useRef<HTMLElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { t, setLang, lang } = useTranslations(language);
 
@@ -196,6 +206,50 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Text selection handler for "Ask Qbit" popup
+  useEffect(() => {
+    const handleSelection = () => {
+        const selection = window.getSelection();
+
+        // Condition to hide popup: no selection or selection is too short
+        if (!selection || selection.isCollapsed || selection.toString().trim().length < 3) {
+            setSelectionPopup(null);
+            return;
+        }
+
+        // Condition to show popup
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const container = range.commonAncestorContainer;
+            const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+
+            // Only show if selection is within the chat area and not in an editable field or on the popup itself
+            if (element && mainContentRef.current?.contains(element) && !element.closest('textarea, input, [contenteditable="true"], .selection-popup-container')) {
+                const rect = range.getBoundingClientRect();
+                setSelectionPopup({
+                    visible: true,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    text: selection.toString().trim(),
+                });
+            } else {
+                 setSelectionPopup(null);
+            }
+        }
+    }
+
+    const handleMouseUp = () => {
+        // Timeout ensures the selection object is updated before we check it
+        setTimeout(handleSelection, 10);
+    }
+    
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+}, []);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -389,6 +443,12 @@ const App: React.FC = () => {
     }
     setIsLoading(false);
     setAiStatus('idle');
+  };
+
+  const handleAskWithSelection = (text: string) => {
+    setChatInputText(text);
+    setSelectionPopup(null);
+    setTimeout(() => chatInputRef.current?.focus(), 50);
   };
 
   const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
@@ -786,7 +846,15 @@ ${error}
                 </button>
             )}
             <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
+                <ChatInput 
+                  ref={chatInputRef}
+                  text={chatInputText}
+                  onTextChange={setChatInputText}
+                  onSendMessage={handleSendMessage} 
+                  isLoading={isLoading} 
+                  t={t} 
+                  onAbortGeneration={handleAbortGeneration} 
+                />
             </footer>
             </div>
         </div>
@@ -809,6 +877,15 @@ ${error}
                 code={analysisModalContent.code}
                 lang={analysisModalContent.lang}
                 onClose={() => setAnalysisModalContent(null)}
+                t={t}
+            />
+        )}
+        {selectionPopup && selectionPopup.visible && (
+            <SelectionPopup
+                x={selectionPopup.x}
+                y={selectionPopup.y}
+                text={selectionPopup.text}
+                onAsk={handleAskWithSelection}
                 t={t}
             />
         )}

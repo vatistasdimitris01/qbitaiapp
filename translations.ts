@@ -155,6 +155,9 @@ export const translations = {
       allow: 'Allow',
       dismiss: 'Dismiss',
     },
+    selectionPopup: {
+      ask: 'Ask Qbit'
+    }
   },
   el: {
     loader: {
@@ -305,6 +308,9 @@ export const translations = {
       allow: 'Αποδοχή',
       dismiss: 'Απόρριψη',
     },
+    selectionPopup: {
+      ask: 'Ρώτα το Qbit'
+    }
   },
   es: {
     loader: {
@@ -455,6 +461,9 @@ export const translations = {
       allow: 'Permitir',
       dismiss: 'Descartar',
     },
+    selectionPopup: {
+      ask: 'Preguntar a Qbit'
+    }
   },
   fr: {
     loader: {
@@ -605,6 +614,9 @@ export const translations = {
       allow: 'Autoriser',
       dismiss: 'Rejeter',
     },
+    selectionPopup: {
+      ask: 'Demander à Qbit'
+    }
   },
   de: {
     loader: {
@@ -755,5 +767,8 @@ export const translations = {
       allow: 'Erlauben',
       dismiss: 'Ablehnen',
     },
+    selectionPopup: {
+      ask: 'Qbit fragen'
+    }
   },
 };

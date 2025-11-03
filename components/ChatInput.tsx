@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, ReplyIcon } from './icons';
 import { FileAttachment } from '../types';
 
 interface ChatInputProps {
@@ -9,6 +9,8 @@ interface ChatInputProps {
     isLoading: boolean;
     t: (key: string, params?: Record<string, string>) => string;
     onAbortGeneration: () => void;
+    replyContextText: string | null;
+    onClearReplyContext: () => void;
 }
 
 const fileToDataURL = (file: File): Promise<string> => {
@@ -26,7 +28,7 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
 const MAX_TOTAL_SIZE_GB = 50;
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
-const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration }, ref) => {
+const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     useImperativeHandle(ref, () => internalTextareaRef.current!, []);
@@ -101,9 +103,9 @@ const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTex
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if ((text.trim() || attachments.length > 0) && !isLoading) {
+        if ((text.trim() || attachments.length > 0 || replyContextText) && !isLoading) {
             let messageToSend = text.trim();
-            if (!messageToSend && attachments.length > 0) {
+             if (!messageToSend && attachments.length > 0 && !replyContextText) {
                 messageToSend = "Refer to the following content:";
             }
             onSendMessage(messageToSend, attachments);
@@ -142,6 +144,27 @@ const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTex
                     onChange={handleFileChange}
                 />
                 <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
+                    {replyContextText && (
+                        <div className="mx-1 mb-2 border-b border-default pb-2">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-2.5 text-muted-foreground shrink min-w-0">
+                                    <ReplyIcon className="size-4 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>
+                                        {replyContextText}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={onClearReplyContext}
+                                    className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary"
+                                    aria-label={t('chat.input.clearReply')}
+                                >
+                                    <XIcon className="size-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    
                     {attachments.length > 0 && (
                         <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
                             {attachments.map((file, index) => (
@@ -200,7 +223,7 @@ const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTex
                                     aria-label={t('chat.input.submit')}
                                     className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
                                     style={{ transform: 'translateY(-2px)' }}
-                                    disabled={(!text.trim() && attachments.length === 0)}
+                                    disabled={(!text.trim() && attachments.length === 0 && !replyContextText)}
                                 >
                                     <ArrowUpIcon />
                                 </button>

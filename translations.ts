@@ -26,6 +26,7 @@ export const translations = {
     chat: {
       placeholder: 'Start a conversation with Qbit.',
       scrollToBottom: 'Scroll to bottom',
+      replyContext: 'In reference to the following text:\n"""\n{context}\n"""',
       input: {
         placeholder: 'Ask Anything',
         placeholderWithFiles: 'Describe {count} file(s)...',
@@ -34,6 +35,7 @@ export const translations = {
         submit: 'Submit',
         stop: 'Stop generation',
         removeFile: 'Remove {filename}',
+        clearReply: 'Clear reply',
         fileTooLarge: 'File "{filename}" is too large. Max per file is {size}.',
         totalSizeTooLarge: 'Total attachment size exceeds the limit of {size}.',
         tooManyFiles: 'You can attach a maximum of {count} files.',
@@ -183,6 +185,7 @@ export const translations = {
     chat: {
       placeholder: 'Ξεκινήστε μια συνομιλία με το Qbit.',
       scrollToBottom: 'Κύλιση προς τα κάτω',
+      replyContext: 'Σε απάντηση στο ακόλουθο κείμενο:\n"""\n{context}\n"""',
       input: {
         placeholder: 'Ρωτήστε οτιδήποτε',
         placeholderWithFiles: 'Περιγράψτε {count} αρχείο(α)...',
@@ -191,6 +194,7 @@ export const translations = {
         submit: 'Υποβολή',
         stop: 'Διακοπή δημιουργίας',
         removeFile: 'Αφαίρεση {filename}',
+        clearReply: 'Καθαρισμός απάντησης',
         fileTooLarge: 'Το αρχείο "{filename}" είναι πολύ μεγάλο. Το μέγιστο μέγεθος ανά αρχείο είναι {size}.',
         totalSizeTooLarge: 'Το συνολικό μέγεθος των συνημμένων υπερβαίνει το όριο του {size}.',
         tooManyFiles: 'Μπορείτε να επισυνάψετε το πολύ {count} αρχεία.',
@@ -336,6 +340,7 @@ export const translations = {
     chat: {
       placeholder: 'Inicia una conversación con Qbit.',
       scrollToBottom: 'Desplazarse hacia abajo',
+      replyContext: 'En referencia al siguiente texto:\n"""\n{context}\n"""',
       input: {
         placeholder: 'Pregunta lo que sea',
         placeholderWithFiles: 'Describe {count} archivo(s)...',
@@ -344,6 +349,7 @@ export const translations = {
         submit: 'Enviar',
         stop: 'Detener generación',
         removeFile: 'Quitar {filename}',
+        clearReply: 'Borrar respuesta',
         fileTooLarge: 'El archivo "{filename}" es demasiado grande. El tamaño máximo por archivo es {size}.',
         totalSizeTooLarge: 'El tamaño total de los archivos adjuntos supera el límite de {size}.',
         tooManyFiles: 'Puedes adjuntar un máximo de {count} archivos.',
@@ -489,6 +495,7 @@ export const translations = {
     chat: {
       placeholder: 'Commencez une conversation avec Qbit.',
       scrollToBottom: 'Faire défiler vers le bas',
+      replyContext: 'En référence au texte suivant :\n"""\n{context}\n"""',
       input: {
         placeholder: "Demandez n'importe quoi",
         placeholderWithFiles: 'Décrivez {count} fichier(s)...',
@@ -497,6 +504,7 @@ export const translations = {
         submit: 'Envoyer',
         stop: 'Arrêter la génération',
         removeFile: 'Retirer {filename}',
+        clearReply: 'Effacer la réponse',
         fileTooLarge: 'Le fichier "{filename}" est trop volumineux. La taille maximale par fichier est de {size}.',
         totalSizeTooLarge: "La taille totale des pièces jointes dépasse la limite de {size}.",
         tooManyFiles: 'Vous pouvez joindre un maximum de {count} fichiers.',
@@ -642,6 +650,7 @@ export const translations = {
     chat: {
       placeholder: 'Starten Sie ein Gespräch mit Qbit.',
       scrollToBottom: 'Nach unten scrollen',
+      replyContext: 'In Bezug auf den folgenden Text:\n"""\n{context}\n"""',
       input: {
         placeholder: 'Fragen Sie irgendetwas',
         placeholderWithFiles: 'Beschreiben Sie {count} Datei(en)...',
@@ -650,6 +659,7 @@ export const translations = {
         submit: 'Senden',
         stop: 'Generierung stoppen',
         removeFile: '{filename} entfernen',
+        clearReply: 'Antwort löschen',
         fileTooLarge: 'Die Datei "{filename}" ist zu groß. Die maximale Größe pro Datei beträgt {size}.',
         totalSizeTooLarge: 'Die Gesamtgröße der Anhänge überschreitet das Limit von {size}.',
         tooManyFiles: 'Sie können maximal {count} Dateien anhängen.',

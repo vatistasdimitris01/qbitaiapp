@@ -123,6 +123,7 @@ const App: React.FC = () => {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const [chatInputText, setChatInputText] = useState('');
+  const [replyContextText, setReplyContextText] = useState<string | null>(null);
   const [selectionPopup, setSelectionPopup] = useState<{
     visible: boolean;
     x: number;
@@ -446,7 +447,7 @@ const App: React.FC = () => {
   };
 
   const handleAskWithSelection = (text: string) => {
-    setChatInputText(text);
+    setReplyContextText(text);
     setSelectionPopup(null);
     setTimeout(() => chatInputRef.current?.focus(), 50);
   };
@@ -454,16 +455,24 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
     if (!activeConversationId || !activeConversation) return;
     const trimmedText = text.trim();
-    if (isLoading || (!trimmedText && attachments.length === 0)) return;
+    if (isLoading || (!trimmedText && attachments.length === 0 && !replyContextText)) return;
 
-    const messageText = trimmedText === '' && attachments.length > 0
-        ? t('chat.input.placeholderWithFiles').replace('{count}', attachments.length.toString())
-        : trimmedText;
+    let messageToSend = trimmedText;
+    if (trimmedText === '' && attachments.length > 0 && !replyContextText) {
+      messageToSend = t('chat.input.placeholderWithFiles').replace('{count}', attachments.length.toString());
+    } else if (trimmedText === '' && replyContextText) {
+      messageToSend = 'Please elaborate on this.';
+    }
+
+    if (replyContextText) {
+        const contextPrefix = t('chat.replyContext', { context: replyContextText });
+        messageToSend = `${contextPrefix}\n\n${messageToSend}`;
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       type: MessageType.USER,
-      content: messageText,
+      content: messageToSend,
       files: attachments,
     };
     
@@ -477,13 +486,15 @@ const App: React.FC = () => {
     };
     
     const conversationHistoryForState = [...activeConversation.messages, userMessage];
+    
+    setReplyContextText(null); // Clear reply context from UI immediately
 
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
             ? {
                 ...c,
                 messages: [...conversationHistoryForState, placeholderAiMessage],
-                ...(isFirstMessage && messageText && { title: messageText.substring(0, 50) })
+                ...(isFirstMessage && messageToSend && { title: messageToSend.substring(0, 50) })
               }
             : c
     ));
@@ -500,7 +511,7 @@ const App: React.FC = () => {
     
     await streamMessageToAI(
         conversationHistoryForState,
-        messageText,
+        messageToSend, // Send the full message with context
         attachments,
         currentPersona?.instruction,
         userLocation,
@@ -853,7 +864,9 @@ ${error}
                   onSendMessage={handleSendMessage} 
                   isLoading={isLoading} 
                   t={t} 
-                  onAbortGeneration={handleAbortGeneration} 
+                  onAbortGeneration={handleAbortGeneration}
+                  replyContextText={replyContextText}
+                  onClearReplyContext={() => setReplyContextText(null)}
                 />
             </footer>
             </div>

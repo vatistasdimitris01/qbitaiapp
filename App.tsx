@@ -108,6 +108,7 @@ const SelectionToolbar: React.FC<{
 }> = ({ top, left, onAsk, t }) => {
     return (
         <div
+            data-selection-toolbar="true"
             className="fixed z-[100] bg-card border border-default rounded-lg shadow-xl flex items-center p-1 animate-fade-in-up"
             style={{
                 top: `${top}px`,
@@ -239,32 +240,53 @@ const App: React.FC = () => {
     const mainEl = mainContentRef.current;
     if (!mainEl) return;
 
-    const handleSelection = () => {
-        setTimeout(() => {
-            const selection = window.getSelection();
-            if (selection && !selection.isCollapsed && selection.toString().trim().length > 3) {
-                const range = selection.getRangeAt(0);
-                const targetNode = range.startContainer.parentElement;
+    const handleSelectionChange = () => {
+      setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed || selection.toString().trim().length <= 3) {
+          return;
+        }
 
-                if (targetNode && mainEl.contains(targetNode) && !targetNode.closest('textarea, input, button, .code-block-area')) {
-                    const rect = range.getBoundingClientRect();
-                    if (rect.width > 0 || rect.height > 0) {
-                        setSelectionToolbar({
-                            top: rect.top,
-                            left: rect.left + rect.width / 2,
-                            text: selection.toString().trim(),
-                        });
-                        return;
-                    }
-                }
-            }
-            setSelectionToolbar(null);
-        }, 10);
+        const range = selection.getRangeAt(0);
+        const commonAncestor = range.commonAncestorContainer;
+
+        const startElement = (commonAncestor.nodeType === Node.TEXT_NODE ? commonAncestor.parentElement : commonAncestor) as Element;
+        if (!mainEl.contains(startElement) || startElement.closest('textarea, input, button, .code-block-area, [data-selection-toolbar]')) {
+          setSelectionToolbar(null);
+          return;
+        }
+        
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 || rect.height > 0) {
+          setSelectionToolbar({
+            top: rect.top,
+            left: rect.left + rect.width / 2,
+            text: selection.toString().trim(),
+          });
+        } else {
+          setSelectionToolbar(null);
+        }
+      }, 10);
     };
 
-    document.addEventListener('mouseup', handleSelection);
-    return () => document.removeEventListener('mouseup', handleSelection);
-}, []);
+    const handleInteractionEnd = () => {
+      // This function gets called on mouseup or touchend, and decides whether to show or hide the toolbar.
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.toString().trim().length > 3) {
+        handleSelectionChange();
+      } else {
+        setSelectionToolbar(null);
+      }
+    };
+    
+    document.addEventListener('mouseup', handleInteractionEnd);
+    document.addEventListener('touchend', handleInteractionEnd);
+
+    return () => {
+      document.removeEventListener('mouseup', handleInteractionEnd);
+      document.removeEventListener('touchend', handleInteractionEnd);
+    };
+  }, []);
 
 
   // Load state from localStorage on initial render

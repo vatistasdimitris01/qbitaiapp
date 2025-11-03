@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk, MapsGroundingChunk } from './types';
 import { MessageType } from './types';
-import ChatInput, { ChatInputHandles } from './components/ChatInput';
+import ChatInput from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
@@ -11,7 +11,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon, ChevronLeftIcon, ArrowUpIcon, MapPinIcon, BrainIcon, Wand2Icon } from './components/icons';
+import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon, ChevronLeftIcon, ArrowUpIcon, MapPinIcon, BrainIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -100,36 +100,6 @@ const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, dela
     }, [...deps, delay]);
 };
 
-const SelectionToolbar: React.FC<{
-    top: number;
-    left: number;
-    onAsk: () => void;
-    t: (key: string) => string;
-}> = ({ top, left, onAsk, t }) => {
-    return (
-        <div
-            data-selection-toolbar="true"
-            className="fixed z-[100] bg-card border border-default rounded-lg shadow-xl flex items-center p-1 animate-fade-in-up"
-            style={{
-                top: `${top}px`,
-                left: `${left}px`,
-                transform: 'translate(-50%, -110%)',
-            }}
-            onMouseDown={(e) => e.preventDefault()} // Prevents selection from disappearing on click
-        >
-            <button
-                onClick={onAsk}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-token-surface-secondary rounded-md transition-colors"
-                aria-label={t('chat.askQbit')}
-            >
-                <Wand2Icon className="size-4" />
-                {t('chat.askQbit')}
-            </button>
-        </div>
-    );
-};
-
-
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -151,15 +121,7 @@ const App: React.FC = () => {
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
-  const [selectionToolbar, setSelectionToolbar] = useState<{
-        top: number;
-        left: number;
-        text: string;
-    } | null>(null);
-  const [chatInputValue, setChatInputValue] = useState("");
-
   const mainContentRef = useRef<HTMLElement>(null);
-  const chatInputRef = useRef<ChatInputHandles>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { t, setLang, lang } = useTranslations(language);
 
@@ -234,60 +196,6 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Text Selection Toolbar Logic
-  useEffect(() => {
-    const mainEl = mainContentRef.current;
-    if (!mainEl) return;
-
-    const handleSelectionChange = () => {
-      setTimeout(() => {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0 || selection.isCollapsed || selection.toString().trim().length <= 3) {
-          return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const commonAncestor = range.commonAncestorContainer;
-
-        const startElement = (commonAncestor.nodeType === Node.TEXT_NODE ? commonAncestor.parentElement : commonAncestor) as Element;
-        if (!mainEl.contains(startElement) || startElement.closest('textarea, input, button, .code-block-area, [data-selection-toolbar]')) {
-          setSelectionToolbar(null);
-          return;
-        }
-        
-        const rect = range.getBoundingClientRect();
-        if (rect.width > 0 || rect.height > 0) {
-          setSelectionToolbar({
-            top: rect.top,
-            left: rect.left + rect.width / 2,
-            text: selection.toString().trim(),
-          });
-        } else {
-          setSelectionToolbar(null);
-        }
-      }, 10);
-    };
-
-    const handleInteractionEnd = () => {
-      // This function gets called on mouseup or touchend, and decides whether to show or hide the toolbar.
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed && selection.toString().trim().length > 3) {
-        handleSelectionChange();
-      } else {
-        setSelectionToolbar(null);
-      }
-    };
-    
-    document.addEventListener('mouseup', handleInteractionEnd);
-    document.addEventListener('touchend', handleInteractionEnd);
-
-    return () => {
-      document.removeEventListener('mouseup', handleInteractionEnd);
-      document.removeEventListener('touchend', handleInteractionEnd);
-    };
-  }, []);
-
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -786,28 +694,12 @@ ${error}
       setIsSidebarOpen(false); // Close sidebar after selecting a conversation
   };
 
-  const handleAskFromSelection = () => {
-    if (selectionToolbar) {
-        setChatInputValue(`> ${selectionToolbar.text}\n\n`);
-        setSelectionToolbar(null);
-        chatInputRef.current?.focus();
-    }
-  };
-
   if (!isAppReady) {
     return <Loader t={t} />;
   }
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
-        {selectionToolbar && (
-            <SelectionToolbar
-                top={selectionToolbar.top}
-                left={selectionToolbar.left}
-                onAsk={handleAskFromSelection}
-                t={t}
-            />
-        )}
         {/* Floating Sidebar Toggle Button */}
         <button
             onClick={() => setIsSidebarOpen(true)}
@@ -894,15 +786,7 @@ ${error}
                 </button>
             )}
             <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-                <ChatInput
-                    ref={chatInputRef}
-                    onSendMessage={handleSendMessage}
-                    isLoading={isLoading}
-                    t={t}
-                    onAbortGeneration={handleAbortGeneration}
-                    initialText={chatInputValue}
-                    onInitialTextConsumed={() => setChatInputValue("")}
-                />
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} />
             </footer>
             </div>
         </div>

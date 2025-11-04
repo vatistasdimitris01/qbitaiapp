@@ -24,9 +24,9 @@ interface AttachmentPreview {
 }
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE_MB = 3; // Reduced from 4 to stay under Gemini's 4MB base64 limit (3MB * 4/3 ≈ 4MB)
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_TOTAL_SIZE_MB = 10;
+const MAX_TOTAL_SIZE_MB = 4; // Reduced from 10 to stay under Vercel's 4.5MB serverless function payload limit
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {

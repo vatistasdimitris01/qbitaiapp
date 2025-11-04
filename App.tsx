@@ -560,7 +560,7 @@ const App: React.FC = () => {
     const currentPersona = personas.find(p => p.id === activeConversation.personaId);
     
     await streamMessageToAI(
-        conversationHistoryForState,
+        activeConversation.messages, // Pass history BEFORE the new user message
         messageToSend, // Send the full message with context
         attachments,
         currentPersona?.instruction,
@@ -652,7 +652,7 @@ const App: React.FC = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const historyForApi = activeConversation.messages.slice(0, lastUserMessageIndex + 1);
+    const historyForApi = activeConversation.messages.slice(0, lastUserMessageIndex);
 
     const messagesForUi = [
         ...activeConversation.messages.slice(0, lastUserMessageIndex + 1),

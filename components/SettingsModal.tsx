@@ -174,7 +174,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   "message": "Tell me the latest news on AI in the style of a pirate.",
   "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
 }'`;
-  const curlSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d '{"message": "Tell me the latest news on AI in the style of a pirate.", "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."}'`;
+  const curlSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\": \\"Tell me the latest news on AI in the style of a pirate.\\", \\"userInstruction\\": \\"You are a swashbuckling pirate captain. All your responses must be in pirate speak.\\"}"`;
 
   const pythonSnippet = `import requests
 import json
@@ -294,7 +294,7 @@ const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
     }
   ]
 }'`;
-const curlToolSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d '{"message":"What is the weather like in Boston?","tools":[{"name":"get_current_weather","description":"Get the current weather in a given location","parameters":{"type":"OBJECT","properties":{"location":{"type":"STRING","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"STRING","enum":["celsius","fahrenheit"]}},"required":["location"]}}]}`;
+const curlToolSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\":\\"What is the weather like in Boston?\\",\\"tools\\":[{\\"name\\":\\"get_current_weather\\",\\"description\\":\\"Get the current weather in a given location\\",\\"parameters\\":{\\"type\\":\\"OBJECT\\",\\"properties\\":{\\"location\\":{\\"type\\":\\"STRING\\",\\"description\\":\\"The city and state, e.g. San Francisco, CA\\"},\\"unit\\":{\\"type\\":\\"STRING\\",\\"enum\\":[\\"celsius\\",\\"fahrenheit\\"]}},\\"required\\":[\\"location\\"]}}]}"`;
 
 const pythonToolSnippet = `import requests
 import json

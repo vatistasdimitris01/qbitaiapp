@@ -1,3 +1,4 @@
+
 // Implemented the sendMessage API endpoint using the built-in Google Search grounding tool.
 // This Vercel Edge Function streams responses from the Google GenAI API.
 
@@ -9,14 +10,15 @@ export const config = {
 };
 
 // Type definitions to match what the frontend sends
-interface HistoryItem {
-    author: 'user' | 'ai';
-    text: string;
-}
-
 interface ApiAttachment {
     mimeType: string;
     data: string; // base64 encoded
+}
+
+interface HistoryItem {
+    type: 'USER' | 'AI_RESPONSE' | 'SYSTEM' | 'ERROR' | 'AGENT_ACTION' | 'AGENT_PLAN';
+    content: string; // The text part of the message
+    files?: ApiAttachment[];
 }
 
 interface LocationInfo {
@@ -52,10 +54,28 @@ export default async function handler(req: Request) {
         }
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const geminiHistory: Content[] = (history as HistoryItem[]).map(msg => ({
-            role: msg.author === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }],
-        }));
+        const geminiHistory: Content[] = (history as HistoryItem[])
+            .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
+            .map(msg => {
+                const parts: Part[] = [];
+                if (msg.content) {
+                    parts.push({ text: msg.content });
+                }
+                if (msg.files) {
+                    for (const file of msg.files) {
+                        parts.push({
+                            inlineData: {
+                                mimeType: file.mimeType,
+                                data: file.data,
+                            },
+                        });
+                    }
+                }
+                return {
+                    role: msg.type === 'USER' ? 'user' : 'model',
+                    parts: parts,
+                };
+            }).filter(c => c.parts.length > 0);
         
         let userMessageText = message;
         if (location && (location as LocationInfo).city && (location as LocationInfo).country) {

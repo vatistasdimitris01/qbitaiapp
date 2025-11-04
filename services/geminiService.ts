@@ -1,3 +1,4 @@
+
 import { FileAttachment, LocationInfo, Message, MessageContent, MessageType } from "../types";
 
 export interface StreamUpdate {
@@ -24,23 +25,20 @@ export const streamMessageToAI = async (
         if (typeof content === 'string') {
             return content;
         }
-        // For other types, return a placeholder or string representation if needed for history
+        // For other types like code blocks, the text representation for history is empty.
+        // The structured content itself is not sent in history to save tokens and complexity.
         return '';
     };
 
-    // Sanitize and convert history to the format the API expects
-    const sanitizedHistory = conversationHistory.map(msg => {
-        const text = getTextFromMessageContent(msg.content);
-        let attachmentText = '';
-        if (msg.files && msg.files.length > 0) {
-            attachmentText = msg.files.map(a => `[User previously uploaded image: ${a.name}]`).join('\n');
-        }
-        
-        return {
-            author: msg.type === MessageType.USER ? 'user' : 'ai',
-            text: `${text}\n${attachmentText}`.trim(),
-        };
-    });
+    // Convert history to the format the API expects, preserving file data
+    const historyForApi = conversationHistory.map(msg => ({
+        type: msg.type,
+        content: getTextFromMessageContent(msg.content),
+        files: msg.files?.map(f => ({
+            mimeType: f.type,
+            data: f.dataUrl.split(',')[1],
+        })),
+    }));
 
     const apiAttachments = attachments?.map(file => {
         return {
@@ -54,7 +52,7 @@ export const streamMessageToAI = async (
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                history: sanitizedHistory,
+                history: historyForApi,
                 message,
                 attachments: apiAttachments,
                 personaInstruction,

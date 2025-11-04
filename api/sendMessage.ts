@@ -1,4 +1,8 @@
+
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part } from "@google/genai";
+import formidable from 'formidable';
+import fs from 'fs';
 
 interface ApiAttachment {
     mimeType: string;
@@ -26,22 +30,35 @@ const languageMap: { [key: string]: string } = {
     de: 'German',
 };
 
-export default async function handler(req: Request) {
+// Disable Vercel's default body parser to allow formidable to handle the stream
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-            status: 405,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
     }
 
     try {
-        const formData = await req.formData();
-        const payloadJSON = formData.get('payload') as string;
+        const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
+            const form = formidable({});
+            form.parse(req, (err, fields, files) => {
+                if (err) reject(err);
+                else resolve({ fields, files });
+            });
+        });
+
+        const payloadJSON = fields.payload?.[0];
         if (!payloadJSON) {
             throw new Error("Missing 'payload' in form data.");
         }
         const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
-        const files = formData.getAll('file') as File[];
+        
+        const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
 
         if (!process.env.API_KEY) {
             throw new Error("API_KEY environment variable is not set.");
@@ -77,19 +94,13 @@ export default async function handler(req: Request) {
         }
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
-        if (files && files.length > 0) {
-            for (const file of files) {
-                // FIX: Replace Node.js Buffer with standard Web APIs for base64 encoding. This is necessary because Vercel Edge Functions do not have access to the full Node.js API, including Buffer.
-                const arrayBuffer = await file.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                let binaryString = '';
-                for (let i = 0; i < uint8Array.byteLength; i++) {
-                    binaryString += String.fromCharCode(uint8Array[i]);
-                }
-                const base64Data = btoa(binaryString);
+        if (fileList.length > 0) {
+            for (const file of fileList) {
+                const fileContent = await fs.promises.readFile(file.filepath);
+                const base64Data = fileContent.toString('base64');
                 userMessageParts.push({
                     inlineData: {
-                        mimeType: file.type,
+                        mimeType: file.mimetype || 'application/octet-stream',
                         data: base64Data,
                     },
                 });
@@ -235,64 +246,60 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
                 }
             };
         }
+        
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
-        const responseStream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
-                const write = (data: object) => controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+        try {
+            const stream = await ai.models.generateContentStream({
+                model: model,
+                contents: contents,
+                config: {
+                    systemInstruction: finalSystemInstruction,
+                    tools: tools,
+                    ...(Object.keys(toolConfig).length > 0 && { toolConfig: toolConfig })
+                },
+            });
 
-                try {
-                    const stream = await ai.models.generateContentStream({
-                        model: model,
-                        contents: contents,
-                        config: {
-                            systemInstruction: finalSystemInstruction,
-                            tools: tools,
-                            ...(Object.keys(toolConfig).length > 0 && { toolConfig: toolConfig })
-                        },
-                    });
+            let usageMetadataSent = false;
 
-                    let usageMetadataSent = false;
-
-                    for await (const chunk of stream) {
-                        if (chunk.text) {
-                            write({ type: 'chunk', payload: chunk.text });
-                        }
-                        
-                        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-                            write({ type: 'grounding', payload: chunk.candidates[0].groundingMetadata.groundingChunks });
-                        }
-                        
-                        if (chunk.usageMetadata && !usageMetadataSent) {
-                            write({ type: 'usage', payload: chunk.usageMetadata });
-                            usageMetadataSent = true;
-                        }
-                    }
-
-                    write({ type: 'end' });
-                    controller.close();
-                } catch (error) {
-                    console.error("Error during Gemini stream processing:", error);
-                    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-                    write({ type: 'error', payload: errorMessage });
-                    controller.close();
+            for await (const chunk of stream) {
+                if (chunk.text) {
+                    write({ type: 'chunk', payload: chunk.text });
                 }
-            },
-        });
+                
+                if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+                    write({ type: 'grounding', payload: chunk.candidates[0].groundingMetadata.groundingChunks });
+                }
+                
+                if (chunk.usageMetadata && !usageMetadataSent) {
+                    write({ type: 'usage', payload: chunk.usageMetadata });
+                    usageMetadataSent = true;
+                }
+            }
 
-        return new Response(responseStream, {
-            headers: { 
-                'Content-Type': 'application/json; charset=utf-8',
-                'X-Content-Type-Options': 'nosniff',
-             },
-        });
+            write({ type: 'end' });
+            res.end();
+        } catch (error) {
+            console.error("Error during Gemini stream processing:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+            // Don't try to write to a stream that might already be closed.
+            // Just end the response if we haven't sent headers yet.
+            if (!res.headersSent) {
+                res.status(500).json({ error: `Stream generation failed: ${errorMessage}` });
+            } else {
+                res.end();
+            }
+        }
 
     } catch (error) {
         console.error('Error in sendMessage handler:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        return new Response(JSON.stringify({ error: `Failed to process request: ${errorMessage}` }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        if (!res.headersSent) {
+            res.status(500).json({ error: `Failed to process request: ${errorMessage}` });
+        } else {
+            res.end();
+        }
     }
 }

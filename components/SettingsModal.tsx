@@ -41,7 +41,7 @@ const languageNames: Record<Language, string> = {
 };
 
 
-const CodeSnippet: React.FC<{ lang: string; code: string; t: (key: string, params?: Record<string, string>) => string }> = ({ lang, code, t }) => {
+const CodeSnippet: React.FC<{ lang: string; code: string; copyText?: string; t: (key: string, params?: Record<string, string>) => string }> = ({ lang, code, copyText, t }) => {
     const [isCopied, setIsCopied] = useState(false);
     const [highlightedCode, setHighlightedCode] = useState('');
 
@@ -60,7 +60,7 @@ const CodeSnippet: React.FC<{ lang: string; code: string; t: (key: string, param
     }, [code, lang]);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(code).then(() => {
+        navigator.clipboard.writeText(copyText || code).then(() => {
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
         });
@@ -174,6 +174,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   "message": "Tell me the latest news on AI in the style of a pirate.",
   "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
 }'`;
+  const curlSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d '{"message": "Tell me the latest news on AI in the style of a pirate.", "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."}'`;
 
   const pythonSnippet = `import requests
 import json
@@ -293,6 +294,7 @@ const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
     }
   ]
 }'`;
+const curlToolSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d '{"message":"What is the weather like in Boston?","tools":[{"name":"get_current_weather","description":"Get the current weather in a given location","parameters":{"type":"OBJECT","properties":{"location":{"type":"STRING","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"STRING","enum":["celsius","fahrenheit"]}},"required":["location"]}}]}`;
 
 const pythonToolSnippet = `import requests
 import json
@@ -579,7 +581,7 @@ const exampleToolResponse = `{
                             </button>
                         ))}
                     </div>
-                    {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} t={t} />}
+                    {activeSnippet === 'curl' && <CodeSnippet lang="bash" code={curlSnippet} copyText={curlSnippetFlat} t={t} />}
                     {activeSnippet === 'python' && <CodeSnippet lang="python" code={pythonSnippet} t={t} />}
                     {activeSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsSnippet} t={t} />}
                     {activeSnippet === 'react' && <CodeSnippet lang="jsx" code={reactSnippet} t={t} />}
@@ -595,7 +597,7 @@ const exampleToolResponse = `{
                               </button>
                           ))}
                     </div>
-                    {activeToolSnippet === 'curl' && <CodeSnippet lang="bash" code={curlToolSnippet} t={t} />}
+                    {activeToolSnippet === 'curl' && <CodeSnippet lang="bash" code={curlToolSnippet} copyText={curlToolSnippetFlat} t={t} />}
                     {activeToolSnippet === 'python' && <CodeSnippet lang="python" code={pythonToolSnippet} t={t} />}
                     {activeToolSnippet === 'javascript' && <CodeSnippet lang="javascript" code={jsToolSnippet} t={t} />}
                     {activeToolSnippet === 'react' && <CodeSnippet lang="jsx" code={reactToolSnippet} t={t} />}

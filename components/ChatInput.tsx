@@ -28,10 +28,10 @@ const fileToDataURL = (file: File): Promise<string> => {
 };
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_GB = 100;
-const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
-const MAX_TOTAL_SIZE_GB = 200;
-const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
+const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_TOTAL_SIZE_MB = 10;
+const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -62,11 +62,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 break;
             }
             if (file.size > MAX_FILE_SIZE) {
-                window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_GB}GB` }));
+                window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_MB}MB` }));
                 continue;
             }
             if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
-                window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_GB}GB` }));
+                window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_MB}MB` }));
                 break;
             }
             

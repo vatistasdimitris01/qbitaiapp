@@ -1,13 +1,7 @@
-
 // Implemented the sendMessage API endpoint using the built-in Google Search grounding tool.
 // This Vercel Edge Function streams responses from the Google GenAI API.
 
 import { GoogleGenAI, Content, Part } from "@google/genai";
-
-// Vercel Edge Function config
-export const config = {
-  runtime: 'edge',
-};
 
 // Type definitions to match what the frontend sends
 interface ApiAttachment {

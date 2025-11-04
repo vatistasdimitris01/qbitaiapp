@@ -10,6 +10,7 @@ import {
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
+import GroundingSources from './GroundingSources';
 
 
 type ExecutionResult = {
@@ -474,27 +475,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             </div>
                         </div>
                     )}
-                     <div className={`flex items-center gap-1 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
-                        <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                        </IconButton>
-                        {!isUser && (
-                            <>
-                                <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
-                                    <RefreshCwIcon className="size-4" />
-                                </IconButton>
-                                <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}>
-                                    <GitForkIcon className="size-4" />
-                                </IconButton>
-                                {pythonCodeBlocks.length > 0 && (
-                                    <IconButton
-                                        onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
-                                        aria-label={t('chat.message.viewCode')}
-                                    >
-                                        <CodeXmlIcon className="size-5" />
+                     <div className={`flex items-center justify-between w-full gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                        <div className="flex items-center gap-1">
+                            <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
+                                {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                            </IconButton>
+                            {!isUser && (
+                                <>
+                                    <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
+                                        <RefreshCwIcon className="size-4" />
                                     </IconButton>
-                                )}
-                            </>
+                                    <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}>
+                                        <GitForkIcon className="size-4" />
+                                    </IconButton>
+                                    {pythonCodeBlocks.length > 0 && (
+                                        <IconButton
+                                            onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')}
+                                            aria-label={t('chat.message.viewCode')}
+                                        >
+                                            <CodeXmlIcon className="size-5" />
+                                        </IconButton>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        {!isUser && message.groundingChunks && message.groundingChunks.length > 0 && (
+                            <GroundingSources chunks={message.groundingChunks} t={t} />
                         )}
                     </div>
                 </div>

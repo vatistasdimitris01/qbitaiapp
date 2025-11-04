@@ -60,6 +60,32 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         let newFilesSize = 0;
 
         for (const file of files) {
+            const isFileTypeSupported = (file: File): boolean => {
+                const supportedMimeTypes = [
+                    'image/', 'video/', 'audio/', 'text/',
+                    'application/pdf', 'application/json'
+                ];
+                const supportedExtensions = ['.md', '.csv'];
+    
+                const fileMime = file.type;
+                const fileName = file.name.toLowerCase();
+    
+                if (supportedMimeTypes.some(mime => mime.endsWith('/') ? fileMime.startsWith(mime) : fileMime === mime)) {
+                    return true;
+                }
+    
+                if (supportedExtensions.some(ext => fileName.endsWith(ext))) {
+                    return true;
+                }
+                
+                return false;
+            };
+
+            if (!isFileTypeSupported(file)) {
+                window.alert(t('chat.input.unsupportedFileType', { filename: file.name }));
+                continue;
+            }
+
             if (attachmentPreviews.length + allowedNewFiles.length >= MAX_FILES) {
                 window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
                 break;
@@ -155,7 +181,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     type="file" 
                     name="files" 
                     onChange={handleFileChange}
-                    accept="image/*,video/*,audio/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.md,.csv,.json"
+                    accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
                 />
                 <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
                     {replyContextText && (

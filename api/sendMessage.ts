@@ -112,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { role: 'user', parts: userMessageParts }
         ];
 
-        const model = 'gemini-2.5-pro';
+        const model = 'gemini-2.5-flash';
         
         const userLanguageName = languageMap[language as string] || 'English';
 

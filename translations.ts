@@ -40,6 +40,7 @@ export const translations = {
         fileTooLarge: 'File "{filename}" is too large. Max per file is {size}.',
         totalSizeTooLarge: 'Total attachment size exceeds the limit of {size}.',
         tooManyFiles: 'You can attach a maximum of {count} files.',
+        unsupportedFileType: 'Unsupported file type: {filename}. Please upload images, videos, audio, or text-based files.',
       },
       message: {
         thinking: 'Chain of Thought',
@@ -204,6 +205,7 @@ export const translations = {
         fileTooLarge: 'Το αρχείο "{filename}" είναι πολύ μεγάλο. Το μέγιστο μέγεθος ανά αρχείο είναι {size}.',
         totalSizeTooLarge: 'Το συνολικό μέγεθος των συνημμένων υπερβαίνει το όριο του {size}.',
         tooManyFiles: 'Μπορείτε να επισυνάψετε το πολύ {count} αρχεία.',
+        unsupportedFileType: 'Μη υποστηριζόμενος τύπος αρχείου: {filename}. Παρακαλώ ανεβάστε εικόνες, βίντεο, ήχο ή αρχεία κειμένου.',
       },
       message: {
         thinking: 'Ροή Σκέψης',
@@ -364,6 +366,7 @@ export const translations = {
         fileTooLarge: 'El archivo "{filename}" es demasiado grande. El tamaño máximo por archivo es {size}.',
         totalSizeTooLarge: 'El tamaño total de los archivos adjuntos supera el límite de {size}.',
         tooManyFiles: 'Puedes adjuntar un máximo de {count} archivos.',
+        unsupportedFileType: 'Tipo de archivo no compatible: {filename}. Por favor, sube imágenes, videos, audio o archivos de texto.',
       },
       message: {
         thinking: 'Cadena de Pensamiento',
@@ -524,6 +527,7 @@ export const translations = {
         fileTooLarge: 'Le fichier "{filename}" est trop volumineux. La taille maximale par fichier est de {size}.',
         totalSizeTooLarge: "La taille totale des pièces jointes dépasse la limite de {size}.",
         tooManyFiles: 'Vous pouvez joindre un maximum de {count} fichiers.',
+        unsupportedFileType: 'Type de fichier non pris en charge : {filename}. Veuillez télécharger des images, des vidéos, de l\'audio ou des fichiers texte.',
       },
       message: {
         thinking: 'Chaîne de Pensée',
@@ -684,6 +688,7 @@ export const translations = {
         fileTooLarge: 'Die Datei "{filename}" ist zu groß. Die maximale Größe pro Datei beträgt {size}.',
         totalSizeTooLarge: 'Die Gesamtgröße der Anhänge überschreitet das Limit von {size}.',
         tooManyFiles: 'Sie können maximal {count} Dateien anhängen.',
+        unsupportedFileType: 'Nicht unterstützter Dateityp: {filename}. Bitte laden Sie Bilder, Videos, Audio- oder textbasierte Dateien hoch.',
       },
       message: {
         thinking: 'Gedankenkette',

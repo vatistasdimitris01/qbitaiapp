@@ -13,6 +13,11 @@ interface ChatInputProps {
     onClearReplyContext: () => void;
 }
 
+export interface ChatInputHandle {
+    focus: () => void;
+    handleFiles: (files: FileList) => void;
+}
+
 const fileToDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -23,15 +28,14 @@ const fileToDataURL = (file: File): Promise<string> => {
 };
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_GB = 30;
+const MAX_FILE_SIZE_GB = 100;
 const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024;
-const MAX_TOTAL_SIZE_GB = 50;
+const MAX_TOTAL_SIZE_GB = 200;
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_GB * 1024 * 1024 * 1024;
 
-const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
-    useImperativeHandle(ref, () => internalTextareaRef.current!, []);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const adjustTextareaHeight = useCallback(() => {
@@ -46,46 +50,57 @@ const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTex
         adjustTextareaHeight();
     }, [text, adjustTextareaHeight]);
     
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const addFiles = useCallback(async (files: FileList) => {
+        const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
+
+        let allowedNewFiles: File[] = [];
+        let newFilesSize = 0;
+
+        for (const file of files) {
+            if (attachments.length + allowedNewFiles.length >= MAX_FILES) {
+                window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
+                break;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_GB}GB` }));
+                continue;
+            }
+            if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
+                window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_GB}GB` }));
+                break;
+            }
+            
+            allowedNewFiles.push(file);
+            newFilesSize += file.size;
+        }
+
+        if (allowedNewFiles.length > 0) {
+            const filePromises = allowedNewFiles.map(async (file: File) => {
+                const dataUrl = await fileToDataURL(file);
+                return {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    dataUrl
+                };
+            });
+            const newAttachments = await Promise.all(filePromises);
+            setAttachments(prev => [...prev, ...newAttachments]);
+        }
+    }, [attachments, t]);
+
+    useImperativeHandle(ref, () => ({
+        focus: () => {
+            internalTextareaRef.current?.focus();
+        },
+        handleFiles: (files: FileList) => {
+            addFiles(files);
+        }
+    }), [addFiles]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
-
-            let allowedNewFiles: File[] = [];
-            let newFilesSize = 0;
-
-            // FIX: Iterate directly over `e.target.files` (a FileList) to ensure correct type inference for `file` as `File`.
-            // This resolves the errors where properties like `.size` and `.name` were not found on an `unknown` type.
-            for (const file of e.target.files) {
-                if (attachments.length + allowedNewFiles.length >= MAX_FILES) {
-                    window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
-                    break;
-                }
-                if (file.size > MAX_FILE_SIZE) {
-                    window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_GB}GB` }));
-                    continue;
-                }
-                if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
-                    window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_GB}GB` }));
-                    break;
-                }
-                
-                allowedNewFiles.push(file);
-                newFilesSize += file.size;
-            }
-
-            if (allowedNewFiles.length > 0) {
-                const filePromises = allowedNewFiles.map(async (file: File) => {
-                    const dataUrl = await fileToDataURL(file);
-                    return {
-                        name: file.name,
-                        type: file.type,
-                        size: file.size,
-                        dataUrl
-                    };
-                });
-                const newAttachments = await Promise.all(filePromises);
-                setAttachments(prev => [...prev, ...newAttachments]);
-            }
+            addFiles(e.target.files);
         }
         // Reset file input value to allow selecting the same file again
         if (e.target) {
@@ -104,10 +119,7 @@ const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ text, onTex
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if ((text.trim() || attachments.length > 0 || replyContextText) && !isLoading) {
-            let messageToSend = text.trim();
-             if (!messageToSend && attachments.length > 0 && !replyContextText) {
-                messageToSend = "Refer to the following content:";
-            }
+            const messageToSend = text.trim();
             onSendMessage(messageToSend, attachments);
             onTextChange('');
             setAttachments([]);

@@ -30,6 +30,7 @@ export const translations = {
       input: {
         placeholder: 'Ask Anything',
         placeholderWithFiles: 'Describe {count} file(s)...',
+        messageWithFiles: 'Analyze the attached {count} file(s). Provide a summary or response based on their content.',
         disclaimer: 'Qbit can make mistakes. Check important info.',
         attach: 'Attach',
         submit: 'Submit',
@@ -159,7 +160,11 @@ export const translations = {
     },
     selectionPopup: {
       ask: 'Ask Qbit'
-    }
+    },
+    dragDrop: {
+        title: 'Add anything',
+        subtitle: 'Drop any file here to add it to the conversation',
+    },
   },
   el: {
     loader: {
@@ -189,6 +194,7 @@ export const translations = {
       input: {
         placeholder: 'Ρωτήστε οτιδήποτε',
         placeholderWithFiles: 'Περιγράψτε {count} αρχείο(α)...',
+        messageWithFiles: 'Αναλύστε το(τα) συνημμένο(α) {count} αρχείο(α). Δώστε μια περίληψη ή απάντηση με βάση το περιεχόμενό τους.',
         disclaimer: 'Το Qbit μπορεί να κάνει λάθη. Ελέγξτε τις σημαντικές πληροφορίες.',
         attach: 'Επισύναψη',
         submit: 'Υποβολή',
@@ -314,7 +320,11 @@ export const translations = {
     },
     selectionPopup: {
       ask: 'Ρώτα το Qbit'
-    }
+    },
+    dragDrop: {
+        title: 'Προσθέστε οτιδήποτε',
+        subtitle: 'Ρίξτε οποιοδήποτε αρχείο εδώ για να το προσθέσετε στη συνομιλία',
+    },
   },
   es: {
     loader: {
@@ -344,6 +354,7 @@ export const translations = {
       input: {
         placeholder: 'Pregunta lo que sea',
         placeholderWithFiles: 'Describe {count} archivo(s)...',
+        messageWithFiles: 'Analice los {count} archivo(s) adjuntos. Proporcione un resumen o una respuesta basada en su contenido.',
         disclaimer: 'Qbit puede cometer errores. Verifica la información importante.',
         attach: 'Adjuntar',
         submit: 'Enviar',
@@ -469,7 +480,11 @@ export const translations = {
     },
     selectionPopup: {
       ask: 'Preguntar a Qbit'
-    }
+    },
+    dragDrop: {
+        title: 'Añadir cualquier cosa',
+        subtitle: 'Suelta cualquier archivo aquí para agregarlo a la conversación',
+    },
   },
   fr: {
     loader: {
@@ -499,6 +514,7 @@ export const translations = {
       input: {
         placeholder: "Demandez n'importe quoi",
         placeholderWithFiles: 'Décrivez {count} fichier(s)...',
+        messageWithFiles: 'Analysez le(s) {count} fichier(s) joint(s). Fournissez un résumé ou une réponse en fonction de leur contenu.',
         disclaimer: 'Qbit peut faire des erreurs. Vérifiez les informations importantes.',
         attach: 'Joindre',
         submit: 'Envoyer',
@@ -624,7 +640,11 @@ export const translations = {
     },
     selectionPopup: {
       ask: 'Demander à Qbit'
-    }
+    },
+    dragDrop: {
+        title: 'Ajouter n’importe quoi',
+        subtitle: 'Déposez n’importe quel fichier ici pour l’ajouter à la conversation',
+    },
   },
   de: {
     loader: {
@@ -654,6 +674,7 @@ export const translations = {
       input: {
         placeholder: 'Fragen Sie irgendetwas',
         placeholderWithFiles: 'Beschreiben Sie {count} Datei(en)...',
+        messageWithFiles: 'Analysieren Sie die angehängte(n) {count} Datei(en). Geben Sie eine Zusammenfassung oder eine Antwort basierend auf ihrem Inhalt.',
         disclaimer: 'Qbit kann Fehler machen. Überprüfen Sie wichtige Informationen.',
         attach: 'Anhängen',
         submit: 'Senden',
@@ -779,6 +800,10 @@ export const translations = {
     },
     selectionPopup: {
       ask: 'Qbit fragen'
-    }
+    },
+    dragDrop: {
+        title: 'Alles hinzufügen',
+        subtitle: 'Ziehen Sie eine beliebige Datei hierher, um sie dem Gespräch hinzuzufügen',
+    },
   },
 };

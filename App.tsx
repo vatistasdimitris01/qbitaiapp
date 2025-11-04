@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk, MapsGroundingChunk } from './types';
 import { MessageType } from './types';
-import ChatInput from './components/ChatInput';
+import ChatInput, { ChatInputHandle } from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import SelectionPopup from './components/SelectionPopup';
+import DragDropOverlay from './components/DragDropOverlay';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
@@ -130,10 +131,12 @@ const App: React.FC = () => {
     y: number;
     text: string;
   } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const mainContentRef = useRef<HTMLElement>(null);
-  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const chatInputRef = useRef<ChatInputHandle>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const dragCounter = useRef(0);
   const { t, setLang, lang } = useTranslations(language);
 
   const checkPythonReady = useCallback(() => {
@@ -251,6 +254,53 @@ const App: React.FC = () => {
         document.removeEventListener('mouseup', handleMouseUp);
     };
 }, []);
+
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+        setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current--;
+      if (dragCounter.current === 0) {
+          setIsDragging(false);
+      }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      dragCounter.current = 0;
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+          chatInputRef.current?.handleFiles(files);
+      }
+  }, []);
+
+  useEffect(() => {
+      window.addEventListener('dragenter', handleDragEnter);
+      window.addEventListener('dragleave', handleDragLeave);
+      window.addEventListener('dragover', handleDragOver);
+      window.addEventListener('drop', handleDrop);
+      return () => {
+          window.removeEventListener('dragenter', handleDragEnter);
+          window.removeEventListener('dragleave', handleDragLeave);
+          window.removeEventListener('dragover', handleDragOver);
+          window.removeEventListener('drop', handleDrop);
+      };
+  }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -459,7 +509,7 @@ const App: React.FC = () => {
 
     let messageToSend = trimmedText;
     if (trimmedText === '' && attachments.length > 0 && !replyContextText) {
-      messageToSend = t('chat.input.placeholderWithFiles').replace('{count}', attachments.length.toString());
+      messageToSend = t('chat.input.messageWithFiles', { count: attachments.length.toString() });
     } else if (trimmedText === '' && replyContextText) {
       messageToSend = 'Please elaborate on this.';
     }
@@ -771,6 +821,7 @@ ${error}
 
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
+        {isDragging && <DragDropOverlay t={t} />}
         {/* Floating Sidebar Toggle Button */}
         <button
             onClick={() => setIsSidebarOpen(true)}

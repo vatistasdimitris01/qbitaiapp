@@ -1,9 +1,5 @@
-// Implemented the sendMessage API endpoint using the built-in Google Search grounding tool.
-// This Vercel Edge Function streams responses from the Google GenAI API.
-
 import { GoogleGenAI, Content, Part } from "@google/genai";
 
-// Type definitions to match what the frontend sends
 interface ApiAttachment {
     mimeType: string;
     data: string; // base64 encoded
@@ -11,7 +7,7 @@ interface ApiAttachment {
 
 interface HistoryItem {
     type: 'USER' | 'AI_RESPONSE' | 'SYSTEM' | 'ERROR' | 'AGENT_ACTION' | 'AGENT_PLAN';
-    content: string; // The text part of the message
+    content: string;
     files?: ApiAttachment[];
 }
 
@@ -30,7 +26,6 @@ const languageMap: { [key: string]: string } = {
     de: 'German',
 };
 
-// The main handler for the API route
 export default async function handler(req: Request) {
     if (req.method !== 'POST') {
         return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -40,9 +35,14 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { history, message, attachments, personaInstruction, location, language } = await req.json();
+        const formData = await req.formData();
+        const payloadJSON = formData.get('payload') as string;
+        if (!payloadJSON) {
+            throw new Error("Missing 'payload' in form data.");
+        }
+        const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
+        const files = formData.getAll('file') as File[];
 
-        // As per guidelines, the API key MUST be from process.env.API_KEY
         if (!process.env.API_KEY) {
             throw new Error("API_KEY environment variable is not set.");
         }
@@ -77,12 +77,20 @@ export default async function handler(req: Request) {
         }
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
-        if (attachments && (attachments as ApiAttachment[]).length > 0) {
-            for (const attachment of attachments as ApiAttachment[]) {
+        if (files && files.length > 0) {
+            for (const file of files) {
+                // FIX: Replace Node.js Buffer with standard Web APIs for base64 encoding. This is necessary because Vercel Edge Functions do not have access to the full Node.js API, including Buffer.
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                let binaryString = '';
+                for (let i = 0; i < uint8Array.byteLength; i++) {
+                    binaryString += String.fromCharCode(uint8Array[i]);
+                }
+                const base64Data = btoa(binaryString);
                 userMessageParts.push({
                     inlineData: {
-                        mimeType: attachment.mimeType,
-                        data: attachment.data,
+                        mimeType: file.type,
+                        data: base64Data,
                     },
                 });
             }

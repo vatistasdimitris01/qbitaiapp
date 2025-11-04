@@ -1,4 +1,3 @@
-
 import { FileAttachment, LocationInfo, Message, MessageContent, MessageType } from "../types";
 
 export interface StreamUpdate {
@@ -10,7 +9,7 @@ export interface StreamUpdate {
 export const streamMessageToAI = async (
     conversationHistory: Message[],
     message: string,
-    attachments: FileAttachment[] | undefined,
+    attachments: File[],
     personaInstruction: string | undefined,
     location: LocationInfo | null,
     language: string | undefined,
@@ -25,41 +24,40 @@ export const streamMessageToAI = async (
         if (typeof content === 'string') {
             return content;
         }
-        // For other types like code blocks, the text representation for history is empty.
-        // The structured content itself is not sent in history to save tokens and complexity.
         return '';
     };
 
-    // Convert history to the format the API expects, preserving file data
     const historyForApi = conversationHistory.map(msg => ({
         type: msg.type,
         content: getTextFromMessageContent(msg.content),
         files: msg.files?.map(f => ({
             mimeType: f.type,
-            data: f.dataUrl.split(',')[1],
-        })),
+            // Ensure dataUrl is a base64 string for history
+            data: f.dataUrl.startsWith('data:') ? f.dataUrl.split(',')[1] : null,
+        })).filter(f => f.data), // Filter out files that might have object URLs
     }));
 
-    const apiAttachments = attachments?.map(file => {
-        return {
-            mimeType: file.type,
-            data: file.dataUrl.split(',')[1],
-        };
-    });
-
     try {
+        const formData = new FormData();
+        const payload = {
+            history: historyForApi,
+            message,
+            personaInstruction,
+            location,
+            language,
+        };
+        formData.append('payload', JSON.stringify(payload));
+
+        if (attachments) {
+            for (const file of attachments) {
+                formData.append('file', file);
+            }
+        }
+
         const response = await fetch('/api/sendMessage', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                history: historyForApi,
-                message,
-                attachments: apiAttachments,
-                personaInstruction,
-                location,
-                language
-            }),
-            signal // Pass the signal to the fetch call
+            body: formData, // The browser will set the correct multipart/form-data header
+            signal,
         });
 
         if (!response.ok) {
@@ -103,7 +101,6 @@ export const streamMessageToAI = async (
 
         await processStream();
 
-        // Process any remaining data in buffer
         if (buffer.trim() !== '') {
             const lines = buffer.split('\n');
             for (const line of lines) {
@@ -123,20 +120,15 @@ export const streamMessageToAI = async (
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
              console.log("Stream aborted by user.");
-             // For user-initiated aborts, we don't call onError or onFinish.
-             // The UI-side abort handler is responsible for all state changes.
         } else {
             console.error("Error streaming message to AI:", error);
             onError(error instanceof Error ? error.message : String(error));
-            // Also call onFinish in case of an API error to stop loading states.
             const duration = Date.now() - startTime;
             onFinish(duration);
         }
     }
 };
 
-
-// This is no longer needed as chat history is managed by the client and sent with each request
 export const deleteChatSession = (conversationId: string) => {
     // This function is now a no-op.
 };

@@ -5,7 +5,7 @@ import { FileAttachment } from '../types';
 interface ChatInputProps {
     text: string;
     onTextChange: (text: string) => void;
-    onSendMessage: (message: string, attachments: FileAttachment[]) => void;
+    onSendMessage: (message: string, attachments: File[]) => void;
     isLoading: boolean;
     t: (key: string, params?: Record<string, string>) => string;
     onAbortGeneration: () => void;
@@ -18,14 +18,10 @@ export interface ChatInputHandle {
     handleFiles: (files: FileList) => void;
 }
 
-const fileToDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
+interface AttachmentPreview {
+    file: File;
+    previewUrl: string;
+}
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_MB = 4;
@@ -34,7 +30,7 @@ const MAX_TOTAL_SIZE_MB = 10;
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
-    const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+    const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,14 +46,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         adjustTextareaHeight();
     }, [text, adjustTextareaHeight]);
     
+    // Cleanup object URLs to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            attachmentPreviews.forEach(attachment => URL.revokeObjectURL(attachment.previewUrl));
+        };
+    }, [attachmentPreviews]);
+
     const addFiles = useCallback(async (files: FileList) => {
-        const currentSize = attachments.reduce((acc, file) => acc + file.size, 0);
+        const currentSize = attachmentPreviews.reduce((acc, attachment) => acc + attachment.file.size, 0);
 
         let allowedNewFiles: File[] = [];
         let newFilesSize = 0;
 
         for (const file of files) {
-            if (attachments.length + allowedNewFiles.length >= MAX_FILES) {
+            if (attachmentPreviews.length + allowedNewFiles.length >= MAX_FILES) {
                 window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
                 break;
             }
@@ -75,19 +78,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
 
         if (allowedNewFiles.length > 0) {
-            const filePromises = allowedNewFiles.map(async (file: File) => {
-                const dataUrl = await fileToDataURL(file);
-                return {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    dataUrl
-                };
-            });
-            const newAttachments = await Promise.all(filePromises);
-            setAttachments(prev => [...prev, ...newAttachments]);
+            const newPreviews: AttachmentPreview[] = allowedNewFiles.map(file => ({
+                file,
+                previewUrl: URL.createObjectURL(file)
+            }));
+            setAttachmentPreviews(prev => [...prev, ...newPreviews]);
         }
-    }, [attachments, t]);
+    }, [attachmentPreviews, t]);
 
     useImperativeHandle(ref, () => ({
         focus: () => {
@@ -102,14 +99,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (e.target.files) {
             addFiles(e.target.files);
         }
-        // Reset file input value to allow selecting the same file again
         if (e.target) {
             e.target.value = '';
         }
     };
     
     const handleRemoveFile = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
+        const attachmentToRemove = attachmentPreviews[index];
+        if (attachmentToRemove) {
+            URL.revokeObjectURL(attachmentToRemove.previewUrl);
+        }
+        setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -118,11 +118,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if ((text.trim() || attachments.length > 0 || replyContextText) && !isLoading) {
+        if ((text.trim() || attachmentPreviews.length > 0 || replyContextText) && !isLoading) {
             const messageToSend = text.trim();
-            onSendMessage(messageToSend, attachments);
+            const filesToSend = attachmentPreviews.map(p => p.file);
+            onSendMessage(messageToSend, filesToSend);
             onTextChange('');
-            setAttachments([]);
+            setAttachmentPreviews([]);
             if (internalTextareaRef.current) {
                 internalTextareaRef.current.style.height = '44px';
             }
@@ -140,8 +141,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         fileInputRef.current?.click();
     };
 
-    const placeholder = attachments.length > 0 
-        ? t('chat.input.placeholderWithFiles', { count: attachments.length.toString() })
+    const placeholder = attachmentPreviews.length > 0 
+        ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() })
         : t('chat.input.placeholder');
 
     return (
@@ -177,20 +178,20 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         </div>
                     )}
                     
-                    {attachments.length > 0 && (
+                    {attachmentPreviews.length > 0 && (
                         <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
-                            {attachments.map((file, index) => (
+                            {attachmentPreviews.map((attachment, index) => (
                                 <div key={index} className="relative group/chip flex-shrink-0 mt-2">
                                     <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
                                         <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
-                                            <img alt={file.name} className="h-full w-full object-cover" src={file.dataUrl} />
+                                            <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         </figure>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveFile(index)}
                                         className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
-                                        aria-label={t('chat.input.removeFile', { filename: file.name })}
+                                        aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}
                                     >
                                         <XIcon className="size-4" />
                                     </button>
@@ -235,7 +236,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     aria-label={t('chat.input.submit')}
                                     className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
                                     style={{ transform: 'translateY(-2px)' }}
-                                    disabled={(!text.trim() && attachments.length === 0 && !replyContextText)}
+                                    disabled={(!text.trim() && attachmentPreviews.length === 0 && !replyContextText)}
                                 >
                                     <ArrowUpIcon />
                                 </button>

@@ -102,6 +102,15 @@ const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, dela
     }, [...deps, delay]);
 };
 
+const fileToDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
+
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -502,16 +511,16 @@ const App: React.FC = () => {
     setTimeout(() => chatInputRef.current?.focus(), 50);
   };
 
-  const handleSendMessage = async (text: string, attachments: FileAttachment[] = []) => {
+  const handleSendMessage = async (text: string, files: File[] = []) => {
     if (!activeConversationId || !activeConversation) return;
     const trimmedText = text.trim();
-    if (isLoading || (!trimmedText && attachments.length === 0 && !replyContextText)) return;
+    if (isLoading || (!trimmedText && files.length === 0 && !replyContextText)) return;
 
     let messageToSend = trimmedText;
-    if (trimmedText === '' && attachments.length > 0 && !replyContextText) {
-      messageToSend = t('chat.input.messageWithFiles', { count: attachments.length.toString() });
+    if (trimmedText === '' && files.length > 0 && !replyContextText) {
+        messageToSend = t('chat.input.messageWithFiles', { count: files.length.toString() });
     } else if (trimmedText === '' && replyContextText) {
-      messageToSend = 'Please elaborate on this.';
+        messageToSend = 'Please elaborate on this.';
     }
 
     if (replyContextText) {
@@ -519,11 +528,26 @@ const App: React.FC = () => {
         messageToSend = `${contextPrefix}\n\n${messageToSend}`;
     }
 
+    const userMessageId = `user-${Date.now()}`;
+    const objectUrls: string[] = [];
+
+    // --- Fast Track: Create message for immediate UI update with lightweight object URLs ---
+    const uiAttachments: FileAttachment[] = files.map(file => {
+        const url = URL.createObjectURL(file);
+        objectUrls.push(url);
+        return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: url
+        };
+    });
+
     const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      type: MessageType.USER,
-      content: messageToSend,
-      files: attachments,
+        id: userMessageId,
+        type: MessageType.USER,
+        content: messageToSend,
+        files: uiAttachments,
     };
     
     const isFirstMessage = activeConversation.messages.length === 0;
@@ -537,7 +561,7 @@ const App: React.FC = () => {
     
     const conversationHistoryForState = [...activeConversation.messages, userMessage];
     
-    setReplyContextText(null); // Clear reply context from UI immediately
+    setReplyContextText(null);
 
     setConversations(prev => prev.map(c => 
         c.id === activeConversationId 
@@ -548,9 +572,35 @@ const App: React.FC = () => {
               }
             : c
     ));
-    // Ensure the view scrolls down to show the user's new message immediately.
+
     setTimeout(() => scrollToBottom('smooth'), 0);
 
+    // --- Slow Track: Convert files to base64 for persistence, without blocking UI ---
+    if (files.length > 0) {
+      Promise.all(files.map(fileToDataURL)).then(dataUrls => {
+          const persistentAttachments: FileAttachment[] = files.map((file, index) => ({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              dataUrl: dataUrls[index]
+          }));
+
+          setConversations(prev => prev.map(c => {
+              if (c.id === activeConversationId) {
+                  const updatedMessages = c.messages.map(msg =>
+                      msg.id === userMessageId ? { ...msg, files: persistentAttachments } : msg
+                  );
+                  return { ...c, messages: updatedMessages };
+              }
+              return c;
+          }));
+
+          // Clean up the temporary object URLs after they've been replaced in the state
+          objectUrls.forEach(url => URL.revokeObjectURL(url));
+      });
+    }
+
+    // --- API Call ---
     setIsLoading(true);
     setAiStatus('thinking');
 
@@ -560,9 +610,9 @@ const App: React.FC = () => {
     const currentPersona = personas.find(p => p.id === activeConversation.personaId);
     
     await streamMessageToAI(
-        activeConversation.messages, // Pass history BEFORE the new user message
-        messageToSend, // Send the full message with context
-        attachments,
+        activeConversation.messages, // History
+        messageToSend,
+        files, // Pass raw File objects for efficient upload
         currentPersona?.instruction,
         userLocation,
         lang,
@@ -675,7 +725,7 @@ const App: React.FC = () => {
     await streamMessageToAI(
         historyForApi,
         lastUserMessage.content as string,
-        lastUserMessage.files || [],
+        [], // Use empty array for files, as they are in history
         currentPersona?.instruction,
         userLocation,
         lang,

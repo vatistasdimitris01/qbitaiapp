@@ -1,6 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom/client';
 import { marked } from 'marked';
 import type { Message, MessageContent, AIStatus, GroundingChunk, MapsGroundingChunk } from '../types';
 import { MessageType } from '../types';
@@ -66,6 +67,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const [isCopied, setIsCopied] = useState(false);
     const [typedText, setTypedText] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
+    const responseHtmlRef = useRef<HTMLDivElement>(null);
+
+    const codeBlocksRef = useRef(new Map<string, any>());
+    const codeBlockRootsRef = useRef(new Map<string, any>());
 
     const responseTextRef = useRef('');
     const charIndexRef = useRef(0);
@@ -173,7 +178,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
-        // FIX: Update renderer.link signature to match marked v5+ which uses a single token object argument.
+        let codeBlockIndex = 0;
+
         renderer.link = ({ href, title, tokens }: { href?: string, title?: string, tokens?: any[] }) => {
             const getPlainText = (ts: any[]): string => {
                 return ts.map(t => t.tokens ? getPlainText(t.tokens) : t.text).join('');
@@ -184,106 +190,102 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             const escapedTitle = escapeHtml(title || text);
             const escapedHref = escapeHtml(href || '');
 
-            // Override standard links to render as citation pills
             if (href) {
                  return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="inline-flex h-5 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium transition-colors duration-150 ease-in-out text-token-secondary bg-token-surface-secondary hover:bg-border no-underline relative -top-0.5 ml-1"><span class="max-w-[20ch] truncate">${escapedText}</span></a>`;
             }
-            // Fallback for malformed links
             return text;
         };
 
         renderer.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
-            lang = (lang || 'plaintext').toLowerCase();
-            if (lang === 'mermaid') {
+            const safeLang = (lang || 'plaintext').toLowerCase();
+            if (safeLang === 'mermaid') {
                 return `<div class="mermaid" aria-label="Mermaid diagram">${escapeHtml(code)}</div>`;
             }
-            const safeLang = escapeHtml(lang);
-            const escapedCode = escapeHtml(code);
-             try {
-                if ((window as any).hljs) {
-                    const highlighted = (window as any).hljs.highlight(escapedCode, { language: safeLang, ignoreIllegals: true }).value;
-                    return `<pre class="not-prose"><code class="language-${safeLang} hljs">${highlighted}</code></pre>`;
-                }
-            } catch (e) { /* language not supported */ }
-            return `<pre class="not-prose"><code class="language-${safeLang}">${escapedCode}</code></pre>`;
+            
+            const infoString = safeLang;
+            const titleMatch = infoString.match(/title="([^"]+)"/);
+            const title = titleMatch ? titleMatch[1] : undefined;
+            const infoStringWithoutTitle = title ? infoString.replace(titleMatch[0], '') : infoString;
+            const infoParts = infoStringWithoutTitle.trim().split(/\s+/);
+            const baseLang = infoParts[0] || 'plaintext';
+            const keywords = new Set(infoParts.slice(1));
+            const isLegacyExample = baseLang.endsWith('-example');
+            const finalLang = isLegacyExample ? baseLang.substring(0, baseLang.length - '-example'.length) : baseLang;
+            const isExecutable = !keywords.has('no-run') && !isLegacyExample;
+            const autorun = keywords.has('autorun');
+            const collapsed = keywords.has('collapsed');
+
+            const id = `code-block-${message.id}-${codeBlockIndex++}`;
+            
+            codeBlocksRef.current.set(id, {
+                code,
+                lang: finalLang,
+                title,
+                isExecutable,
+                autorun,
+                initialCollapsed: collapsed,
+                partIndex: codeBlockIndex - 1,
+            });
+
+            return `<div id="${id}" class="code-executor-placeholder not-prose"></div>`;
         };
         return renderer;
-    }, []);
+    }, [message.id]);
 
-    const contentParts = useMemo(() => {
-        if (message.type === MessageType.USER) return [];
+    const fullHtml = useMemo(() => {
+        if (isUser) return '';
+
+        codeBlocksRef.current.clear();
+        codeBlockRootsRef.current.forEach(root => root.unmount());
+        codeBlockRootsRef.current.clear();
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
-    
-        type ContentPart = {
-            type: 'text' | 'code';
-            content?: string;
-            lang?: string;
-            title?: string;
-            code?: string;
-            autorun?: boolean;
-            collapsed?: boolean;
-            noRun?: boolean;
-        };
-        const parts: ContentPart[] = [];
-        const sections = textToRender.split('```');
-    
-        sections.forEach((section, index) => {
-            if (index % 2 === 0) {
-                // This is a text part
-                if (section) {
-                    parts.push({ type: 'text', content: section });
-                }
-            } else {
-                // This is a code part (info string + code)
-                const firstNewlineIndex = section.indexOf('\n');
-                if (firstNewlineIndex === -1) {
-                    // Incomplete info string or no code yet, treat as text for now
-                    parts.push({ type: 'text', content: '```' + section });
-                    return;
-                }
-                const infoString = section.substring(0, firstNewlineIndex).trim();
-                const codeContent = section.substring(firstNewlineIndex + 1);
-    
-                const titleMatch = infoString.match(/title="([^"]+)"/);
-                const title = titleMatch ? titleMatch[1] : undefined;
-
-                const infoStringWithoutTitle = title ? infoString.replace(titleMatch[0], '') : infoString;
-                const infoParts = infoStringWithoutTitle.trim().split(/\s+/);
-                const lang = infoParts[0] || 'plaintext';
-                const keywords = new Set(infoParts.slice(1));
-
-                const isLegacyExample = lang.endsWith('-example');
-                const baseLang = isLegacyExample ? lang.substring(0, lang.length - '-example'.length) : lang;
-                
-                parts.push({
-                    type: 'code',
-                    lang: baseLang,
-                    autorun: keywords.has('autorun'),
-                    collapsed: keywords.has('collapsed'),
-                    noRun: keywords.has('no-run') || isLegacyExample,
-                    title: title,
-                    code: codeContent,
-                });
-            }
-        });
-
+        let processedText = marked.parse(textToRender, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
+        
         if (isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
-            const lastPart = parts[parts.length - 1];
-            if (lastPart && lastPart.type === 'text') {
-                lastPart.content = (lastPart.content || '') + cursorHtml;
-            } else {
-                parts.push({ type: 'text', content: cursorHtml });
-            }
+            processedText += cursorHtml;
         }
-    
-        return parts;
-    }, [isLoading, typedText, parsedResponseText, message.type, aiStatus]);
 
+        return processedText;
+    }, [isUser, isLoading, aiStatus, typedText, parsedResponseText, markedRenderer]);
+
+    useEffect(() => {
+        if (isUser || !responseHtmlRef.current) return;
+
+        const timeoutId = setTimeout(() => {
+            codeBlocksRef.current.forEach((data, id) => {
+                const container = responseHtmlRef.current?.querySelector(`#${id}`);
+                if (container && !codeBlockRootsRef.current.has(id)) {
+                    const root = ReactDOM.createRoot(container);
+                    const key = `${message.id}_${data.partIndex}`;
+                    root.render(
+                        <CodeExecutor
+                            key={key}
+                            code={data.code}
+                            lang={data.lang}
+                            title={data.title}
+                            isExecutable={data.isExecutable}
+                            autorun={data.autorun}
+                            initialCollapsed={data.initialCollapsed}
+                            persistedResult={executionResults[key]}
+                            onExecutionComplete={(result) => onStoreExecutionResult(message.id, data.partIndex, result)}
+                            onFixRequest={(execError) => onFixRequest(data.code!, data.lang!, execError)}
+                            onStopExecution={onStopExecution}
+                            isPythonReady={isPythonReady}
+                            isLoading={isLoading}
+                            t={t}
+                        />
+                    );
+                    codeBlockRootsRef.current.set(id, root);
+                }
+            });
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
+    }, [fullHtml, isUser, isLoading, isPythonReady, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, t, message.id]);
+    
     const hasContent = useMemo(() => {
-      // A response has content if its text is not just whitespace.
-      // This is a robust way to check for empty/non-empty responses.
       return parsedResponseText.trim().length > 0;
     }, [parsedResponseText]);
 
@@ -299,10 +301,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     };
 
     const pythonCodeBlocks = useMemo(() => {
-        return contentParts
-            .filter(part => part.type === 'code' && part.lang === 'python' && part.code)
-            .map(part => part.code!);
-    }, [contentParts]);
+        const blocks: string[] = [];
+        const codeBlockRegex = /```python\b[^\n]*\n([\s\S]+?)```/g;
+        let match;
+        while ((match = codeBlockRegex.exec(parsedResponseText)) !== null) {
+            blocks.push(match[1]);
+        }
+        return blocks;
+    }, [parsedResponseText]);
 
     const thinkingHtml = useMemo(() => {
         if (!parsedThinkingText) return '';
@@ -357,7 +363,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 console.error('Task list checkbox error:', error);
             }
         }
-    }, [contentParts, message.type, message.id, parsedResponseText]);
+    }, [fullHtml, message.type, message.id]);
 
     const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
@@ -458,37 +464,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             )}
                         </>
                     ) : (
-                        <div className="w-full">
-                            <div ref={contentRef} className="prose prose-sm max-w-none">
-                                {contentParts.map((part, index) => {
-                                    if (part.type === 'text' && part.content) {
-                                        const html = marked.parse(part.content, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
-                                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
-                                    }
-                                    if (part.type === 'code') {
-                                        const isExecutable = !part.noRun;
-                                        const key = `${message.id}_${index}`;
-                                        return (
-                                            <CodeExecutor
-                                                key={key}
-                                                code={part.code || ''}
-                                                lang={part.lang!}
-                                                title={part.title}
-                                                isExecutable={isExecutable}
-                                                autorun={part.autorun}
-                                                initialCollapsed={part.collapsed}
-                                                persistedResult={executionResults[key]}
-                                                onExecutionComplete={(result) => onStoreExecutionResult(message.id, index, result)}
-                                                onFixRequest={(execError) => onFixRequest(part.code!, part.lang!, execError)}
-                                                onStopExecution={onStopExecution}
-                                                isPythonReady={isPythonReady}
-                                                isLoading={isLoading}
-                                                t={t}
-                                            />
-                                        );
-                                    }
-                                    return null;
-                                })}
+                        <div ref={contentRef} className="w-full">
+                            <div className="prose prose-sm max-w-none">
+                                <div ref={responseHtmlRef} dangerouslySetInnerHTML={{ __html: fullHtml }} />
                                 
                                 {isLoading && !hasContent && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && (
                                     <AITextLoading texts={loadingTexts} />

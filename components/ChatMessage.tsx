@@ -72,6 +72,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     const codeBlocksRef = useRef(new Map<string, any>());
     const codeBlockRootsRef = useRef(new Map<string, any>());
+    const codeBlockIndexRef = useRef(0);
 
     const responseTextRef = useRef('');
     const charIndexRef = useRef(0);
@@ -188,7 +189,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     
     const markedRenderer = useMemo(() => {
         const renderer = new marked.Renderer();
-        let codeBlockIndex = 0;
 
         renderer.link = ({ href, title, tokens }: { href?: string, title?: string, tokens?: any[] }) => {
             const getPlainText = (ts: any[]): string => {
@@ -225,7 +225,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             const autorun = keywords.has('autorun');
             const collapsed = keywords.has('collapsed');
 
-            const id = `code-block-${message.id}-${codeBlockIndex++}`;
+            const id = `code-block-${message.id}-${codeBlockIndexRef.current++}`;
             
             codeBlocksRef.current.set(id, {
                 code,
@@ -234,7 +234,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 isExecutable,
                 autorun,
                 initialCollapsed: collapsed,
-                partIndex: codeBlockIndex - 1,
+                partIndex: codeBlockIndexRef.current - 1,
             });
 
             return `<div id="${id}" class="code-executor-placeholder not-prose"></div>`;
@@ -245,20 +245,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const fullHtml = useMemo(() => {
         if (isUser) return '';
 
+        // Before parsing, reset the index and clear the map of code blocks for this render.
+        codeBlockIndexRef.current = 0;
+        codeBlocksRef.current.clear();
+
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
-        
-        // This is a temporary map to gather code blocks for the current render.
-        const currentCodeBlocks = new Map<string, any>();
-        const rendererWithTempMap = { ...markedRenderer };
-        let tempCodeBlockIndex = 0;
-        rendererWithTempMap.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
-            const id = `code-block-${message.id}-${tempCodeBlockIndex++}`;
-             // Use the original renderer logic but populate our temp map
-            const originalOutput = markedRenderer.code({ text: code, lang });
-            // The original renderer populates codeBlocksRef, which is fine, we just need to know which IDs are current
-            currentCodeBlocks.set(id, codeBlocksRef.current.get(id));
-            return originalOutput;
-        };
 
         let processedText = marked.parse(textToRender, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
         
@@ -274,7 +265,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         if (isUser || !responseHtmlRef.current) return;
 
         const timeoutId = setTimeout(() => {
+            const currentRenderIds = new Set<string>();
+
+            // Create or update code executors
             codeBlocksRef.current.forEach((data, id) => {
+                currentRenderIds.add(id);
                 const container = responseHtmlRef.current?.querySelector(`#${id}`);
                 if (container && !codeBlockRootsRef.current.has(id)) {
                     const root = ReactDOM.createRoot(container);
@@ -298,6 +293,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         />
                     );
                     codeBlockRootsRef.current.set(id, root);
+                }
+            });
+
+            // Clean up stale roots that are no longer in the DOM
+            codeBlockRootsRef.current.forEach((root, id) => {
+                if (!currentRenderIds.has(id)) {
+                    root.unmount();
+                    codeBlockRootsRef.current.delete(id);
                 }
             });
         }, 0);

@@ -84,6 +84,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return () => {
             codeBlockRootsRef.current.forEach(root => root.unmount());
             codeBlockRootsRef.current.clear();
+            codeBlocksRef.current.clear();
         }
     }, [message.id]);
 
@@ -244,9 +245,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const fullHtml = useMemo(() => {
         if (isUser) return '';
 
-        codeBlocksRef.current.clear();
+        // The side-effect of clearing the ref is removed from here to prevent state loss during streaming.
+        // It's now handled in a useEffect cleanup function.
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
+        // Repopulate the code block references on each render during streaming.
+        if (isLoading) {
+            codeBlocksRef.current.clear();
+        }
         let processedText = marked.parse(textToRender, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
         
         if (isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {

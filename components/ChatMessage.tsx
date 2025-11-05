@@ -245,14 +245,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const fullHtml = useMemo(() => {
         if (isUser) return '';
 
-        // The side-effect of clearing the ref is removed from here to prevent state loss during streaming.
-        // It's now handled in a useEffect cleanup function.
-
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
-        // Repopulate the code block references on each render during streaming.
-        if (isLoading) {
-            codeBlocksRef.current.clear();
-        }
+        
+        // This is a temporary map to gather code blocks for the current render.
+        const currentCodeBlocks = new Map<string, any>();
+        const rendererWithTempMap = { ...markedRenderer };
+        let tempCodeBlockIndex = 0;
+        rendererWithTempMap.code = ({ text: code, lang }: { text: string; lang?: string }): string => {
+            const id = `code-block-${message.id}-${tempCodeBlockIndex++}`;
+             // Use the original renderer logic but populate our temp map
+            const originalOutput = markedRenderer.code({ text: code, lang });
+            // The original renderer populates codeBlocksRef, which is fine, we just need to know which IDs are current
+            currentCodeBlocks.set(id, codeBlocksRef.current.get(id));
+            return originalOutput;
+        };
+
         let processedText = marked.parse(textToRender, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
         
         if (isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
@@ -261,7 +268,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
 
         return processedText;
-    }, [isUser, isLoading, aiStatus, typedText, parsedResponseText, markedRenderer]);
+    }, [isUser, isLoading, aiStatus, typedText, parsedResponseText, markedRenderer, message.id]);
 
     useEffect(() => {
         if (isUser || !responseHtmlRef.current) return;

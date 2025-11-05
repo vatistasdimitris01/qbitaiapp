@@ -113,7 +113,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const prevIsLoading = usePrevious(isLoading);
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
 
-    const lineCount = useMemo(() => (code || '').split('\n').length, [code]);
+    const lineCount = useMemo(() => (typeof code === 'string' ? code : '').split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
         setStatus('executing');

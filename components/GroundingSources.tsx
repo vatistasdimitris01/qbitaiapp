@@ -3,6 +3,7 @@ import { GroundingChunk, MapsPlaceReviewSnippet } from '../types';
 import { MapPinIcon } from './icons';
 
 const getDomain = (url: string): string => {
+    if (!url) return 'source';
     try {
         const hostname = new URL(url).hostname;
         return hostname.replace(/^www\./, '');
@@ -35,10 +36,15 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
             <div className="flex items-center -space-x-2 cursor-pointer">
                 {visibleChunks.map((chunk, index) => {
                      if ('web' in chunk && chunk.web.uri) {
+                        const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
+                        const faviconUrl = isRedirect 
+                            ? `https://www.google.com/s2/favicons?sz=24&domain_url=google.com`
+                            : `https://www.google.com/s2/favicons?sz=24&domain_url=${chunk.web.uri}`;
+
                         return (
                            <img
                                key={index}
-                               src={`https://www.google.com/s2/favicons?sz=24&domain_url=${chunk.web.uri}`}
+                               src={faviconUrl}
                                alt={getDomain(chunk.web.uri)}
                                title={chunk.web.title}
                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
@@ -70,6 +76,11 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     <ul className="divide-y divide-default">
                         {chunks.map((chunk, index) => {
                             if ('web' in chunk && chunk.web.uri) {
+                                const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
+                                const faviconUrl = isRedirect
+                                    ? `https://www.google.com/s2/favicons?sz=16&domain_url=google.com`
+                                    : `https://www.google.com/s2/favicons?sz=16&domain_url=${chunk.web.uri}`;
+
                                 return (
                                     <li key={index}>
                                         <a
@@ -80,7 +91,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                         >
                                             <div className="flex items-start gap-3">
                                                 <img
-                                                    src={`https://www.google.com/s2/favicons?sz=16&domain_url=${chunk.web.uri}`}
+                                                    src={faviconUrl}
                                                     alt=""
                                                     className="size-4 rounded mt-0.5"
                                                     onError={(e) => {

@@ -79,6 +79,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const animationFrameRef = useRef<number | null>(null);
     const isAnimating = useRef(false);
 
+    useEffect(() => {
+        // When the component unmounts or the message ID changes, clean up any dynamically created React roots.
+        return () => {
+            codeBlockRootsRef.current.forEach(root => root.unmount());
+            codeBlockRootsRef.current.clear();
+        }
+    }, [message.id]);
+
     if (message.type === MessageType.AGENT_ACTION && typeof message.content === 'string') {
         return (
             <div className="flex w-full my-4 justify-start animate-fade-in-up">
@@ -237,8 +245,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         if (isUser) return '';
 
         codeBlocksRef.current.clear();
-        codeBlockRootsRef.current.forEach(root => root.unmount());
-        codeBlockRootsRef.current.clear();
 
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
         let processedText = marked.parse(textToRender, { breaks: true, gfm: true, renderer: markedRenderer }) as string;
@@ -289,6 +295,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasContent = useMemo(() => {
       return parsedResponseText.trim().length > 0;
     }, [parsedResponseText]);
+
+    const hasSources = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
 
 
     const handleCopy = () => {
@@ -475,7 +483,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             </div>
                         </div>
                     )}
-                     <div className={`flex items-center justify-between w-full gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                     <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-between w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || (!hasContent && !hasSources) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                         <div className="flex items-center gap-1">
                             <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
                                 {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
@@ -499,8 +507,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 </>
                             )}
                         </div>
-                        {!isUser && message.groundingChunks && message.groundingChunks.length > 0 && (
-                            <GroundingSources chunks={message.groundingChunks} t={t} />
+                        {hasSources && (
+                            <GroundingSources chunks={message.groundingChunks!} t={t} />
                         )}
                     </div>
                 </div>

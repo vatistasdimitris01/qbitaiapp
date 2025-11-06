@@ -220,7 +220,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onChange={handleFileChange}
                     accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
                 />
-                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline ? 'rounded-3xl' : 'rounded-full'}`}>
+                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline || attachmentPreviews.length > 0 ? 'rounded-3xl' : 'rounded-full'}`}>
                     {(replyContextText || attachmentPreviews.length > 0) && (
                         <div className="px-4 pt-3">
                             {replyContextText && (

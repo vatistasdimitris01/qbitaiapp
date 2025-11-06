@@ -45,6 +45,10 @@ export const translations = {
         record: 'Record audio',
         stopRecord: 'Stop recording',
       },
+      audio: {
+        play: 'Play audio',
+        pause: 'Pause audio',
+      },
       message: {
         thinking: 'Chain of Thought',
         grounding: 'Used Google Search and found the following sources:',
@@ -213,6 +217,10 @@ export const translations = {
         record: 'Εγγραφή ήχου',
         stopRecord: 'Διακοπή εγγραφής',
       },
+      audio: {
+        play: 'Αναπαραγωγή ήχου',
+        pause: 'Παύση ήχου',
+      },
       message: {
         thinking: 'Ροή Σκέψης',
         grounding: 'Χρησιμοποιήθηκε η Αναζήτηση Google και βρέθηκαν οι ακόλουθες πηγές:',
@@ -376,6 +384,10 @@ export const translations = {
         audioMessage: '[Mensaje de audio]',
         record: 'Grabar audio',
         stopRecord: 'Detener grabación',
+      },
+      audio: {
+        play: 'Reproducir audio',
+        pause: 'Pausar audio',
       },
       message: {
         thinking: 'Cadena de Pensamiento',
@@ -541,6 +553,10 @@ export const translations = {
         record: 'Enregistrer un audio',
         stopRecord: "Arrêter l'enregistrement",
       },
+      audio: {
+        play: 'Lire l\'audio',
+        pause: 'Mettre l\'audio en pause',
+      },
       message: {
         thinking: 'Chaîne de Pensée',
         grounding: 'La recherche Google a été utilisée et les sources suivantes ont été trouvées :',
@@ -704,6 +720,10 @@ export const translations = {
         audioMessage: '[Audionachricht]',
         record: 'Audio aufnehmen',
         stopRecord: 'Aufnahme stoppen',
+      },
+      audio: {
+        play: 'Audio abspielen',
+        pause: 'Audio anhalten',
       },
       message: {
         thinking: 'Gedankenkette',

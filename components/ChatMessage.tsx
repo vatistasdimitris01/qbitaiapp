@@ -9,6 +9,7 @@ import {
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
 import GroundingSources from './GroundingSources';
+import AudioPlayer from './AudioPlayer';
 
 
 type ExecutionResult = {
@@ -212,6 +213,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
     
+    const isAudioOnlyMessage = useMemo(() => {
+        return isUser &&
+            message.files &&
+            message.files.length === 1 &&
+            isAudioFile(message.files[0].type) &&
+            message.content === t('chat.input.audioMessage');
+    }, [isUser, message.files, message.content, t]);
+
     const loadingTexts = useMemo(() => {
         // ... (loading texts logic remains the same)
         switch(aiStatus) {
@@ -247,27 +256,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 )}
                 <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                     {isUser ? (
-                        <>
-                           {messageText && (
-                                <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'} bg-user-message text-foreground`}>
-                                    <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
-                                        <p className="whitespace-pre-wrap">{messageText}</p>
-                                    </div>
-                                </div>
-                            )}
-                            {hasAttachments && (
-                                <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
-                                    {message.files?.map((file, index) => (
-                                        <div key={index} className="w-48 flex-shrink-0">
-                                            {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
-                                            : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
-                                            : isAudioFile(file.type) ? <div className="p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg"><audio src={file.dataUrl} controls className="w-full" /><p className="text-xs text-muted-foreground break-all truncate mt-1" title={file.name}>{file.name}</p></div>
-                                            : <div className="w-full h-24 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}><FileTextIcon className="size-8 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
+                        isAudioOnlyMessage ? (
+                            <AudioPlayer src={message.files![0].dataUrl} t={t} />
+                        ) : (
+                            <>
+                            {messageText && (
+                                    <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'} bg-user-message text-foreground`}>
+                                        <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
+                                            <p className="whitespace-pre-wrap">{messageText}</p>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
+                                    </div>
+                                )}
+                                {hasAttachments && (
+                                    <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
+                                        {message.files?.map((file, index) => {
+                                            const isAudio = isAudioFile(file.type);
+                                            return (
+                                                <div key={index} className={`${isAudio ? 'w-auto' : 'w-48'} flex-shrink-0`}>
+                                                    {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
+                                                    : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
+                                                    : isAudio ? <AudioPlayer src={file.dataUrl} t={t} />
+                                                    : <div className="w-full h-24 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}><FileTextIcon className="size-8 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </>
+                        )
                     ) : (
                         <div ref={contentRef} className="w-full">
                             <div className="prose prose-sm max-w-none">

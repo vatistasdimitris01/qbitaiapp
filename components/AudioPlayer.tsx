@@ -1,5 +1,4 @@
-import React, 'react';
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PlayIcon, PauseIcon } from './icons';
 
 interface AudioPlayerProps {

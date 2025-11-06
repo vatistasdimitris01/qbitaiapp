@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, ReplyIcon } from './icons';
+import { PlusIcon, ArrowUpIcon, XIcon, ReplyIcon, MicIcon, StopCircleIcon } from './icons';
 import { FileAttachment } from '../types';
 
 interface ChatInputProps {
@@ -24,21 +24,28 @@ interface AttachmentPreview {
 }
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_MB = 3; // Reduced from 4 to stay under Gemini's 4MB base64 limit (3MB * 4/3 ≈ 4MB)
+const MAX_FILE_SIZE_MB = 3; 
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_TOTAL_SIZE_MB = 3; // Reduced to stay under Vercel's 4.5MB limit after base64 encoding
+const MAX_TOTAL_SIZE_MB = 3; 
 const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
+    const [isMultiline, setIsMultiline] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
 
     const adjustTextareaHeight = useCallback(() => {
-        if (internalTextareaRef.current) {
-            internalTextareaRef.current.style.height = 'auto';
-            const newHeight = Math.min(internalTextareaRef.current.scrollHeight, 200); // Max height 200px
-            internalTextareaRef.current.style.height = `${newHeight}px`;
+        const textarea = internalTextareaRef.current;
+        if (textarea) {
+            const singleLineHeightThreshold = 40; // Approximate height for a single line with padding
+            textarea.style.height = 'auto'; // Reset height to calculate scroll height correctly
+            const newHeight = Math.min(textarea.scrollHeight, 200); // Max height 200px
+            textarea.style.height = `${newHeight}px`;
+            setIsMultiline(newHeight > singleLineHeightThreshold);
         }
     }, []);
 
@@ -46,7 +53,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         adjustTextareaHeight();
     }, [text, adjustTextareaHeight]);
     
-    // Cleanup object URLs to prevent memory leaks
     useEffect(() => {
         return () => {
             attachmentPreviews.forEach(attachment => URL.revokeObjectURL(attachment.previewUrl));
@@ -144,15 +150,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if ((text.trim() || attachmentPreviews.length > 0 || replyContextText) && !isLoading) {
+        const hasContent = text.trim() || attachmentPreviews.length > 0 || replyContextText;
+        if (hasContent && !isLoading) {
             const messageToSend = text.trim();
             const filesToSend = attachmentPreviews.map(p => p.file);
             onSendMessage(messageToSend, filesToSend);
             onTextChange('');
             setAttachmentPreviews([]);
-            if (internalTextareaRef.current) {
-                internalTextareaRef.current.style.height = '44px';
-            }
         }
     };
     
@@ -167,9 +171,42 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         fileInputRef.current?.click();
     };
 
+    const handleMicClick = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorderRef.current = new MediaRecorder(stream);
+                audioChunksRef.current = [];
+    
+                mediaRecorderRef.current.ondataavailable = (event) => {
+                    audioChunksRef.current.push(event.data);
+                };
+    
+                mediaRecorderRef.current.onstop = () => {
+                    const mimeType = 'audio/webm;codecs=opus';
+                    const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+                    const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: mimeType });
+                    onSendMessage(t('chat.input.audioMessage'), [audioFile]);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+    
+                mediaRecorderRef.current.start();
+                setIsRecording(true);
+            } catch (err) {
+                console.error("Microphone access failed:", err);
+                alert("Microphone access is required to record audio.");
+            }
+        }
+    };
+
     const placeholder = attachmentPreviews.length > 0 
         ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() })
         : t('chat.input.placeholder');
+        
+    const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     return (
         <div className="flex flex-col gap-0 justify-center w-full relative items-center">
@@ -183,89 +220,96 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onChange={handleFileChange}
                     accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
                 />
-                <div className="relative w-full bg-card border border-default rounded-[28px] shadow-xl px-3 sm:px-4 pt-4 pb-16 sm:pb-14">
-                    {replyContextText && (
-                        <div className="mx-1 mb-2 border-b border-default pb-2">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-2.5 text-muted-foreground shrink min-w-0">
-                                    <ReplyIcon className="size-4 flex-shrink-0 mt-0.5" />
-                                    <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>
-                                        {replyContextText}
-                                    </p>
+                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline ? 'rounded-3xl' : 'rounded-full'}`}>
+                    {(replyContextText || attachmentPreviews.length > 0) && (
+                        <div className="px-4 pt-3">
+                            {replyContextText && (
+                                <div className="mx-1 mb-2 border-b border-default pb-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2.5 text-muted-foreground shrink min-w-0">
+                                            <ReplyIcon className="size-4 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>
+                                                {replyContextText}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={onClearReplyContext}
+                                            className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary"
+                                            aria-label={t('chat.input.clearReply')}
+                                        >
+                                            <XIcon className="size-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={onClearReplyContext}
-                                    className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary"
-                                    aria-label={t('chat.input.clearReply')}
-                                >
-                                    <XIcon className="size-4" />
-                                </button>
-                            </div>
+                            )}
+                            
+                            {attachmentPreviews.length > 0 && (
+                                <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
+                                    {attachmentPreviews.map((attachment, index) => (
+                                        <div key={index} className="relative group/chip flex-shrink-0">
+                                            <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
+                                                <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
+                                                    <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
+                                                </figure>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveFile(index)}
+                                                className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
+                                                aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}
+                                            >
+                                                <XIcon className="size-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                     
-                    {attachmentPreviews.length > 0 && (
-                        <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
-                            {attachmentPreviews.map((attachment, index) => (
-                                <div key={index} className="relative group/chip flex-shrink-0 mt-2">
-                                    <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
-                                        <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
-                                            <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
-                                        </figure>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveFile(index)}
-                                        className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
-                                        aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}
-                                    >
-                                        <XIcon className="size-4" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <div className="relative z-10">
+                    <div className="flex items-end gap-2 px-3 py-2.5">
+                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
+                            <PlusIcon className="text-muted" />
+                        </button>
+
                         <textarea
                             ref={internalTextareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="w-full px-2 sm:px-3 pt-2 mb-6 bg-transparent focus:outline-none text-foreground placeholder-muted"
-                            style={{ resize: 'none', minHeight: '44px' }}
+                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted self-center py-2"
+                            style={{ resize: 'none' }}
                             placeholder={placeholder}
                             rows={1}
                             value={text}
                             onChange={handleInputChange}
                             onKeyDown={handleKeyDown}
-                        ></textarea>
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 px-3 sm:px-4 py-3">
-                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-full bg-token-surface-secondary border border-default text-muted disabled:opacity-60">
-                            <PaperclipIcon className="text-muted" />
-                        </button>
-                        <div className="ml-auto relative">
+                        />
+
+                        <div className="flex items-center gap-2">
                             {isLoading ? (
-                                <button
+                                 <button
                                     type="button"
                                     onClick={onAbortGeneration}
                                     aria-label={t('chat.input.stop')}
-                                    className="inline-flex items-center justify-center rounded-xl h-12 w-12 sm:h-11 sm:w-11 bg-white dark:bg-card border border-default shadow-md"
-                                    style={{ transform: 'translateY(-2px)' }}
+                                    className="inline-flex items-center justify-center rounded-xl h-10 w-10 bg-white dark:bg-card border border-default shadow-md"
                                 >
                                     <div className="flex items-center justify-center h-7 w-7 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
                                         <div className="h-3 w-3 bg-black dark:bg-white rounded-sm"></div>
                                     </div>
                                 </button>
-                            ) : (
+                            ) : hasContent ? (
                                 <button
                                     type="submit"
                                     aria-label={t('chat.input.submit')}
-                                    className={`inline-flex items-center justify-center rounded-full h-12 w-12 sm:h-11 sm:w-11 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
-                                    style={{ transform: 'translateY(-2px)' }}
-                                    disabled={(!text.trim() && attachmentPreviews.length === 0 && !replyContextText)}
+                                    className={`inline-flex items-center justify-center rounded-full h-10 w-10 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    disabled={!hasContent}
                                 >
                                     <ArrowUpIcon />
+                                </button>
+                            ) : (
+                                <button type="button" onClick={handleMicClick} aria-label={isRecording ? t('chat.input.stopRecord') : t('chat.input.record')} className="relative inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
+                                    {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse" /> : <MicIcon className="text-muted" />}
                                 </button>
                             )}
                         </div>

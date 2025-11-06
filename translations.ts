@@ -41,6 +41,9 @@ export const translations = {
         totalSizeTooLarge: 'Total attachment size exceeds the limit of {size}.',
         tooManyFiles: 'You can attach a maximum of {count} files.',
         unsupportedFileType: 'Unsupported file type: {filename}. Please upload images, videos, audio, or text-based files.',
+        audioMessage: '[Audio Message]',
+        record: 'Record audio',
+        stopRecord: 'Stop recording',
       },
       message: {
         thinking: 'Chain of Thought',
@@ -206,6 +209,9 @@ export const translations = {
         totalSizeTooLarge: 'Το συνολικό μέγεθος των συνημμένων υπερβαίνει το όριο του {size}.',
         tooManyFiles: 'Μπορείτε να επισυνάψετε το πολύ {count} αρχεία.',
         unsupportedFileType: 'Μη υποστηριζόμενος τύπος αρχείου: {filename}. Παρακαλώ ανεβάστε εικόνες, βίντεο, ήχο ή αρχεία κειμένου.',
+        audioMessage: '[Ηχητικό μήνυμα]',
+        record: 'Εγγραφή ήχου',
+        stopRecord: 'Διακοπή εγγραφής',
       },
       message: {
         thinking: 'Ροή Σκέψης',
@@ -367,6 +373,9 @@ export const translations = {
         totalSizeTooLarge: 'El tamaño total de los archivos adjuntos supera el límite de {size}.',
         tooManyFiles: 'Puedes adjuntar un máximo de {count} archivos.',
         unsupportedFileType: 'Tipo de archivo no compatible: {filename}. Por favor, sube imágenes, videos, audio o archivos de texto.',
+        audioMessage: '[Mensaje de audio]',
+        record: 'Grabar audio',
+        stopRecord: 'Detener grabación',
       },
       message: {
         thinking: 'Cadena de Pensamiento',
@@ -528,6 +537,9 @@ export const translations = {
         totalSizeTooLarge: "La taille totale des pièces jointes dépasse la limite de {size}.",
         tooManyFiles: 'Vous pouvez joindre un maximum de {count} fichiers.',
         unsupportedFileType: 'Type de fichier non pris en charge : {filename}. Veuillez télécharger des images, des vidéos, de l\'audio ou des fichiers texte.',
+        audioMessage: '[Message audio]',
+        record: 'Enregistrer un audio',
+        stopRecord: "Arrêter l'enregistrement",
       },
       message: {
         thinking: 'Chaîne de Pensée',
@@ -689,6 +701,9 @@ export const translations = {
         totalSizeTooLarge: 'Die Gesamtgröße der Anhänge überschreitet das Limit von {size}.',
         tooManyFiles: 'Sie können maximal {count} Dateien anhängen.',
         unsupportedFileType: 'Nicht unterstützter Dateityp: {filename}. Bitte laden Sie Bilder, Videos, Audio- oder textbasierte Dateien hoch.',
+        audioMessage: '[Audionachricht]',
+        record: 'Audio aufnehmen',
+        stopRecord: 'Aufnahme stoppen',
       },
       message: {
         thinking: 'Gedankenkette',

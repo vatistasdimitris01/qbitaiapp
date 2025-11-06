@@ -25,7 +25,7 @@ export const RefreshCwIcon: React.FC<IconProps> = ({ className }) => (
 );
 
 
-export const PaperclipIcon: React.FC<IconProps> = ({ className }) => (
+export const PlusIcon: React.FC<IconProps> = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -38,7 +38,46 @@ export const PaperclipIcon: React.FC<IconProps> = ({ className }) => (
     strokeLinejoin="round"
     className={className}
   >
-    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+    <path d="M5 12h14" />
+    <path d="M12 5v14" />
+  </svg>
+);
+
+
+export const MicIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+  </svg>
+);
+
+export const StopCircleIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <rect x="9" y="9" width="6" height="6" />
   </svg>
 );
 

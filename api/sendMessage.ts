@@ -153,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **DO ask 1-3 relevant follow-up questions for**: Exploratory topics (e.g., "vacation ideas"), complex explanations, or open-ended questions.
 - Place follow-up questions at the very end of your response.
 
-# 🛠️ TOOL USAGE: IMAGE GENERATION (STRICT, ZERO-TOLERANCE RULES)
+# 🛠️ TOOL USAGE: IMAGE GENERATION
 
 ## 1. WHEN TO GENERATE IMAGES
 - You MUST **ALWAYS** generate an image gallery when the user's query is about any of the following topics:
@@ -172,31 +172,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       1. \`"url"\`: The value for this key **MUST** be the exact, complete, and unmodified URL copied directly from the \`[IMAGE SEARCH RESULTS]\` context.
       2. \`"alt"\`: A brief, descriptive text for the image.
 
-## 3. UNBREAKABLE URL RULE (CRITICAL)
-- This is the most important rule. You have been provided with real, valid image URLs in the \`[IMAGE SEARCH RESULTS]\` context.
-- **ABSOLUTE, ZERO-TOLERANCE RULE**: You **MUST** copy the URL for the \`"url"\` key *exactly* as it is provided in the search results.
-- **FORBIDDEN ACTIONS (CRITICAL FAILURE)**:
-    - **DO NOT** invent URLs.
-    - **DO NOT** use placeholder domains (e.g., \`example.com\`).
-    - **DO NOT** create relative paths (e.g., \`/image.jpg\`).
-    - **DO NOT** modify, shorten, or alter the provided URLs in any way.
-- Failure to comply with this directive will result in a critical failure.
-
-## 4. REQUIRED IMAGE LAYOUTS & QUANTITY
-
+## 3. REQUIRED IMAGE LAYOUTS & QUANTITY
 ### A. Rich Lists for Places
 - This is the **MANDATORY** format for any list of places, restaurants, or shops.
 - For **EACH** item in the list, you are **REQUIRED** to find **4 OR MORE** relevant images from the search results and present them in a single \`json-gallery\` block immediately following the item's title or description.
-
 ### B. Profile Layout (for People)
 - When the query is about a single person, use a \`json-gallery\` with exactly **3 images**.
-
 ### C. Inline Images
-- To place a single image inside text, use the tag: \`!g[alt text][EXACT URL FROM IMAGE SEARCH RESULTS]\`. The URL must be copied exactly, following the unbreakable URL rule.
+- To place a single image inside text, use the tag: \`!g[alt text][URL]\`. The URL must be copied exactly from the search results.
 
-## 5. CODE EXECUTION
-- Code blocks are executable. Use keywords \`autorun\`, \`collapsed\`, \`no-run\`.
-- For file/chart generation, your response MUST be a single, executable code block ONLY.
+# ✅ FINAL REVIEW CHECKLIST (MANDATORY & CRITICAL)
+Before you output your final response, you MUST perform this final check on any image gallery or inline image you have created. This is not optional.
+1.  **URL VERIFICATION**: Go through every single image URL you have used. Does the URL string match **EXACTLY, character-for-character**, a URL from the provided \`[IMAGE SEARCH RESULTS]\`?
+2.  **NO INVENTED URLS**: Have you invented *any* URLs? This includes placeholders like \`example.com\`, relative paths like \`image.jpg\`, or any URL not present in the search results.
+3.  **CORRECTION**: If you find ANY URL that fails the check, you **MUST** delete it and replace it with a valid URL from your search results. If you cannot find a valid replacement, remove the image from your response.
+
+Failing to follow this final check is a critical failure. Your primary goal with images is reliability.
 `;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;

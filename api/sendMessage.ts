@@ -39,34 +39,23 @@ export const config = {
   },
 };
 
-async function performWebSearch(query: string): Promise<string> {
+async function performImageSearch(query: string): Promise<string> {
     if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
         return "";
     }
     try {
-        const [webResponse, imageResponse] = await Promise.all([
-            fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&num=5`),
-            fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&searchType=image&num=10`)
-        ]);
+        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
 
-        let context = "";
-        if (webResponse.ok) {
-            const webData = await webResponse.json();
-            if (webData.items && webData.items.length > 0) {
-                const results = webData.items.map((item: any) => ({ title: item.title, link: item.link, snippet: item.snippet }));
-                context += `[WEB SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
-            }
-        }
         if (imageResponse.ok) {
             const imageData = await imageResponse.json();
              if (imageData.items && imageData.items.length > 0) {
                 const results = imageData.items.map((item: any) => ({ url: item.link, alt: item.title }));
-                context += `[IMAGE SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
+                return `[IMAGE SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
             }
         }
-        return context;
+        return "";
     } catch (error) {
-        console.error("Error performing web search:", error);
+        console.error("Error performing image search:", error);
         return "";
     }
 }
@@ -104,9 +93,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ] as Part[],
             })).filter(c => c.parts.length > 0);
         
-        const searchContext = await performWebSearch(message);
+        const imageContext = await performImageSearch(message);
         let userMessageText = message;
-        if (searchContext) userMessageText = `${searchContext}[USER MESSAGE]:\n${message}`;
+        if (imageContext) userMessageText = `${imageContext}[USER MESSAGE]:\n${message}`;
         if (location?.city && location?.country) userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
@@ -134,12 +123,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
-## 3. WEB SEARCH & CONTEXT (CRITICAL)
-- **You have been provided with real-time web search results as context.** They are prepended to the user's message.
-- Your **PRIMARY TASK** is to synthesize these results into a direct, comprehensive answer.
-- **DO NOT ASK FOR CLARIFICATION on factual queries**: If the user asks for information (e.g., "weather in Athens") and search results are provided, you MUST give the answer directly. Do not ask clarifying questions like "which day?". Use the provided data.
-- **IGNORE IRRELEVANT SEARCHES**: If search results are clearly irrelevant (e.g., for a greeting like "hello"), IGNORE them and respond conversationally.
-- **DO NOT MENTION SOURCES**: The UI displays sources automatically. You MUST NOT add markdown links or mention sources in your text response.
+## 3. AVAILABLE TOOLS & CONTEXT (CRITICAL)
+- **Tool 1: Internal Google Search**: You have a built-in tool to search the web for real-time information. You MUST use this to answer factual questions. The UI will display the sources you use automatically, so **DO NOT** add source links in your text.
+- **Context 2: Pre-fetched Image Results**: For your convenience, a separate image search has already been performed. The results are provided in the user's message under \`[IMAGE SEARCH RESULTS]\`. You MUST use this context when creating image galleries.
+- **IGNORE IRRELEVANT SEARCHES**: If your internal search results are clearly irrelevant (e.g., for a greeting like "hello"), IGNORE them and respond conversationally.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 
@@ -197,7 +184,14 @@ Failing to follow this final check is a critical failure. Your primary goal with
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
         try {
-            const stream = await ai.models.generateContentStream({ model, contents, config: { systemInstruction: finalSystemInstruction } });
+            const stream = await ai.models.generateContentStream({ 
+                model, 
+                contents, 
+                config: { 
+                    systemInstruction: finalSystemInstruction,
+                    tools: [{ googleSearch: {} }],
+                } 
+            });
             let usageMetadataSent = false;
             for await (const chunk of stream) {
                 if (chunk.text) write({ type: 'chunk', payload: chunk.text });

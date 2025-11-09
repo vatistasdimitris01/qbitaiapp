@@ -10,7 +10,7 @@ import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
 import GroundingSources from './GroundingSources';
 import AudioPlayer from './AudioPlayer';
-
+import ImageGallery from './ImageGallery';
 
 type ExecutionResult = {
   output: string | null;
@@ -32,6 +32,7 @@ interface ChatMessageProps {
     onStopExecution: () => void;
     isPythonReady: boolean;
     t: (key: string) => string;
+    onOpenLightbox: (images: any[], startIndex: number) => void;
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
@@ -51,7 +52,7 @@ const getTextFromMessage = (content: any): string => {
     return '';
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -151,13 +152,35 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             if (match.index > lastIndex) {
                 parts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
             }
-            parts.push({
-                type: 'code',
-                lang: match[1] || 'plaintext',
-                code: match[2],
-                info: match[0].split('\n')[0].substring(3).trim(),
-                partIndex: partIndex++
-            });
+            const lang = match[1] || 'plaintext';
+            const code = match[2];
+
+            if (lang === 'json-gallery') {
+                try {
+                    const galleryData = JSON.parse(code);
+                    if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
+                        parts.push({
+                            type: 'gallery',
+                            images: galleryData.images,
+                            partIndex: partIndex++
+                        });
+                    } else {
+                        // Fallback to text if JSON is malformed
+                        parts.push({ type: 'text', content: match[0] });
+                    }
+                } catch (e) {
+                     // Fallback to text if JSON parsing fails
+                    parts.push({ type: 'text', content: match[0] });
+                }
+            } else {
+                parts.push({
+                    type: 'code',
+                    lang: lang,
+                    code: code,
+                    info: match[0].split('\n')[0].substring(3).trim(),
+                    partIndex: partIndex++
+                });
+            }
             lastIndex = match.index + match[0].length;
         }
 
@@ -288,6 +311,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         <div ref={contentRef} className="w-full">
                             <div className="prose prose-sm max-w-none">
                                 {renderableContent.map((part, index) => {
+                                    if (part.type === 'gallery') {
+                                        return (
+                                            <ImageGallery
+                                                key={`gallery-${index}`}
+                                                images={part.images}
+                                                onImageClick={(startIndex) => onOpenLightbox(part.images, startIndex)}
+                                            />
+                                        );
+                                    }
                                     if (part.type === 'code') {
                                         const { lang, code, info, partIndex } = part;
                                         const key = `${message.id}_${partIndex}`;

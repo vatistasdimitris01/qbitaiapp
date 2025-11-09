@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk, MapsGroundingChunk } from './types';
 import { MessageType } from './types';
@@ -9,6 +10,7 @@ import LocationBanner from './components/LocationBanner';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
+import Lightbox from './components/Lightbox';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
@@ -141,6 +143,11 @@ const App: React.FC = () => {
     text: string;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [lightboxState, setLightboxState] = useState<{
+    images: { url: string; alt: string; source?: string }[];
+    startIndex: number;
+  } | null>(null);
+
 
   const mainContentRef = useRef<HTMLElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -509,6 +516,14 @@ const App: React.FC = () => {
     setReplyContextText(text);
     setSelectionPopup(null);
     setTimeout(() => chatInputRef.current?.focus(), 50);
+  };
+  
+  const handleOpenLightbox = (images: any[], startIndex: number) => {
+    setLightboxState({ images, startIndex });
+  };
+
+  const handleCloseLightbox = () => {
+      setLightboxState(null);
   };
 
   const handleSendMessage = async (text: string, files: File[] = []) => {
@@ -937,6 +952,7 @@ ${error}
                                 onStopExecution={handleStopExecution}
                                 isPythonReady={isPythonReady}
                                 t={t}
+                                onOpenLightbox={handleOpenLightbox}
                             />;
                 })
                 ) : (
@@ -1001,6 +1017,13 @@ ${error}
                 text={selectionPopup.text}
                 onAsk={handleAskWithSelection}
                 t={t}
+            />
+        )}
+        {lightboxState && (
+            <Lightbox
+                images={lightboxState.images}
+                startIndex={lightboxState.startIndex}
+                onClose={handleCloseLightbox}
             />
         )}
     </div>

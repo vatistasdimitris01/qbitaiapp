@@ -41,7 +41,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            const singleLineHeightThreshold = 40; // Approximate height for a single line with padding
+            const singleLineHeightThreshold = 34; // Approximate height for a single line with padding
             textarea.style.height = 'auto'; // Reset height to calculate scroll height correctly
             const newHeight = Math.min(textarea.scrollHeight, 200); // Max height 200px
             textarea.style.height = `${newHeight}px`;
@@ -220,9 +220,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onChange={handleFileChange}
                     accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
                 />
-                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline || attachmentPreviews.length > 0 ? 'rounded-3xl' : 'rounded-full'}`}>
+                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline || attachmentPreviews.length > 0 ? 'rounded-2xl' : 'rounded-full'}`}>
                     {(replyContextText || attachmentPreviews.length > 0) && (
-                        <div className="px-4 pt-3">
+                        <div className="px-3 pt-2.5">
                             {replyContextText && (
                                 <div className="mx-1 mb-2 border-b border-default pb-2">
                                     <div className="flex items-start justify-between gap-3">
@@ -238,28 +238,28 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                             className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary"
                                             aria-label={t('chat.input.clearReply')}
                                         >
-                                            <XIcon className="size-4" />
+                                            <XIcon className="size-3.5" />
                                         </button>
                                     </div>
                                 </div>
                             )}
                             
                             {attachmentPreviews.length > 0 && (
-                                <div className="w-full flex flex-row gap-3 mb-2 px-1 pt-2 whitespace-nowrap overflow-x-auto">
+                                <div className="w-full flex flex-row gap-2 mb-2 px-1 pt-1 whitespace-nowrap overflow-x-auto">
                                     {attachmentPreviews.map((attachment, index) => (
                                         <div key={index} className="relative group/chip flex-shrink-0">
-                                            <div className="flex flex-row items-center text-sm gap-2 relative h-12 p-0.5 rounded-xl border border-default bg-gray-50 dark:bg-gray-800">
-                                                <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-11 h-11 rounded-lg">
+                                            <div className="flex flex-row items-center text-sm gap-2 relative h-10 p-0.5 rounded-lg border border-default bg-gray-50 dark:bg-gray-800">
+                                                <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-9 h-9 rounded-md">
                                                     <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                                 </figure>
                                             </div>
                                             <button
                                                 type="button"
                                                 onClick={() => handleRemoveFile(index)}
-                                                className="inline-flex items-center justify-center h-6 w-6 absolute -top-2 -right-2 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
+                                                className="inline-flex items-center justify-center h-5 w-5 absolute -top-1.5 -right-1.5 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
                                                 aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}
                                             >
-                                                <XIcon className="size-4" />
+                                                <XIcon className="size-3.5" />
                                             </button>
                                         </div>
                                     ))}
@@ -268,8 +268,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         </div>
                     )}
                     
-                    <div className="flex items-end gap-2 px-3 py-2.5">
-                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
+                    <div className="flex items-end gap-2 px-2 py-1.5">
+                        <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
                             <PlusIcon className="text-muted" />
                         </button>
 
@@ -277,7 +277,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             ref={internalTextareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted self-center py-2"
+                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted self-center py-1.5"
                             style={{ resize: 'none' }}
                             placeholder={placeholder}
                             rows={1}
@@ -292,23 +292,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     type="button"
                                     onClick={onAbortGeneration}
                                     aria-label={t('chat.input.stop')}
-                                    className="inline-flex items-center justify-center rounded-xl h-10 w-10 bg-white dark:bg-card border border-default shadow-md"
+                                    className="inline-flex items-center justify-center rounded-lg h-8 w-8 bg-white dark:bg-card border border-default shadow-md"
                                 >
-                                    <div className="flex items-center justify-center h-7 w-7 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
-                                        <div className="h-3 w-3 bg-black dark:bg-white rounded-sm"></div>
+                                    <div className="flex items-center justify-center h-6 w-6 bg-gray-200 dark:bg-token-surface-secondary rounded-full">
+                                        <div className="h-2.5 w-2.5 bg-black dark:bg-white rounded-sm"></div>
                                     </div>
                                 </button>
                             ) : hasContent ? (
                                 <button
                                     type="submit"
                                     aria-label={t('chat.input.submit')}
-                                    className={`inline-flex items-center justify-center rounded-full h-10 w-10 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    className={`inline-flex items-center justify-center rounded-full h-8 w-8 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
                                     disabled={!hasContent}
                                 >
                                     <ArrowUpIcon />
                                 </button>
                             ) : (
-                                <button type="button" onClick={handleMicClick} aria-label={isRecording ? t('chat.input.stopRecord') : t('chat.input.record')} className="relative inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
+                                <button type="button" onClick={handleMicClick} aria-label={isRecording ? t('chat.input.stopRecord') : t('chat.input.record')} className="relative inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
                                     {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse" /> : <MicIcon className="text-muted" />}
                                 </button>
                             )}

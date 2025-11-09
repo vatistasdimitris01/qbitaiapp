@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PlusIcon, ArrowUpIcon, XIcon, ReplyIcon, MicIcon, StopCircleIcon } from './icons';
 import { FileAttachment } from '../types';
@@ -40,8 +41,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            textarea.style.height = 'auto'; // Reset height to calculate scroll height correctly
-            const newHeight = Math.min(textarea.scrollHeight, 200); // Max height 200px
+            textarea.style.height = 'auto';
+            const newHeight = Math.min(textarea.scrollHeight, 200);
             textarea.style.height = `${newHeight}px`;
         }
     }, []);
@@ -58,100 +59,57 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const addFiles = useCallback(async (files: FileList) => {
         const currentSize = attachmentPreviews.reduce((acc, attachment) => acc + attachment.file.size, 0);
-
         let allowedNewFiles: File[] = [];
         let newFilesSize = 0;
 
         for (const file of files) {
             const isFileTypeSupported = (file: File): boolean => {
-                const supportedMimeTypes = [
-                    'image/', 'video/', 'audio/', 'text/',
-                    'application/pdf', 'application/json'
-                ];
+                const supportedMimeTypes = ['image/', 'video/', 'audio/', 'text/', 'application/pdf', 'application/json'];
                 const supportedExtensions = ['.md', '.csv'];
-    
                 const fileMime = file.type;
                 const fileName = file.name.toLowerCase();
-    
-                if (supportedMimeTypes.some(mime => mime.endsWith('/') ? fileMime.startsWith(mime) : fileMime === mime)) {
-                    return true;
-                }
-    
-                if (supportedExtensions.some(ext => fileName.endsWith(ext))) {
-                    return true;
-                }
-                
+                if (supportedMimeTypes.some(mime => mime.endsWith('/') ? fileMime.startsWith(mime) : fileMime === mime)) return true;
+                if (supportedExtensions.some(ext => fileName.endsWith(ext))) return true;
                 return false;
             };
 
-            if (!isFileTypeSupported(file)) {
-                window.alert(t('chat.input.unsupportedFileType', { filename: file.name }));
-                continue;
-            }
-
-            if (attachmentPreviews.length + allowedNewFiles.length >= MAX_FILES) {
-                window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() }));
-                break;
-            }
-            if (file.size > MAX_FILE_SIZE) {
-                window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_MB}MB` }));
-                continue;
-            }
-            if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) {
-                window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_MB}MB` }));
-                break;
-            }
-            
+            if (!isFileTypeSupported(file)) { window.alert(t('chat.input.unsupportedFileType', { filename: file.name })); continue; }
+            if (attachmentPreviews.length + allowedNewFiles.length >= MAX_FILES) { window.alert(t('chat.input.tooManyFiles', { count: MAX_FILES.toString() })); break; }
+            if (file.size > MAX_FILE_SIZE) { window.alert(t('chat.input.fileTooLarge', { filename: file.name, size: `${MAX_FILE_SIZE_MB}MB` })); continue; }
+            if (currentSize + newFilesSize + file.size > MAX_TOTAL_SIZE) { window.alert(t('chat.input.totalSizeTooLarge', { size: `${MAX_TOTAL_SIZE_MB}MB` })); break; }
             allowedNewFiles.push(file);
             newFilesSize += file.size;
         }
 
         if (allowedNewFiles.length > 0) {
-            const newPreviews: AttachmentPreview[] = allowedNewFiles.map(file => ({
-                file,
-                previewUrl: URL.createObjectURL(file)
-            }));
+            const newPreviews: AttachmentPreview[] = allowedNewFiles.map(file => ({ file, previewUrl: URL.createObjectURL(file) }));
             setAttachmentPreviews(prev => [...prev, ...newPreviews]);
         }
     }, [attachmentPreviews, t]);
 
     useImperativeHandle(ref, () => ({
-        focus: () => {
-            internalTextareaRef.current?.focus();
-        },
-        handleFiles: (files: FileList) => {
-            addFiles(files);
-        }
+        focus: () => internalTextareaRef.current?.focus(),
+        handleFiles: (files: FileList) => addFiles(files),
     }), [addFiles]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            addFiles(e.target.files);
-        }
-        if (e.target) {
-            e.target.value = '';
-        }
+        if (e.target.files) addFiles(e.target.files);
+        if (e.target) e.target.value = '';
     };
     
     const handleRemoveFile = (index: number) => {
         const attachmentToRemove = attachmentPreviews[index];
-        if (attachmentToRemove) {
-            URL.revokeObjectURL(attachmentToRemove.previewUrl);
-        }
+        if (attachmentToRemove) URL.revokeObjectURL(attachmentToRemove.previewUrl);
         setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        onTextChange(e.target.value);
-    };
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => onTextChange(e.target.value);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const hasContent = text.trim() || attachmentPreviews.length > 0 || replyContextText;
         if (hasContent && !isLoading) {
-            const messageToSend = text.trim();
-            const filesToSend = attachmentPreviews.map(p => p.file);
-            onSendMessage(messageToSend, filesToSend);
+            onSendMessage(text.trim(), attachmentPreviews.map(p => p.file));
             onTextChange('');
             setAttachmentPreviews([]);
         }
@@ -164,9 +122,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
     
-    const handleAttachClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleAttachClick = () => fileInputRef.current?.click();
 
     const handleMicClick = async () => {
         if (isRecording) {
@@ -177,11 +133,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorderRef.current = new MediaRecorder(stream);
                 audioChunksRef.current = [];
-    
-                mediaRecorderRef.current.ondataavailable = (event) => {
-                    audioChunksRef.current.push(event.data);
-                };
-    
+                mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
                 mediaRecorderRef.current.onstop = () => {
                     const mimeType = 'audio/webm;codecs=opus';
                     const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
@@ -189,7 +141,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onSendMessage(t('chat.input.audioMessage'), [audioFile]);
                     stream.getTracks().forEach(track => track.stop());
                 };
-    
                 mediaRecorderRef.current.start();
                 setIsRecording(true);
             } catch (err) {
@@ -199,10 +150,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
-    const placeholder = attachmentPreviews.length > 0 
-        ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() })
-        : t('chat.input.placeholder');
-        
+    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     return (
@@ -214,18 +162,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-2.5 text-muted-foreground shrink min-w-0">
                                     <ReplyIcon className="size-4 flex-shrink-0 mt-0.5" />
-                                    <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>
-                                        {replyContextText}
-                                    </p>
+                                    <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>{replyContextText}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={onClearReplyContext}
-                                    className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary"
-                                    aria-label={t('chat.input.clearReply')}
-                                >
-                                    <XIcon className="size-3.5" />
-                                </button>
+                                <button type="button" onClick={onClearReplyContext} className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary" aria-label={t('chat.input.clearReply')}><XIcon className="size-3.5" /></button>
                             </div>
                         </div>
                     )}
@@ -235,18 +174,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             {attachmentPreviews.map((attachment, index) => (
                                 <div key={index} className="relative group/chip flex-shrink-0">
                                     <div className="flex flex-row items-center text-sm gap-2 relative h-10 p-0.5 rounded-lg border border-default bg-gray-50 dark:bg-gray-800">
-                                        <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-9 h-9 rounded-md">
-                                            <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
-                                        </figure>
+                                        <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-9 h-9 rounded-md"><img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} /></figure>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveFile(index)}
-                                        className="inline-flex items-center justify-center h-5 w-5 absolute -top-1.5 -right-1.5 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700"
-                                        aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}
-                                    >
-                                        <XIcon className="size-3.5" />
-                                    </button>
+                                    <button type="button" onClick={() => handleRemoveFile(index)} className="inline-flex items-center justify-center h-5 w-5 absolute -top-1.5 -right-1.5 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700" aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}><XIcon className="size-3.5" /></button>
                                 </div>
                             ))}
                         </div>
@@ -254,50 +184,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 </div>
             )}
             <form onSubmit={handleSubmit} className="relative w-full max-w-4xl">
-                <input 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    multiple 
-                    type="file" 
-                    name="files" 
-                    onChange={handleFileChange}
-                    accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
-                />
+                <input ref={fileInputRef} className="hidden" multiple type="file" name="files" onChange={handleFileChange} accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json" />
                 <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-full py-1.5 pl-2 pr-1.5">
                     <button type="button" aria-label={t('chat.input.attach')} onClick={handleAttachClick} className="inline-flex items-center justify-center h-9 w-9 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors flex-shrink-0">
                         <PlusIcon className="text-muted" />
                     </button>
-
-                    <textarea
-                        ref={internalTextareaRef}
-                        dir="auto"
-                        aria-label={placeholder}
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted mx-2 py-2"
-                        style={{ resize: 'none' }}
-                        placeholder={placeholder}
-                        rows={1}
-                        value={text}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                    />
-
+                    <textarea ref={internalTextareaRef} dir="auto" aria-label={placeholder} className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted mx-2 py-2" style={{ resize: 'none' }} placeholder={placeholder} rows={1} value={text} onChange={handleInputChange} onKeyDown={handleKeyDown} />
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isLoading ? (
-                                <button
-                                    type="button"
-                                    onClick={onAbortGeneration}
-                                    aria-label={t('chat.input.stop')}
-                                    className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground"
-                                >
-                                    <div className="h-3 w-3 bg-background dark:bg-foreground rounded-sm"></div>
-                                </button>
-                        ) : hasContent ? (
-                            <button
-                                type="submit"
-                                aria-label={t('chat.input.submit')}
-                                className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                disabled={!hasContent}
-                            >
+                        {hasContent ? (
+                            <button type="submit" aria-label={t('chat.input.submit')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!hasContent || isLoading}>
                                 <ArrowUpIcon className="w-5 h-5"/>
                             </button>
                         ) : (
@@ -308,9 +203,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     </div>
                 </div>
             </form>
-             <p className="text-xs text-center text-muted mt-2">
-                {t('chat.input.disclaimer')}
-            </p>
+             <p className="text-xs text-center text-muted mt-2">{t('chat.input.disclaimer')}</p>
         </div>
     );
 });

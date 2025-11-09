@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, AIStatus, GroundingChunk } from '../types';
+import type { Message, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
     BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon, MapPinIcon
@@ -47,17 +47,14 @@ const isVideoFile = (mimeType: string) => mimeType.startsWith('video/');
 const isAudioFile = (mimeType: string) => mimeType.startsWith('audio/');
 
 const getTextFromMessage = (content: any): string => {
-    if (typeof content === 'string') {
-        return content;
-    }
+    if (typeof content === 'string') return content;
     return '';
 }
 
 const getDomain = (url: string): string => {
     if (!url) return 'source';
     try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
+        return new URL(url).hostname.replace(/^www\./, '');
     } catch (e) {
         return url.split('/')[2] || 'source';
     }
@@ -67,19 +64,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
-    const [typedText, setTypedText] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
 
-    const responseTextRef = useRef('');
-    const charIndexRef = useRef(0);
-    const typingTimeoutRef = useRef<number | null>(null);
-    const animationFrameRef = useRef<number | null>(null);
-    const isAnimating = useRef(false);
-
     useEffect(() => {
-        if (aiStatus === 'thinking' || aiStatus === 'searching') {
-            setIsThinkingOpen(true);
-        }
+        if (aiStatus === 'thinking' || aiStatus === 'searching') setIsThinkingOpen(true);
     }, [aiStatus]);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
@@ -87,7 +75,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
-
         const text = messageText || '';
         const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
         if (thinkingMatch) {
@@ -97,129 +84,62 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 hasThinkingTag: true
             };
         }
-        const partialThinkingMatch = text.match(/<thinking>([\s\S]*)/);
-        if (partialThinkingMatch) {
-            return {
-                parsedThinkingText: partialThinkingMatch[1],
-                parsedResponseText: '',
-                hasThinkingTag: true
-            };
-        }
         return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
     }, [messageText, isUser]);
 
-    useEffect(() => {
-        responseTextRef.current = parsedResponseText;
-    }, [parsedResponseText]);
-
-    useEffect(() => {
-        const animate = () => {
-            if (!isAnimating.current) return;
-            const currentTarget = responseTextRef.current;
-            if (charIndexRef.current < currentTarget.length) {
-                const nextCharIndex = charIndexRef.current + 1;
-                animationFrameRef.current = requestAnimationFrame(() => {
-                    setTypedText(currentTarget.substring(0, nextCharIndex));
-                });
-                charIndexRef.current = nextCharIndex;
-                typingTimeoutRef.current = window.setTimeout(animate, 2);
-            } else {
-                typingTimeoutRef.current = window.setTimeout(animate, 50);
-            }
-        };
-
-        if (isLoading && aiStatus === 'generating') {
-            if (!isAnimating.current) {
-                isAnimating.current = true;
-                animate();
-            }
-        } else {
-            isAnimating.current = false;
-            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            if (!isLoading) {
-                setTypedText(responseTextRef.current);
-                charIndexRef.current = responseTextRef.current.length;
-            }
-        }
-        return () => {
-            isAnimating.current = false;
-            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        };
-    }, [isLoading, aiStatus]);
-
     const renderableContent = useMemo(() => {
-        const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
+        const textToRender = parsedResponseText;
         if (!textToRender) return [];
     
-        let finalParts: any[] = [];
         const codeBlockRegex = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/g;
+        const inlineImageRegex = /!g\[(.*?)\]\((.*?)\)/g;
+        let parts: any[] = [];
         let lastIndex = 0;
         let match;
         let partIndex = 0;
     
+        // First pass: extract code blocks
         while ((match = codeBlockRegex.exec(textToRender)) !== null) {
-            if (match.index > lastIndex) {
-                finalParts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
-            }
+            if (match.index > lastIndex) parts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
             const lang = match[1] || 'plaintext';
             const code = match[2];
-    
             if (lang === 'json-gallery') {
                 try {
                     const galleryData = JSON.parse(code);
                     if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
-                        finalParts.push({ type: 'gallery', images: galleryData.images, partIndex: partIndex++ });
-                    } else { finalParts.push({ type: 'text', content: match[0] }); }
-                } catch (e) { finalParts.push({ type: 'text', content: match[0] }); }
+                        parts.push({ type: 'gallery', images: galleryData.images });
+                    }
+                } catch (e) { /* Incomplete or invalid JSON, will be handled as text */ }
             } else {
-                finalParts.push({ type: 'code', lang, code, info: match[0].split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
+                parts.push({ type: 'code', lang, code, info: match[0].split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
             }
             lastIndex = match.index + match[0].length;
         }
+        if (lastIndex < textToRender.length) parts.push({ type: 'text', content: textToRender.substring(lastIndex) });
     
-        if (lastIndex < textToRender.length) {
-            finalParts.push({ type: 'text', content: textToRender.substring(lastIndex) });
-        }
-    
-        const inlineImageRegex = /!g\[(.*?)\]\((.*?)\)/g;
-        let processedParts: any[] = [];
-    
-        finalParts.forEach(part => {
+        // Second pass: process text parts for inline images
+        let finalParts: any[] = [];
+        parts.forEach(part => {
             if (part.type !== 'text') {
-                processedParts.push(part);
-                return;
+                finalParts.push(part); return;
             }
-    
-            const textContent = part.content;
             let lastTextIndex = 0;
             let inlineMatch;
-    
-            while ((inlineMatch = inlineImageRegex.exec(textContent)) !== null) {
-                if (inlineMatch.index > lastTextIndex) {
-                    processedParts.push({ type: 'text', content: textContent.substring(lastTextIndex, inlineMatch.index) });
-                }
-                processedParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
+            while ((inlineMatch = inlineImageRegex.exec(part.content)) !== null) {
+                if (inlineMatch.index > lastTextIndex) finalParts.push({ type: 'text', content: part.content.substring(lastTextIndex, inlineMatch.index) });
+                finalParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
                 lastTextIndex = inlineMatch.index + inlineMatch[0].length;
             }
-    
-            if (lastTextIndex < textContent.length) {
-                processedParts.push({ type: 'text', content: textContent.substring(lastTextIndex) });
-            }
+            if (lastTextIndex < part.content.length) finalParts.push({ type: 'text', content: part.content.substring(lastTextIndex) });
         });
-    
-        return processedParts;
-    }, [isLoading, aiStatus, typedText, parsedResponseText]);
+        return finalParts;
+    }, [parsedResponseText]);
 
     const allImages = useMemo(() => {
         const collectedImages: { url: string; alt: string; source?: string }[] = [];
         renderableContent.forEach(part => {
-            if (part.type === 'gallery') {
-                collectedImages.push(...part.images);
-            } else if (part.type === 'inline-image') {
-                collectedImages.push({ url: part.url, alt: part.alt });
-            }
+            if (part.type === 'gallery') collectedImages.push(...part.images);
+            else if (part.type === 'inline-image') collectedImages.push({ url: part.url, alt: part.alt });
         });
         return collectedImages;
     }, [renderableContent]);
@@ -238,54 +158,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     };
 
-    const pythonCodeBlocks = useMemo(() => {
-        return renderableContent
-            .filter(part => part.type === 'code' && part.lang === 'python')
-            .map(part => part.code || '');
-    }, [renderableContent]);
-    
-    const thinkingHtml = useMemo(() => {
-        if (!parsedThinkingText) return '';
-        return marked.parse(parsedThinkingText, { breaks: true, gfm: true }) as string;
-    }, [parsedThinkingText]);
+    const pythonCodeBlocks = useMemo(() => renderableContent.filter(part => part.type === 'code' && part.lang === 'python').map(part => part.code || ''), [renderableContent]);
+    const thinkingHtml = useMemo(() => parsedThinkingText ? marked.parse(parsedThinkingText, { breaks: true, gfm: true }) as string : '', [parsedThinkingText]);
 
     useEffect(() => {
         if (contentRef.current && message.type !== MessageType.USER) {
             try {
-                if ((window as any).renderMathInElement) {
-                    (window as any).renderMathInElement(contentRef.current, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false });
-                }
+                if ((window as any).renderMathInElement) (window as any).renderMathInElement(contentRef.current, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false });
                 const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
                 if (mermaidElements.length > 0 && (window as any).mermaid) {
                     (window as any).mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
                     (window as any).mermaid.run({ nodes: mermaidElements });
                 }
                 contentRef.current.querySelectorAll('input[type=checkbox]').forEach((el) => el.setAttribute('disabled', 'true'));
-            } catch (error) {
-                console.error('Post-render processing error:', error);
-            }
+            } catch (error) { console.error('Post-render processing error:', error); }
         }
     }, [renderableContent, message.type, message.id]);
 
     const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
     const hasAttachments = isUser && message.files && message.files.length > 0;
-    
-    const isAudioOnlyMessage = useMemo(() => {
-        return isUser &&
-            message.files &&
-            message.files.length === 1 &&
-            isAudioFile(message.files[0].type) &&
-            message.content === t('chat.input.audioMessage');
-    }, [isUser, message.files, message.content, t]);
+    const isAudioOnlyMessage = useMemo(() => isUser && message.files?.length === 1 && isAudioFile(message.files[0].type) && message.content === t('chat.input.audioMessage'), [isUser, message.files, message.content, t]);
 
-    const loadingTexts = useMemo(() => {
-        switch(aiStatus) {
-            case 'thinking': return [t('chat.status.thinking'), t('chat.status.processing'), t('chat.status.analyzing'), t('chat.status.consulting')];
-            case 'searching': return [t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle')];
-            case 'generating': return [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')];
-            default: return [t('chat.status.thinking')];
-        }
-    }, [aiStatus, t]);
+    const loadingTexts = useMemo(() => ({
+        thinking: [t('chat.status.thinking'), t('chat.status.processing'), t('chat.status.analyzing'), t('chat.status.consulting')],
+        searching: [t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle')],
+        generating: [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')],
+    })[aiStatus] || [t('chat.status.thinking')], [aiStatus, t]);
 
     if (!isUser && isLoading && !hasContent && !hasThinking) {
         return (
@@ -299,9 +197,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
     
-    if (!isUser && !isLoading && !hasContent && !hasThinking) {
-      return null;
-    }
+    if (!isUser && !isLoading && !hasContent && !hasThinking) return null;
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -309,45 +205,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {hasThinking && (
                     <div className="w-full mb-2">
                         <button type="button" onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground" aria-expanded={isThinkingOpen}>
-                            <BrainIcon className="size-4" />
-                            <span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
+                            <BrainIcon className="size-4" /><span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
                             <div className="pt-2 mt-2 border-t border-default">
-                                <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2">
-                                    <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} />
-                                </div>
+                                <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2"><div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} /></div>
                             </div>
                         )}
                     </div>
                 )}
                 <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                     {isUser ? (
-                        isAudioOnlyMessage ? (
-                            <AudioPlayer src={message.files![0].dataUrl} t={t} />
-                        ) : (
+                        isAudioOnlyMessage ? <AudioPlayer src={message.files![0].dataUrl} t={t} /> : (
                             <>
-                            {messageText && (
-                                    <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full' : 'rounded-xl'} bg-user-message text-foreground`}>
-                                        <div className={`${isShortUserMessage ? 'px-5 py-2.5' : 'px-4 py-3'}`}>
-                                            <p className="whitespace-pre-wrap">{messageText}</p>
-                                        </div>
-                                    </div>
-                                )}
+                                {messageText && <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full px-5 py-2.5' : 'rounded-xl px-4 py-3'} bg-user-message text-foreground`}><p className="whitespace-pre-wrap">{messageText}</p></div>}
                                 {hasAttachments && (
                                     <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
-                                        {message.files?.map((file, index) => {
-                                            const isAudio = isAudioFile(file.type);
-                                            return (
-                                                <div key={index} className={`${isAudio ? 'w-auto' : 'w-48'} flex-shrink-0`}>
-                                                    {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
+                                        {message.files?.map((file, index) => (
+                                            <div key={index} className={`${isAudioFile(file.type) ? 'w-auto' : 'w-48'} flex-shrink-0`}>
+                                                {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
                                                     : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
-                                                    : isAudio ? <AudioPlayer src={file.dataUrl} t={t} />
+                                                    : isAudioFile(file.type) ? <AudioPlayer src={file.dataUrl} t={t} />
                                                     : <div className="w-full h-24 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}><FileTextIcon className="size-8 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
-                                                </div>
-                                            );
-                                        })}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </>
@@ -358,66 +240,35 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 {renderableContent.map((part, index) => {
                                     if (part.type === 'gallery') {
                                         const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
-                                        return (
-                                            <ImageGallery
-                                                key={`gallery-${index}`}
-                                                images={part.images}
-                                                onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)}
-                                            />
-                                        );
+                                        return <ImageGallery key={`gallery-${index}`} images={part.images} onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)} />;
                                     }
                                     if (part.type === 'inline-image') {
                                         const imageIndex = allImages.findIndex(img => img.url === part.url);
-                                        return (
-                                            <InlineImage 
-                                                key={`inline-image-${index}`}
-                                                src={part.url}
-                                                alt={part.alt}
-                                                onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)}
-                                            />
-                                        );
+                                        return <InlineImage key={`inline-image-${index}`} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)} />;
                                     }
                                     if (part.type === 'code') {
                                         const { lang, code, info, partIndex } = part;
                                         const key = `${message.id}_${partIndex}`;
-                                        const titleMatch = info.match(/title="([^"]+)"/);
-                                        const title = titleMatch ? titleMatch[1] : undefined;
-                                        const infoWithoutTitle = title ? info.replace(titleMatch[0], '') : info;
-                                        const infoParts = infoWithoutTitle.trim().split(/\s+/).filter(Boolean);
-                                        const baseLang = infoParts.length > 0 && infoParts[0].length > 0 ? infoParts[0] : lang;
-                                        const keywords = new Set(infoParts.slice(1));
+                                        const title = info.match(/title="([^"]+)"/)?.[1];
+                                        const infoWithoutTitle = title ? info.replace(/title="[^"]+"/, '') : info;
+                                        const keywords = new Set(infoWithoutTitle.trim().split(/\s+/).filter(Boolean));
+                                        const baseLang = keywords.values().next().value || lang;
                                         const isLegacyExample = baseLang.endsWith('-example');
-                                        const finalLang = isLegacyExample ? baseLang.substring(0, baseLang.length - '-example'.length) : baseLang;
-                                        const isExecutable = !keywords.has('no-run') && !isLegacyExample;
-                                        const autorun = keywords.has('autorun');
-                                        const collapsed = keywords.has('collapsed');
-
-                                        return (
-                                            <CodeExecutor
-                                                key={key} code={code} lang={finalLang} title={title} isExecutable={isExecutable}
-                                                autorun={autorun} initialCollapsed={collapsed} persistedResult={executionResults[key]}
-                                                onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)}
-                                                onFixRequest={(execError) => onFixRequest(code, finalLang, execError)}
-                                                onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t}
-                                            />
-                                        );
-                                    } else { // part.type === 'text'
-                                        const isLastPart = index === renderableContent.length - 1;
-                                        let finalHtml = marked.parse(part.content, { breaks: true, gfm: true }) as string;
-                                        if (isLastPart && isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
-                                            const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
-                                            if (finalHtml.endsWith('</p>')) {
-                                                finalHtml = finalHtml.slice(0, -4) + ` ${cursorHtml}</p>`;
-                                            } else {
-                                                finalHtml += cursorHtml;
-                                            }
-                                        }
-                                        return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
+                                        const finalLang = isLegacyExample ? baseLang.slice(0, -'-example'.length) : baseLang;
+                                        return <CodeExecutor key={key} code={code} lang={finalLang} title={title} isExecutable={!keywords.has('no-run') && !isLegacyExample} autorun={keywords.has('autorun')} initialCollapsed={keywords.has('collapsed')} persistedResult={executionResults[key]} onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)} onFixRequest={(execError) => onFixRequest(code, finalLang, execError)} onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t} />;
                                     }
+                                    // Sanitize text content to prevent rendering incomplete gallery code blocks during streaming
+                                    const sanitizedContent = (isLoading && index === renderableContent.length - 1) ? part.content.replace(/```json-gallery[\s\S]*$/, '') : part.content;
+                                    if (sanitizedContent.trim() === '') return null;
+
+                                    let finalHtml = marked.parse(sanitizedContent, { breaks: true, gfm: true }) as string;
+                                    if (isLoading && aiStatus === 'generating' && index === renderableContent.length - 1) {
+                                        const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
+                                        finalHtml = finalHtml.endsWith('</p>') ? `${finalHtml.slice(0, -4)} ${cursorHtml}</p>` : `${finalHtml}${cursorHtml}`;
+                                    }
+                                    return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
                                 })}
-                                {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && (
-                                    <AITextLoading texts={loadingTexts} />
-                                )}
+                                {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
                             </div>
                         </div>
                     )}
@@ -425,57 +276,27 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                          <div className="flex items-center gap-1">
                             {!isUser && (
                                 <>
-                                    <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
-                                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                                    </IconButton>
-                                    <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
-                                        <RefreshCwIcon className="size-4" />
-                                    </IconButton>
-                                    <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}>
-                                        <GitForkIcon className="size-4" />
-                                    </IconButton>
-                                    {pythonCodeBlocks.length > 0 && (
-                                        <IconButton onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')} aria-label={t('chat.message.viewCode')}>
-                                            <CodeXmlIcon className="size-5" />
-                                        </IconButton>
-                                    )}
+                                    <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}</IconButton>
+                                    <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}><RefreshCwIcon className="size-4" /></IconButton>
+                                    <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}><GitForkIcon className="size-4" /></IconButton>
+                                    {pythonCodeBlocks.length > 0 && <IconButton onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')} aria-label={t('chat.message.viewCode')}><CodeXmlIcon className="size-5" /></IconButton>}
                                 </>
                             )}
-                            {isUser && (
-                                <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
-                                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                                </IconButton>
-                            )}
+                            {isUser && <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}</IconButton>}
                         </div>
                         {hasSources && (
                             <div className="flex items-center gap-2">
                                 <div className="w-px h-4 bg-border" />
                                 <div className="flex items-center -space-x-2">
-                                {message.groundingChunks?.map((chunk, index) => {
+                                {message.groundingChunks?.slice(0, 5).map((chunk, index) => {
                                     if ('web' in chunk && chunk.web.uri) {
-                                        const faviconUrl = `https://www.google.com/s2/favicons?sz=24&domain_url=${getDomain(chunk.web.uri)}`;
-                                        return (
-                                        <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" title={chunk.web.title} key={index}>
-                                            <img
-                                                src={faviconUrl}
-                                                alt={getDomain(chunk.web.uri)}
-                                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
-                                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com'; }}
-                                            />
-                                        </a>
-                                        );
+                                        return <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" title={chunk.web.title} key={index}><img src={`https://www.google.com/s2/favicons?sz=24&domain_url=${getDomain(chunk.web.uri)}`} alt={getDomain(chunk.web.uri)} className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background" onError={(e) => { (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com'; }} /></a>;
                                     }
                                     if ('maps' in chunk && chunk.maps.uri) {
-                                        return (
-                                        <a href={chunk.maps.uri} target="_blank" rel="noopener noreferrer" title={chunk.maps.title} key={index}>
-                                            <div className="size-5 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center">
-                                                <MapPinIcon className="size-3 text-blue-500" />
-                                            </div>
-                                        </a>
-                                        );
+                                        return <a href={chunk.maps.uri} target="_blank" rel="noopener noreferrer" title={chunk.maps.title} key={index}><div className="size-5 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center"><MapPinIcon className="size-3 text-blue-500" /></div></a>;
                                     }
                                     return null;
-                                    }).slice(0, 5)}
+                                })}
                                 </div>
                             </div>
                         )}

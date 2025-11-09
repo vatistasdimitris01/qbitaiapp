@@ -267,6 +267,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     \`\`\`
 
+### 4. 🖼️ Inline Images within Text
+- **When to Use**: To place a single, relevant image directly within a paragraph, list, or table cell to illustrate a specific point.
+- **Format**: Use the custom markdown-like tag: \`!g[alt text for accessibility](image_url)\`
+- **Sourcing**: Like galleries, you MUST use URLs from the \`[IMAGE SEARCH RESULTS]\` context block.
+- **Example**:
+  - In a list:
+    \`\`\`
+    * 1. The Hubble Space Telescope !g[Image of the Hubble Telescope](https://.../hubble.jpg)
+    * 2. The James Webb Space Telescope !g[Image of the James Webb Telescope](https://.../jwst.jpg)
+    \`\`\`
+  - In a table:
+    | Name | Image |
+    | --- | --- |
+    | Karamanlidika | !g[Photo of Karamanlidika restaurant](https://.../karamanlidika.jpg) |
+
 ---
 ## 🎯 CORE PHILOSOPHY
 Think like an engineer. Write like a professional. Act like a collaborator. Deliver with clarity and precision. ✨`;

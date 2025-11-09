@@ -11,6 +11,8 @@ import AITextLoading from './AITextLoading';
 import GroundingSources from './GroundingSources';
 import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
+import InlineImage from './InlineImage';
+import SkeletonLoader from './SkeletonLoader';
 
 type ExecutionResult = {
   output: string | null;
@@ -141,54 +143,78 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const renderableContent = useMemo(() => {
         const textToRender = (isLoading && aiStatus === 'generating') ? typedText : parsedResponseText;
         if (!textToRender) return [];
-
-        const parts = [];
+    
+        let finalParts: any[] = [];
         const codeBlockRegex = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/g;
         let lastIndex = 0;
         let match;
         let partIndex = 0;
-
+    
         while ((match = codeBlockRegex.exec(textToRender)) !== null) {
             if (match.index > lastIndex) {
-                parts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
+                finalParts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
             }
             const lang = match[1] || 'plaintext';
             const code = match[2];
-
+    
             if (lang === 'json-gallery') {
                 try {
                     const galleryData = JSON.parse(code);
                     if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
-                        parts.push({
-                            type: 'gallery',
-                            images: galleryData.images,
-                            partIndex: partIndex++
-                        });
-                    } else {
-                        // Fallback to text if JSON is malformed
-                        parts.push({ type: 'text', content: match[0] });
-                    }
-                } catch (e) {
-                     // Fallback to text if JSON parsing fails
-                    parts.push({ type: 'text', content: match[0] });
-                }
+                        finalParts.push({ type: 'gallery', images: galleryData.images, partIndex: partIndex++ });
+                    } else { finalParts.push({ type: 'text', content: match[0] }); }
+                } catch (e) { finalParts.push({ type: 'text', content: match[0] }); }
             } else {
-                parts.push({
-                    type: 'code',
-                    lang: lang,
-                    code: code,
-                    info: match[0].split('\n')[0].substring(3).trim(),
-                    partIndex: partIndex++
-                });
+                finalParts.push({ type: 'code', lang, code, info: match[0].split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
             }
             lastIndex = match.index + match[0].length;
         }
-
+    
         if (lastIndex < textToRender.length) {
-            parts.push({ type: 'text', content: textToRender.substring(lastIndex) });
+            finalParts.push({ type: 'text', content: textToRender.substring(lastIndex) });
         }
-        return parts;
+    
+        const inlineImageRegex = /!g\[(.*?)\]\((.*?)\)/g;
+        let processedParts: any[] = [];
+    
+        finalParts.forEach(part => {
+            if (part.type !== 'text') {
+                processedParts.push(part);
+                return;
+            }
+    
+            const textContent = part.content;
+            let lastTextIndex = 0;
+            let inlineMatch;
+    
+            while ((inlineMatch = inlineImageRegex.exec(textContent)) !== null) {
+                if (inlineMatch.index > lastTextIndex) {
+                    processedParts.push({ type: 'text', content: textContent.substring(lastTextIndex, inlineMatch.index) });
+                }
+                processedParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
+                lastTextIndex = inlineMatch.index + inlineMatch[0].length;
+            }
+    
+            if (lastTextIndex < textContent.length) {
+                processedParts.push({ type: 'text', content: textContent.substring(lastTextIndex) });
+            }
+        });
+    
+        return processedParts;
     }, [isLoading, aiStatus, typedText, parsedResponseText]);
+
+    const allImages = useMemo(() => {
+        const collectedImages: { url: string; alt: string; source?: string }[] = [];
+        renderableContent.forEach(part => {
+            if (part.type === 'gallery') {
+                collectedImages.push(...part.images);
+            } else if (part.type === 'inline-image') {
+                collectedImages.push({ url: part.url, alt: part.alt });
+            }
+        });
+        return collectedImages;
+    }, [renderableContent]);
+
 
     const hasContent = useMemo(() => parsedResponseText.trim().length > 0, [parsedResponseText]);
     const hasSources = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
@@ -216,7 +242,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     useEffect(() => {
         if (contentRef.current && message.type !== MessageType.USER) {
-            // KaTeX, Mermaid, and Checkbox rendering
             try {
                 if ((window as any).renderMathInElement) {
                     (window as any).renderMathInElement(contentRef.current, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false });
@@ -245,7 +270,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }, [isUser, message.files, message.content, t]);
 
     const loadingTexts = useMemo(() => {
-        // ... (loading texts logic remains the same)
         switch(aiStatus) {
             case 'thinking': return [t('chat.status.thinking'), t('chat.status.processing'), t('chat.status.analyzing'), t('chat.status.consulting')];
             case 'searching': return [t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle')];
@@ -254,6 +278,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     }, [aiStatus, t]);
 
+    if (!isUser && isLoading && !hasContent && !hasThinking) {
+        return (
+            <div className="flex w-full my-4 justify-start">
+                <div className="flex flex-col w-full max-w-3xl space-y-2">
+                    <SkeletonLoader className="h-4 w-4/5" />
+                    <SkeletonLoader className="h-4 w-full" />
+                    <SkeletonLoader className="h-4 w-2/3" />
+                </div>
+            </div>
+        );
+    }
+    
     if (!isUser && !isLoading && !hasContent && !hasThinking) {
       return null;
     }
@@ -312,25 +348,35 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             <div className="prose prose-sm max-w-none">
                                 {renderableContent.map((part, index) => {
                                     if (part.type === 'gallery') {
+                                        const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
                                         return (
                                             <ImageGallery
                                                 key={`gallery-${index}`}
                                                 images={part.images}
-                                                onImageClick={(startIndex) => onOpenLightbox(part.images, startIndex)}
+                                                onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)}
+                                            />
+                                        );
+                                    }
+                                    if (part.type === 'inline-image') {
+                                        const imageIndex = allImages.findIndex(img => img.url === part.url);
+                                        return (
+                                            <InlineImage 
+                                                key={`inline-image-${index}`}
+                                                src={part.url}
+                                                alt={part.alt}
+                                                onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)}
                                             />
                                         );
                                     }
                                     if (part.type === 'code') {
                                         const { lang, code, info, partIndex } = part;
                                         const key = `${message.id}_${partIndex}`;
-                                        
                                         const titleMatch = info.match(/title="([^"]+)"/);
                                         const title = titleMatch ? titleMatch[1] : undefined;
                                         const infoWithoutTitle = title ? info.replace(titleMatch[0], '') : info;
                                         const infoParts = infoWithoutTitle.trim().split(/\s+/).filter(Boolean);
                                         const baseLang = infoParts.length > 0 && infoParts[0].length > 0 ? infoParts[0] : lang;
                                         const keywords = new Set(infoParts.slice(1));
-                                        
                                         const isLegacyExample = baseLang.endsWith('-example');
                                         const finalLang = isLegacyExample ? baseLang.substring(0, baseLang.length - '-example'.length) : baseLang;
                                         const isExecutable = !keywords.has('no-run') && !isLegacyExample;
@@ -339,26 +385,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
                                         return (
                                             <CodeExecutor
-                                                key={key}
-                                                code={code}
-                                                lang={finalLang}
-                                                title={title}
-                                                isExecutable={isExecutable}
-                                                autorun={autorun}
-                                                initialCollapsed={collapsed}
-                                                persistedResult={executionResults[key]}
+                                                key={key} code={code} lang={finalLang} title={title} isExecutable={isExecutable}
+                                                autorun={autorun} initialCollapsed={collapsed} persistedResult={executionResults[key]}
                                                 onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)}
                                                 onFixRequest={(execError) => onFixRequest(code, finalLang, execError)}
-                                                onStopExecution={onStopExecution}
-                                                isPythonReady={isPythonReady}
-                                                isLoading={isLoading}
-                                                t={t}
+                                                onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t}
                                             />
                                         );
                                     } else { // part.type === 'text'
                                         const isLastPart = index === renderableContent.length - 1;
                                         let finalHtml = marked.parse(part.content, { breaks: true, gfm: true }) as string;
-                                        
                                         if (isLastPart && isLoading && aiStatus === 'generating' && typedText.length < parsedResponseText.length) {
                                             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
                                             if (finalHtml.endsWith('</p>')) {
@@ -367,7 +403,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                                 finalHtml += cursorHtml;
                                             }
                                         }
-                                        
                                         return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
                                     }
                                 })}

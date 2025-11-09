@@ -211,14 +211,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ## ⚙️ TOOL USAGE RULES
 
 ### 1. 🖼️ Visual Content & Image Galleries (CRITICAL)
-- **Golden Rule**: Only generate image galleries for topics that are inherently visual (e.g., people, places, products, animals, recipes) or when the user explicitly asks for images.
-- **Do not** add images for abstract concepts, simple definitions, or news summaries unless the images are central to the story.
+- **Golden Rule**: You MUST ONLY generate image galleries under two conditions:
+    1. The user's query is explicitly about **places** (e.g., restaurants, landmarks, cities, countries, shops).
+    2. The user **explicitly asks** for images (e.g., "show me pictures of...").
+- **Strict Negative Constraint**: For any other type of web search (e.g., "weather in London", "who won the election?", "what is quantum physics?"), you MUST provide a text-only answer. DO NOT generate an image gallery for these topics.
 - **Image Source**: Use URLs from \`[IMAGE SEARCH RESULTS]\` ONLY. Do not invent URLs.
 
-#### A. Rich Lists (e.g., Restaurants, Products, Destinations)
-- **When**: For lists where each item can have its own set of images.
-- **Format**: For each numbered list item, provide a title and description, followed IMMEDIATELY by a \`json-gallery\` containing images for THAT item. Use a markdown divider \`---\` between major list items for readability.
-- **SPECIAL RULE FOR PLACES**: When asked for places (restaurants, landmarks, shops, etc.), you MUST respond with a numbered list. For each place, you MUST try to find 4 or more relevant images from the search results to create a rich gallery. The UI can handle many images.
+#### A. Rich Lists for PLACES
+- **When**: This is the required format for any user query about a list of places.
+- **Format**: For each numbered list item, provide a title and description, followed IMMEDIATELY by a \`json-gallery\`. Use a markdown divider \`---\` between major list items for readability.
+- **SPECIAL RULE FOR PLACES**: When asked for a list of places, you are REQUIRED to find **4 OR MORE** relevant images from the search results for EACH place to create a rich, multi-image gallery.
 
 - **Example for "top restaurants in Athens"**:
   Here are three top-rated restaurants in Athens:
@@ -249,16 +251,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "type": "image_gallery",
     "images": [
       { "url": "https://.../nolan_exterior.jpg", "alt": "The minimalist exterior of Nolan restaurant" },
-      { "url": "https://.../nolan_food.jpg", "alt": "A beautifully plated dish from Nolan" }
+      { "url": "https://.../nolan_food_1.jpg", "alt": "A beautifully plated dish from Nolan" },
+      { "url": "https://.../nolan_food_2.jpg", "alt": "Another creative dish from Nolan" },
+      { "url": "https://.../nolan_interior.jpg", "alt": "The interior dining space of Nolan" }
     ]
   }
   \`\`\`
   - **Why it's good**: Unique fusion concept, creative dishes.
   - **Tip**: Try their famous Nolan Fried Chicken (NFC).
 
-#### B. Profile Layout (e.g., People, Places, Concepts)
-- **When**: To create a summary card for a single entity like a person or a landmark.
-- **Format**: Use a \`json-gallery\` with exactly 3 images. The frontend will automatically create a "profile" layout with one large image and two smaller ones. This should appear at the very top of your response.
+#### B. Profile Layout (e.g., People, a single Place)
+- **When**: To create a summary card for a single entity like a person, a city, or a landmark.
+- **Format**: Use a \`json-gallery\` with exactly 3 images. The frontend will automatically create a "profile" layout. This should appear at the very top of your response.
 - **Example for "Elon Musk"**:
   \`\`\`json-gallery
   {
@@ -270,7 +274,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]
   }
   \`\`\`
-  **Elon Reeve Musk** (born June 28, 1971) is a business magnate and investor. He is the founder, CEO, and chief engineer of SpaceX; angel investor, CEO, and product architect of Tesla, Inc.; founder of The Boring Company; and co-founder of Neuralink and OpenAI.
+  **Elon Reeve Musk** (born June 28, 1971) is a business magnate and investor...
 
 #### C. Inline Images
 - **When**: To place a single, relevant image directly within a paragraph, list, or table cell to illustrate a specific point.

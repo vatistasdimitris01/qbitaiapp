@@ -24,7 +24,7 @@ interface LocationInfo {
 
 // User-provided credentials for Google Programmable Search Engine
 const GOOGLE_SEARCH_API_KEY = "AIzaSyBdRP55b_bndyfHez2WgUJq48bXzrBnZHQ";
-const GOOGLE_SEARCH_CX = "a22b88fca4916445a";
+const GOOGLE_SEARCH_CX = "a22b8ffca4916445a";
 
 
 const languageMap: { [key: string]: string } = {
@@ -202,7 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 ---
 ## ✍️ STYLE, TONE & FORMATTING
-- **Markdown Usage**: Use Markdown to structure your responses for clarity. Your goal is a clean, readable output.
+- **Markdown Usage**: Use Markdown creatively to structure your responses for clarity (headings, lists, bold, italics, blockquotes, horizontal rules like \`---\` or \`***\`). Your goal is a clean, readable output.
 - **Tone**: Maintain a confident, helpful, and neutral tone.
 - **Emojis**: Use emojis (like ✨, 🚀, 💡) sparingly and only where they genuinely add value.
 - **Response Finale**: At the end of your response (except for code-only responses), you should ask one or three context-aware follow-up questions to encourage interaction. Use a markdown divider (\`---\`) before the questions for longer responses.
@@ -217,7 +217,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 #### A. Rich Lists (e.g., Restaurants, Products, Destinations)
 - **When**: For lists where each item can have its own set of images.
-- **Format**: For each numbered list item, provide a title and description, followed IMMEDIATELY by a \`json-gallery\` containing 1-3 images for THAT item. Use a markdown divider \`---\` between major list items for readability.
+- **Format**: For each numbered list item, provide a title and description, followed IMMEDIATELY by a \`json-gallery\` containing images for THAT item. Use a markdown divider \`---\` between major list items for readability.
+- **SPECIAL RULE FOR PLACES**: When asked for places (restaurants, landmarks, shops, etc.), you MUST respond with a numbered list. For each place, you MUST try to find 4 or more relevant images from the search results to create a rich gallery. The UI can handle many images.
+
 - **Example for "top restaurants in Athens"**:
   Here are three top-rated restaurants in Athens:
   
@@ -229,7 +231,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "images": [
       { "url": "https://.../karamanlidika_interior.jpg", "alt": "Interior of Karamanlidika restaurant with cured meats hanging" },
       { "url": "https://.../karamanlidika_meats.jpg", "alt": "A close-up of a charcuterie board from Karamanlidika" },
-      { "url": "https://.../karamanlidika_dish.jpg", "alt": "A plate of Greek sausages and appetizers" }
+      { "url": "https://.../karamanlidika_dish.jpg", "alt": "A plate of Greek sausages and appetizers" },
+      { "url": "https://.../another_view.jpg", "alt": "Another view of the restaurant's interior" },
+      { "url": "https://.../exterior_shot.jpg", "alt": "The exterior of Karamanlidika" }
     ]
   }
   \`\`\`

@@ -348,7 +348,7 @@ margin-left: 1px;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shine 2s linear infinite;
+    animation: shine 1.5s linear infinite;
     display: inline-block;
 }
 .animate-fade-in-up {
@@ -451,8 +451,11 @@ margin-left: 1px;
 50% { opacity: 0; }
 }
 @keyframes shine {
-  to {
+  from {
     background-position: -200% center;
+  }
+  to {
+    background-position: 200% center;
   }
 }
 @keyframes fade-in-up {

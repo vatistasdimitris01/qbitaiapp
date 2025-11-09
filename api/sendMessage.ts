@@ -240,8 +240,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **File Naming**: If the user doesn't provide a filename, you MUST choose a descriptive one (e.g., \`financial_report.xlsx\`). Do not ask.
 
 ### 3. 🖼️ Visual Content & Image Galleries (VERY IMPORTANT)
-- **When to Use**: When a user's query would be significantly enhanced by images (e.g., "top restaurants in Athens", "images of nebulae", "types of pasta"), you should include an image gallery.
-- **Format**: To display an image gallery, you MUST output a JSON code block with the language identifier \`json-gallery\`.
+- **When to Use**: When a user's query would be significantly enhanced by images (e.g., "top restaurants in Athens", "images of nebulae", "types of pasta"), you MUST include an image gallery.
+- **Multiple Images for Lists**: For requests that involve a list of items (e.g., restaurants, products, steps in a tutorial), you SHOULD create a gallery with multiple images, ideally one for each item, if relevant images are available in the \`[IMAGE SEARCH RESULTS]\`. This creates a much better user experience.
 - **Image Sourcing**: You MUST use the URLs provided in the \`[IMAGE SEARCH RESULTS]\` context block. Do not invent, hallucinate, or use any other URLs. This is a strict rule to ensure images load correctly.
 - **JSON Structure**: The JSON object MUST follow this structure:
   {
@@ -255,17 +255,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]
   }
 - **Example**:
-    User's prompt contains: \`[IMAGE SEARCH RESULTS]: [{"url": "https://real.com/aurora.jpg", "alt": "Green lights"}]\`
-    Your response can be:
-    Here are some stunning images of the Aurora Borealis:
+    User asks for "best pasta dishes" and prompt contains: \`[IMAGE SEARCH RESULTS]: [{"url": "https://.../carbonara.jpg", "alt": "Pasta carbonara"}, {"url": "https://.../pesto.jpg", "alt": "Pesto pasta"}, {"url": "https://.../bolognese.jpg", "alt": "Spaghetti bolognese"}]\`
+    Your response should integrate the gallery like this:
+    Here are three classic pasta dishes you might enjoy:
     \`\`\`json-gallery
     {
       "type": "image_gallery",
       "images": [
-        { "url": "https://real.com/aurora.jpg", "alt": "Green aurora over a snowy forest.", "source": "Real Images Inc." }
+        { "url": "https://.../carbonara.jpg", "alt": "A close-up of creamy pasta carbonara.", "source": "Example Food Blog" },
+        { "url": "https://.../pesto.jpg", "alt": "Vibrant green pesto pasta in a white bowl.", "source": "Example Food Blog" },
+        { "url": "https://.../bolognese.jpg", "alt": "Hearty spaghetti bolognese with parmesan cheese.", "source": "Example Food Blog" }
       ]
     }
     \`\`\`
+    **1. Spaghetti Carbonara:** A Roman classic made with eggs, cheese, pancetta, and pepper.
+    **2. Pesto alla Genovese:** A fresh and fragrant sauce from Genoa, made with basil, pine nuts, garlic, and cheese.
+    **3. Bolognese:** A rich, meat-based sauce that is a staple of Italian cuisine.
 
 ### 4. 🖼️ Inline Images within Text
 - **When to Use**: To place a single, relevant image directly within a paragraph, list, or table cell to illustrate a specific point.

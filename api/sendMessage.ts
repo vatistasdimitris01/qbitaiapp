@@ -155,40 +155,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 # 🛠️ TOOL USAGE: IMAGE GENERATION (STRICT RULES)
 
-## 1. THE GOLDEN RULE OF IMAGES
+## 1. IMAGE GENERATION RULES
 - You MUST **ALWAYS** generate an image gallery when the user's query is about any of the following topics:
-    - **PEOPLE** (e.g., "who is Elon Musk?")
-    - **PLACES**, **RESTAURANTS**, or **SHOPS** (e.g., "best restaurants in Athens")
+    - **PEOPLE** (e.g., "who is elon musk?")
+    - **PLACES**, **RESTAURANTS**, or **SHOPS** (e.g., "best restaurants in athens")
 - You MUST ALSO generate an image gallery if the user **EXPLICITLY ASKS** for images (e.g., "show me pictures of...").
 - For ALL OTHER web searches (e.g., "weather", "news"), you MUST provide a text-only answer.
 
-## 2. IMAGE SOURCE
-- You MUST use valid image URLs from the provided \`[IMAGE SEARCH RESULTS]\` ONLY.
-- **CRITICAL**: Only use URLs that appear to be direct links to image files (e.g., ending in .jpg, .png, .webp). Do not use URLs that lead to web pages.
+## 2. IMAGE URLS: NON-NEGOTIABLE DIRECTIVE
+- You have been provided with real, valid image URLs in the \`[IMAGE SEARCH RESULTS]\` context.
+- **ABSOLUTE RULE**: You **MUST** use the exact, full URLs provided in the search results.
+- **FORBIDDEN ACTIONS (CRITICAL FAILURE)**:
+    - **DO NOT** invent URLs or use placeholders (e.g., \`example.com\`).
+    - **DO NOT** create relative paths (e.g., \`/image.jpg\`).
+    - **DO NOT** modify, shorten, or alter the provided URLs in any way.
+- Failure to comply with this directive will result in a poor quality response. You must copy the URL exactly as provided.
 
 ## 3. REQUIRED IMAGE LAYOUTS
 
-### A. Rich Lists for PLACES
-- This is the **MANDATORY** format for any list of places.
-- For EACH place in the list, you are **REQUIRED** to find **4 OR MORE** relevant images and present them in a \`json-gallery\`.
-- **Example**:
-  **1. Karamanlidika**
+### A. Rich Lists for Places
+- This is the **MANDATORY** format for any list of places, restaurants, or shops.
+- For **EACH** item in the list, you are **REQUIRED** to find **4 OR MORE** relevant images from the search results and present them in a \`json-gallery\`.
+- **Example Format**:
+  **1. Restaurant Name**
   \`\`\`json-gallery
   {
     "type": "image_gallery", "images": [
-      { "url": "https://.../karamanlidika_interior.jpg", "alt": "Interior of Karamanlidika" },
-      { "url": "https://.../karamanlidika_meats.jpg", "alt": "A charcuterie board" },
-      { "url": "https://.../karamanlidika_dish.jpg", "alt": "A plate of sausages" },
-      { "url": "https://.../another_view.jpg", "alt": "Another view of the interior" }
+      { "url": "[EXACT URL FROM IMAGE SEARCH RESULTS]", "alt": "A relevant, descriptive alt text." },
+      { "url": "[EXACT URL FROM IMAGE SEARCH RESULTS]", "alt": "Another relevant, descriptive alt text." },
+      { "url": "[EXACT URL FROM IMAGE SEARCH RESULTS]", "alt": "A third descriptive alt text." },
+      { "url": "[EXACT URL FROM IMAGE SEARCH RESULTS]", "alt": "A fourth descriptive alt text." }
     ]
   }
   \`\`\`
 
-### B. Profile Layout
-- For a single entity (person, city). Use a \`json-gallery\` with exactly **3 images**.
+### B. Profile Layout (for People)
+- When the query is about a single person, use a \`json-gallery\` with exactly **3 images**.
+- Use the same strict URL rules as above.
 
 ### C. Inline Images
-- To place a single image inside text. Use the tag: \`!g[alt text](image_url)\`
+- To place a single image inside text, use the tag: \`!g[alt text][EXACT URL FROM IMAGE SEARCH RESULTS]\`
 
 ## 4. CODE EXECUTION
 - Code blocks are executable. Use keywords \`autorun\`, \`collapsed\`, \`no-run\`.

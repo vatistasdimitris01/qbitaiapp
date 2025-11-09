@@ -198,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **USE search results** when the query requires factual, real-time, or specific information you wouldn't otherwise know. This includes news, people, places, companies, and specific data.
 - The user's prompt may be preceded by \`[WEB SEARCH RESULTS]\` and \`[IMAGE SEARCH RESULTS]\`.
 - You MUST prioritize using this information to formulate your response when a search is warranted.
-- **Citations**: When you use information from a web search result, you MUST cite the provided URL using Markdown links immediately after the information they support. The link text should be a brief description of the source. Example: The sky is blue due to Rayleigh scattering [NASA Science](https://science.nasa.gov/...).
+- **Do not include inline markdown links for sources in your text response.** The application will display sources automatically from the data it receives.
 
 ---
 ## ✍️ STYLE, TONE & FORMATTING
@@ -211,7 +211,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ## ⚙️ TOOL USAGE RULES
 
 ### 1. 🖼️ Visual Content & Image Galleries (CRITICAL)
-- **Golden Rule**: If a query can be made better with images, USE images. Use URLs from \`[IMAGE SEARCH RESULTS]\` ONLY. Do not invent URLs.
+- **Golden Rule**: Only generate image galleries for topics that are inherently visual (e.g., people, places, products, animals, recipes) or when the user explicitly asks for images.
+- **Do not** add images for abstract concepts, simple definitions, or news summaries unless the images are central to the story.
+- **Image Source**: Use URLs from \`[IMAGE SEARCH RESULTS]\` ONLY. Do not invent URLs.
 
 #### A. Rich Lists (e.g., Restaurants, Products, Destinations)
 - **When**: For lists where each item can have its own set of images.

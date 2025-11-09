@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PlusIcon, ArrowUpIcon, XIcon, ReplyIcon, MicIcon, StopCircleIcon } from './icons';
 import { FileAttachment } from '../types';
@@ -31,7 +32,6 @@ const MAX_TOTAL_SIZE = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
-    const [isMultiline, setIsMultiline] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,11 +41,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            const singleLineHeightThreshold = 34; // Approximate height for a single line with padding
             textarea.style.height = 'auto'; // Reset height to calculate scroll height correctly
             const newHeight = Math.min(textarea.scrollHeight, 200); // Max height 200px
             textarea.style.height = `${newHeight}px`;
-            setIsMultiline(newHeight > singleLineHeightThreshold);
         }
     }, []);
 
@@ -220,7 +218,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onChange={handleFileChange}
                     accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json"
                 />
-                <div className={`relative w-full bg-card border border-default shadow-xl transition-all duration-300 ${isMultiline || attachmentPreviews.length > 0 ? 'rounded-2xl' : 'rounded-full'}`}>
+                <div className="relative w-full bg-card border border-default shadow-xl transition-all duration-300 rounded-2xl">
                     {(replyContextText || attachmentPreviews.length > 0) && (
                         <div className="px-3 pt-2.5">
                             {replyContextText && (
@@ -277,7 +275,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             ref={internalTextareaRef}
                             dir="auto"
                             aria-label={placeholder}
-                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted self-center py-1.5"
+                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted py-1.5"
                             style={{ resize: 'none' }}
                             placeholder={placeholder}
                             rows={1}
@@ -302,7 +300,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 <button
                                     type="submit"
                                     aria-label={t('chat.input.submit')}
-                                    className={`inline-flex items-center justify-center rounded-full h-8 w-8 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity`}
+                                    className="inline-flex items-center justify-center rounded-full h-8 w-8 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-colors"
                                     disabled={!hasContent}
                                 >
                                     <ArrowUpIcon />

@@ -1,14 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, AIStatus } from '../types';
+import type { Message, AIStatus, GroundingChunk } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon
+    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon, MapPinIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import GroundingSources from './GroundingSources';
 import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
@@ -53,6 +52,16 @@ const getTextFromMessage = (content: any): string => {
     }
     return '';
 }
+
+const getDomain = (url: string): string => {
+    if (!url) return 'source';
+    try {
+        const hostname = new URL(url).hostname;
+        return hostname.replace(/^www\./, '');
+    } catch (e) {
+        return url.split('/')[2] || 'source';
+    }
+};
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
     const isUser = message.type === MessageType.USER;
@@ -412,13 +421,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             </div>
                         </div>
                     )}
-                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-between w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || (!hasContent && !hasSources) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
-                        <div className="flex items-center gap-1">
-                            <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
-                                {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
-                            </IconButton>
+                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || (!hasContent && !hasSources) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                         <div className="flex items-center gap-1">
                             {!isUser && (
                                 <>
+                                    <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
+                                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                                    </IconButton>
                                     <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}>
                                         <RefreshCwIcon className="size-4" />
                                     </IconButton>
@@ -432,8 +441,44 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     )}
                                 </>
                             )}
+                            {isUser && (
+                                <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>
+                                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                                </IconButton>
+                            )}
                         </div>
-                        {hasSources && <GroundingSources chunks={message.groundingChunks!} t={t} />}
+                        {hasSources && (
+                            <div className="flex items-center gap-2">
+                                <div className="w-px h-4 bg-border" />
+                                <div className="flex items-center -space-x-2">
+                                {message.groundingChunks?.map((chunk, index) => {
+                                    if ('web' in chunk && chunk.web.uri) {
+                                        const faviconUrl = `https://www.google.com/s2/favicons?sz=24&domain_url=${getDomain(chunk.web.uri)}`;
+                                        return (
+                                        <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" title={chunk.web.title} key={index}>
+                                            <img
+                                                src={faviconUrl}
+                                                alt={getDomain(chunk.web.uri)}
+                                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
+                                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com'; }}
+                                            />
+                                        </a>
+                                        );
+                                    }
+                                    if ('maps' in chunk && chunk.maps.uri) {
+                                        return (
+                                        <a href={chunk.maps.uri} target="_blank" rel="noopener noreferrer" title={chunk.maps.title} key={index}>
+                                            <div className="size-5 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center">
+                                                <MapPinIcon className="size-3 text-blue-500" />
+                                            </div>
+                                        </a>
+                                        );
+                                    }
+                                    return null;
+                                    }).slice(0, 5)}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

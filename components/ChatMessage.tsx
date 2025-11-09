@@ -143,7 +143,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         if (!textToRender) return [];
 
         const parts = [];
-        const codeBlockRegex = /```(\w+)?(?:[^\n]*)?\n([\s\S]*?)```/g;
+        const codeBlockRegex = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/g;
         let lastIndex = 0;
         let match;
         let partIndex = 0;

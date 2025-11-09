@@ -24,7 +24,7 @@ interface LocationInfo {
 
 // User-provided credentials for Google Programmable Search Engine
 const GOOGLE_SEARCH_API_KEY = "AIzaSyBdRP55b_bndyfHez2WgUJq48bXzrBnZHQ";
-const GOOGLE_SEARCH_CX = "a22b8ffca4916445a";
+const GOOGLE_SEARCH_CX = "a22b88fca4916445a";
 
 
 const languageMap: { [key: string]: string } = {
@@ -192,13 +192,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - All of your output, including your internal thoughts inside <thinking> tags, MUST be in ${userLanguageName}. Do not switch to English unless explicitly asked by the user in ${userLanguageName}.
 
 ---
-## 🧠 SEARCH & CONTEXT USAGE (VERY IMPORTANT)
-- Your first step is to analyze the user's message to determine if a search is necessary.
-- **DO NOT use search for simple greetings, conversational filler, or subjective questions.** For "hello", "how are you", or "write me a poem", you MUST respond directly without relying on the provided search results.
-- **USE search results** when the query requires factual, real-time, or specific information you wouldn't otherwise know. This includes news, people, places, companies, and specific data.
-- The user's prompt may be preceded by \`[WEB SEARCH RESULTS]\` and \`[IMAGE SEARCH RESULTS]\`.
-- You MUST prioritize using this information to formulate your response when a search is warranted.
-- **Do not include inline markdown links for sources in your text response.** The application will display sources automatically from the data it receives.
+## 🧠 SEARCH & CONTEXT USAGE (CRITICAL INSTRUCTION)
+- **A web search has already been performed for the user's query.** The user's message is prepended with \`[WEB SEARCH RESULTS]\` and \`[IMAGE SEARCH RESULTS]\`.
+- **Your primary task is to synthesize these search results into a direct and comprehensive answer.**
+- **DO NOT ask for clarification on topics that are likely covered in the search results.** For example, if the user asks for "weather in Athens" and search results are provided, you MUST use the results to give the current weather. Do not ask "for which day?" or "which Athens?". Assume the most common intent and use the data provided.
+- **If the search results seem irrelevant** (e.g., for a greeting like "hello"), you MUST ignore them and respond conversationally.
+- **You MUST use the provided search results to answer any factual query.** This includes news, people, places, companies, and specific data.
+- **Source Attribution**: The application handles displaying sources. You do not need to add markdown links or mention sources in your text response.
 
 ---
 ## ✍️ STYLE, TONE & FORMATTING

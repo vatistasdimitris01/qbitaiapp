@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus, GroundingChunk, MapsGroundingChunk } from './types';
 import { MessageType } from './types';
@@ -11,6 +12,7 @@ import CodeAnalysisModal from './components/CodeAnalysisModal';
 import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
 import Lightbox from './components/Lightbox';
+import GreetingMessage from './components/GreetingMessage';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
@@ -113,6 +115,20 @@ const fileToDataURL = (file: File): Promise<string> => {
     });
 };
 
+const GREETINGS = [
+    "What are you working on?",
+    "Where should we begin?",
+    "Hey, Ready to dive in?",
+    "What’s on your mind today?",
+    "Ready when you are.",
+    "What’s on the agenda today?",
+    "Good to see you!",
+    "How can I help?",
+];
+
+const getRandomGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+
+
 const App: React.FC = () => {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -125,7 +141,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
   const [appHeight, setAppHeight] = useState(window.innerHeight);
@@ -337,7 +353,12 @@ const App: React.FC = () => {
         setPersonas(initialPersonas);
     }
     
-    if (savedTheme) setTheme(savedTheme);
+    if (savedTheme) {
+        setTheme(savedTheme);
+    } else {
+        setTheme('dark');
+    }
+
     if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
     if (savedResults) setExecutionResults(JSON.parse(savedResults));
     
@@ -471,6 +492,7 @@ const App: React.FC = () => {
         title: t('sidebar.newChat'),
         messages: [],
         createdAt: new Date().toISOString(),
+        greeting: getRandomGreeting(),
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
@@ -496,6 +518,7 @@ const App: React.FC = () => {
               title: t('sidebar.newChat'),
               messages: [],
               createdAt: new Date().toISOString(),
+              greeting: getRandomGreeting(),
            };
            setConversations([newConversation]);
            setActiveConversationId(newConversation.id);
@@ -932,35 +955,35 @@ ${error}
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4">
-                {activeConversation && activeConversation.messages.length > 0 ? (
-                activeConversation.messages.map((msg, index) => {
-                    const isLastMessage = index === activeConversation.messages.length - 1;
-                    const isCurrentlyLoading = isLoading && isLastMessage;
-                    const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
-                    return <ChatMessage
-                                key={msg.id}
-                                message={msg}
-                                onRegenerate={handleRegenerate}
-                                onFork={handleForkConversation}
-                                isLoading={isCurrentlyLoading}
-                                aiStatus={currentAiStatus}
-                                onShowAnalysis={handleShowAnalysis}
-                                executionResults={executionResults}
-                                onStoreExecutionResult={handleStoreExecutionResult}
-                                onFixRequest={handleFixCodeRequest}
-                                onStopExecution={handleStopExecution}
-                                isPythonReady={isPythonReady}
-                                t={t}
-                                onOpenLightbox={handleOpenLightbox}
-                            />;
-                })
-                ) : (
-                <div className="text-center text-muted pt-16">
-                    {t('chat.placeholder')}
-                </div>
-                )}
-            </div>
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4 h-full">
+                  {activeConversation && activeConversation.messages.length > 0 ? (
+                      activeConversation.messages.map((msg, index) => {
+                          const isLastMessage = index === activeConversation.messages.length - 1;
+                          const isCurrentlyLoading = isLoading && isLastMessage;
+                          const currentAiStatus = isCurrentlyLoading ? aiStatus : 'idle';
+                          return <ChatMessage
+                                      key={msg.id}
+                                      message={msg}
+                                      onRegenerate={handleRegenerate}
+                                      onFork={handleForkConversation}
+                                      isLoading={isCurrentlyLoading}
+                                      aiStatus={currentAiStatus}
+                                      onShowAnalysis={handleShowAnalysis}
+                                      executionResults={executionResults}
+                                      onStoreExecutionResult={handleStoreExecutionResult}
+                                      onFixRequest={handleFixCodeRequest}
+                                      onStopExecution={handleStopExecution}
+                                      isPythonReady={isPythonReady}
+                                      t={t}
+                                      onOpenLightbox={handleOpenLightbox}
+                                  />;
+                      })
+                  ) : activeConversation ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                          <GreetingMessage text={activeConversation.greeting || "How can I help?"} />
+                      </div>
+                  ) : null}
+              </div>
             </main>
             
             <div className="mt-auto pt-4">

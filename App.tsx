@@ -487,6 +487,12 @@ const App: React.FC = () => {
 
 
   const handleNewChat = () => {
+    // Check if the current active conversation is already a new, empty chat.
+    if (activeConversation && activeConversation.messages.length === 0) {
+      setIsSidebarOpen(false); // Still close sidebar if it was open
+      return; // Do nothing if the current chat is already new
+    }
+
     const newConversation: Conversation = {
         id: `convo-${Date.now()}`,
         title: t('sidebar.newChat'),

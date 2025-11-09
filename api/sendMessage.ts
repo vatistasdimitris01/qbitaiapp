@@ -22,6 +22,11 @@ interface LocationInfo {
     longitude?: number;
 }
 
+// User-provided credentials for Google Programmable Search Engine
+const GOOGLE_SEARCH_API_KEY = "AIzaSyBdRP55b_bndyfHez2WgUJq48bXzrBnZHQ";
+const GOOGLE_SEARCH_CX = "a22b88fca4916445a";
+
+
 const languageMap: { [key: string]: string } = {
     en: 'English',
     el: 'Greek',
@@ -36,6 +41,55 @@ export const config = {
     bodyParser: false,
   },
 };
+
+/**
+ * Performs web and image searches using Google's Programmable Search Engine API.
+ */
+async function performWebSearch(query: string): Promise<string> {
+    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
+        return "";
+    }
+
+    try {
+        const [webResponse, imageResponse] = await Promise.all([
+            // Web Search
+            fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&num=5`),
+            // Image Search
+            fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&searchType=image&num=5`)
+        ]);
+
+        let context = "";
+
+        if (webResponse.ok) {
+            const webData = await webResponse.json();
+            if (webData.items && webData.items.length > 0) {
+                const results = webData.items.map((item: any) => ({
+                    title: item.title,
+                    link: item.link,
+                    snippet: item.snippet
+                }));
+                context += `[WEB SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
+            }
+        }
+
+        if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+             if (imageData.items && imageData.items.length > 0) {
+                const results = imageData.items.map((item: any) => ({
+                    url: item.link,
+                    alt: item.title
+                }));
+                context += `[IMAGE SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
+            }
+        }
+        
+        return context;
+    } catch (error) {
+        console.error("Error performing web search:", error);
+        return ""; // Return empty string on error, so generation can proceed
+    }
+}
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -88,9 +142,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 };
             }).filter(c => c.parts.length > 0);
         
+        // --- RAG Implementation ---
+        const searchContext = await performWebSearch(message);
+        
         let userMessageText = message;
+        if (searchContext) {
+            userMessageText = `${searchContext}[USER MESSAGE]:\n${message}`;
+        }
+
         if (location && (location as LocationInfo).city && (location as LocationInfo).country) {
-            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${message}`;
+            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
         }
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
@@ -131,11 +192,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - All of your output, including your internal thoughts inside <thinking> tags, MUST be in ${userLanguageName}. Do not switch to English unless explicitly asked by the user in ${userLanguageName}.
 
 ---
-## 🧰 AVAILABLE TOOLS
-- You have access to the following tools to assist the user:
-    - **Google Search**: For real-time information, news, and facts.
-    - **Google Maps**: For location-based queries (when available).
-    - **Code Execution**: A sandboxed Python environment with common data science and file generation libraries.
+## CONTEXT & GROUNDING (VERY IMPORTANT)
+- The user's prompt may be preceded by two blocks of text: \`[WEB SEARCH RESULTS]\` and \`[IMAGE SEARCH RESULTS]\`.
+- This is real-time information retrieved from the internet to help you answer the user's query.
+- You MUST prioritize using this information to formulate your response.
+- **Citations**: When you use information from a web search result, you MUST cite the provided URL using Markdown links immediately after the information they support. The link text should be a brief description of the source. Example: The sky is blue due to Rayleigh scattering [NASA Science](https://science.nasa.gov/...).
 
 ---
 ## ✍️ STYLE, TONE & FORMATTING
@@ -156,31 +217,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Typos**: Be tolerant of minor typos and infer user intent. (e.g., "create a circle raph usong python" -> plot a circle graph using python).
 - **Response Finale & Engagement**: Your goal is to keep the conversation flowing naturally.
     - **Follow-up Questions**: At the end of your response (except for code-only responses), you should ask either one or three context-aware follow-up questions to encourage interaction.
-        - Use **one question** for simple, direct answers to keep it concise.
-        - Use **three questions** for more complex topics where multiple avenues for discussion exist.
-    - **Divider Rule**:
-        - For longer, structured responses, add a markdown divider (\`---\`) before the follow-up questions.
-        - For short, simple responses (e.g., a few sentences), **do not** include the divider. Just add the follow-up question(s) on a new line.
-    - *Example (Long response)*:
-    ...detailed explanation...
-    ---
-    * Can I explain the technical details of this process?
-    * Would you like to know about alternative methods?
-    * Is there another topic you'd like to explore?
-    - *Example (Short response)*:
-    Yes, that is correct.
-    *Is there anything else I can help you with?*
+    - **Divider Rule**: Add a markdown divider (\`---\`) before the follow-up questions for longer responses. For short, simple responses, do not include the divider.
 
 ---
 ## 🔍 TOOL USAGE RULES
 
-### 1. 🌎 Google Search & Maps
-- **When to Use**: Use for recent events, real-time information (weather, news), location-based queries ("restaurants near me"), or any facts not in your training data.
-- **Location Awareness**: The user's location is provided. Use it to refine location-specific queries. Ignore it for general questions.
-- **Citations**: You MUST cite your sources using Markdown links immediately after the information they support. The link text should be a brief description of the source.
-    - *Example*: The sky is blue due to Rayleigh scattering [NASA Science](https://science.nasa.gov/...).
-
-### 2. 🧠 Code Execution
+### 1. 🧠 Code Execution
 - **Default State**: All fenced code blocks are executable by default.
 - **Keywords are CRITICAL**:
     - \`autorun\`: Use when the user's intent is to see the result immediately (e.g., "plot a sine wave", "show me a chart").
@@ -189,43 +231,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **STRICT "CODE-ONLY" RULE (HIGHEST PRIORITY)**: 
     - **Trigger**: Any user request that implies creating a file, plot, chart, graph, infographic, or any visual representation that requires code.
     - **Action**: Your response for these tasks MUST be a single, executable fenced code block and NOTHING ELSE.
-    - **Data Gathering**: If you need to search the web for data (e.g., "latest weather in Athens"), do so internally. Use the data you find to populate the variables in your Python code. Your final output must not mention the search; it must only be the code that uses the data.
-    - **Format**: The entire response must start with \`\`\` and end with \`\`\`. There must be NO text, no greetings, no explanation, no markdown, and no conversational filler before or after the code block.
-    - **Example**:
-        - User: "show me a pie chart of this data: sales 40, marketing 20, dev 30"
-        - YOUR CORRECT RESPONSE:
-\`\`\`python autorun
-import matplotlib.pyplot as plt
-labels = 'Sales', 'Marketing', 'Development'
-sizes = [40, 20, 30]
-fig1, ax1 = plt.subplots()
-ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-ax1.axis('equal')
-plt.title('Department Spending')
-plt.show()
-\`\`\`
-        - YOUR INCORRECT RESPONSE:
-"Certainly! Here is the code to generate that pie chart for you:"
-\`\`\`python autorun
-...
-\`\`\`
-"Let me know if you need anything else!"
+    - **Data**: If you need data, use the data provided in the \`[WEB SEARCH RESULTS]\` context. Your final output must not mention the search; it must only be the code that uses the data.
+    - **Format**: The entire response must start with \`\`\` and end with \`\`\`. There must be NO text before or after the code block.
 
-
-### 3. 🐍 Python Coding Rules
+### 2. 🐍 Python Coding Rules
 - **Environment**: You have access to: \`pandas\`, \`numpy\`, \`matplotlib\`, \`plotly\`, \`openpyxl\`, \`python-docx\`, \`fpdf2\`, \`scikit-learn\`, \`seaborn\`, \`sympy\`, \`pillow\`, \`beautifulsoup4\`, \`scipy\`, \`opencv-python\`, \`requests\`.
-- **Strings**: Use standard Python strings. Prefer single quotes (\`'...' \`) or double quotes (\`"..."\`) for simplicity. If a string contains a quote character, use the other type to enclose it (e.g., \`"Here's a string"\`) or escape the character (e.g., \`'Here\\'s a string'\`).
-- **Plotting**: Do NOT use emojis in plot titles, labels, or any text that will be rendered in a chart image. The environment's fonts may not support them.
-- **File Naming**: If the user doesn't provide a filename for a file generation task, you MUST choose a descriptive one (e.g., \`financial_report.xlsx\`, \`project_summary.docx\`). Do not ask.
-- **File Generation Libraries**:
-    - \`.xlsx\` → \`openpyxl\`
-    - \`.docx\` → \`python-docx\`
-    - \`.pdf\` → \`fpdf2\`
-- **Output**: After a file-saving function (like \`wb.save()\`), do NOT add any \`print()\` statements. The file download is handled automatically.
+- **Plotting**: Do NOT use emojis in plot titles, labels, or any text that will be rendered in a chart image.
+- **File Naming**: If the user doesn't provide a filename, you MUST choose a descriptive one (e.g., \`financial_report.xlsx\`). Do not ask.
 
-### 4. 🖼️ Visual Content & Image Galleries
-- **When to Use**: When a user's query would be significantly enhanced by images (e.g., "top restaurants in Athens", "images of nebulae", "types of pasta"), you should include an image gallery. Use Google Search to find images.
-- **Format**: To display an image gallery, you MUST output a JSON code block with the language identifier \`json-gallery\`. The gallery can be part of a larger text response.
+### 3. 🖼️ Visual Content & Image Galleries (VERY IMPORTANT)
+- **When to Use**: When a user's query would be significantly enhanced by images (e.g., "top restaurants in Athens", "images of nebulae", "types of pasta"), you should include an image gallery.
+- **Format**: To display an image gallery, you MUST output a JSON code block with the language identifier \`json-gallery\`.
+- **Image Sourcing**: You MUST use the URLs provided in the \`[IMAGE SEARCH RESULTS]\` context block. Do not invent, hallucinate, or use any other URLs. This is a strict rule to ensure images load correctly.
 - **JSON Structure**: The JSON object MUST follow this structure:
   {
     "type": "image_gallery",
@@ -233,25 +250,22 @@ plt.show()
       {
         "url": "https://...",
         "alt": "A descriptive alt text for the image.",
-        "source": "Name of the source website"
+        "source": "Name of the source website" // Optional, but preferred.
       }
     ]
   }
-- **Image Sourcing**: Use Google Search to find high-quality, relevant, and publicly accessible images.
 - **Example**:
-    - User: "Show me some pictures of the Northern Lights."
-    - YOUR RESPONSE (can include text before/after):
+    User's prompt contains: \`[IMAGE SEARCH RESULTS]: [{"url": "https://real.com/aurora.jpg", "alt": "Green lights"}]\`
+    Your response can be:
     Here are some stunning images of the Aurora Borealis:
     \`\`\`json-gallery
     {
       "type": "image_gallery",
       "images": [
-        { "url": "https://images.unsplash.com/photo-1531366936337-7c912a4589a7", "alt": "Green aurora over a snowy forest." },
-        { "url": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc", "alt": "Purple and green aurora curtains in the sky.", "source": "Unsplash" }
+        { "url": "https://real.com/aurora.jpg", "alt": "Green aurora over a snowy forest.", "source": "Real Images Inc." }
       ]
     }
     \`\`\`
-    This gallery shows the beautiful colors of the aurora.
 
 ---
 ## 🎯 CORE PHILOSOPHY
@@ -261,22 +275,6 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
             ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}`
             : baseSystemInstruction;
             
-        const tools: any[] = [{ googleSearch: {} }];
-        let toolConfig: any = {};
-        
-        const loc = location as LocationInfo;
-        if (loc && loc.latitude && loc.longitude) {
-            tools.push({ googleMaps: {} });
-            toolConfig = {
-                retrievalConfig: {
-                    latLng: {
-                        latitude: loc.latitude,
-                        longitude: loc.longitude
-                    }
-                }
-            };
-        }
-        
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
@@ -286,9 +284,7 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
                 model: model,
                 contents: contents,
                 config: {
-                    systemInstruction: finalSystemInstruction,
-                    tools: tools,
-                    ...(Object.keys(toolConfig).length > 0 && { toolConfig: toolConfig })
+                    systemInstruction: finalSystemInstruction
                 },
             });
 
@@ -299,6 +295,8 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
                     write({ type: 'chunk', payload: chunk.text });
                 }
                 
+                // Native grounding is disabled, so we don't expect these chunks anymore.
+                // Keeping the code path in case it's re-enabled in the future.
                 if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
                     write({ type: 'grounding', payload: chunk.candidates[0].groundingMetadata.groundingChunks });
                 }
@@ -314,8 +312,6 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
         } catch (error) {
             console.error("Error during Gemini stream processing:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-            // Don't try to write to a stream that might already be closed.
-            // Just end the response if we haven't sent headers yet.
             if (!res.headersSent) {
                 res.status(500).json({ error: `Stream generation failed: ${errorMessage}` });
             } else {

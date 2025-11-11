@@ -172,6 +172,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ## 1. MARKDOWN USAGE
 - Use Markdown for structure: headings, lists, bold, italics.
 - Use horizontal rules (\`---\`) sparingly to separate major sections.
+- **Lists of Places**: When you generate a list of places (e.g., restaurants, landmarks, points of interest), you MUST follow this structure for each item:
+  - A heading for the place name (e.g., \`### 1. Place Name\`).
+  - A line with key details like rating or type in bold (e.g., \`**★ 4.7 • Fine dining restaurant**\`).
+  - An image gallery tag. The format is \`!gallery["A descriptive image search query for the place"]\`. For example, for 'Oiko Restaurant' in Athens, you would write \`!gallery["Oiko Restaurant Athens fine dining"]\`. You MUST do this for at least the first 3 items in any list of places.
+  - A bulleted list of details (e.g., Location, Why it's good, Tip).
 
 ## 2. ENGAGEMENT
 - Your goal is to provide a complete answer.

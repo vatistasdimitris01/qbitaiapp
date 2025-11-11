@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -20,6 +21,61 @@ type ExecutionResult = {
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
   downloadableFile?: { filename: string; mimetype: string; data: string; };
+};
+
+interface ImageInfo {
+  url: string;
+  alt: string;
+  source?: string;
+}
+
+const GalleryFromSearch: React.FC<{ searchQuery: string; onOpenLightbox: (images: ImageInfo[], startIndex: number) => void }> = ({ searchQuery, onOpenLightbox }) => {
+    const [images, setImages] = useState<ImageInfo[]>([]);
+    const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+
+    useEffect(() => {
+        const fetchImages = async () => {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageSearchQuery: searchQuery }),
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch images');
+                }
+                const data = await response.json();
+                if (data.images && data.images.length > 0) {
+                    setImages(data.images.map((url: string) => ({ url, alt: searchQuery, source: 'Google Images' })));
+                    setStatus('loaded');
+                } else {
+                    // Don't show an error, just show nothing if no images found.
+                    setStatus('loaded');
+                    setImages([]);
+                }
+            } catch (error) {
+                console.error('Error fetching gallery images:', error);
+                setStatus('error');
+            }
+        };
+        fetchImages();
+    }, [searchQuery]);
+
+    if (status === 'loading') {
+        return (
+            <div className="not-prose my-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
+                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
+                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
+            </div>
+        );
+    }
+
+    if (status === 'error' || images.length === 0) {
+        return null; // Don't show anything if it fails or returns no images
+    }
+
+    return <ImageGallery images={images} onImageClick={(index) => onOpenLightbox(images, index)} />;
 };
 
 interface ChatMessageProps {
@@ -84,46 +140,48 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         const textToRender = parsedResponseText;
         if (!textToRender) return [];
     
-        const codeBlockRegex = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/g;
+        const blockRegex = /(```[\w\s\S]*?```|!gallery\[".*?"\])/g;
         const inlineImageRegex = /!g\[(.*?)\]\((.*?)\)/g;
-        let parts: any[] = [];
-        let lastIndex = 0;
-        let match;
-        let partIndex = 0;
-    
-        // First pass: extract code blocks
-        while ((match = codeBlockRegex.exec(textToRender)) !== null) {
-            if (match.index > lastIndex) parts.push({ type: 'text', content: textToRender.substring(lastIndex, match.index) });
-            const lang = match[1] || 'plaintext';
-            const code = match[2];
-            if (lang === 'json-gallery') {
-                try {
-                    const galleryData = JSON.parse(code);
-                    if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
-                        parts.push({ type: 'gallery', images: galleryData.images });
-                    }
-                } catch (e) { /* Incomplete or invalid JSON, will be handled as text */ }
-            } else {
-                parts.push({ type: 'code', lang, code, info: match[0].split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
-            }
-            lastIndex = match.index + match[0].length;
-        }
-        if (lastIndex < textToRender.length) parts.push({ type: 'text', content: textToRender.substring(lastIndex) });
-    
-        // Second pass: process text parts for inline images
+
         let finalParts: any[] = [];
-        parts.forEach(part => {
-            if (part.type !== 'text') {
-                finalParts.push(part); return;
+        let partIndex = 0;
+
+        textToRender.split(blockRegex).filter(Boolean).forEach(part => {
+            if (part.startsWith('```')) {
+                const codeMatch = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/.exec(part);
+                if (codeMatch) {
+                    const lang = codeMatch[1] || 'plaintext';
+                    const code = codeMatch[2];
+                    if (lang === 'json-gallery') {
+                        try {
+                            const galleryData = JSON.parse(code);
+                            if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
+                                finalParts.push({ type: 'gallery', images: galleryData.images });
+                            }
+                        } catch (e) { /* Incomplete or invalid JSON, will be handled as text */ }
+                    } else {
+                        finalParts.push({ type: 'code', lang, code, info: part.split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
+                    }
+                }
+            } else if (part.startsWith('!gallery')) {
+                const galleryMatch = /!gallery\["(.*?)"\]/.exec(part);
+                if (galleryMatch) {
+                    finalParts.push({ type: 'gallery-search', query: galleryMatch[1] });
+                }
+            } else {
+                let lastTextIndex = 0;
+                let inlineMatch;
+                while ((inlineMatch = inlineImageRegex.exec(part)) !== null) {
+                    if (inlineMatch.index > lastTextIndex) {
+                        finalParts.push({ type: 'text', content: part.substring(lastTextIndex, inlineMatch.index) });
+                    }
+                    finalParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
+                    lastTextIndex = inlineMatch.index + inlineMatch[0].length;
+                }
+                if (lastTextIndex < part.length) {
+                    finalParts.push({ type: 'text', content: part.substring(lastTextIndex) });
+                }
             }
-            let lastTextIndex = 0;
-            let inlineMatch;
-            while ((inlineMatch = inlineImageRegex.exec(part.content)) !== null) {
-                if (inlineMatch.index > lastTextIndex) finalParts.push({ type: 'text', content: part.content.substring(lastTextIndex, inlineMatch.index) });
-                finalParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
-                lastTextIndex = inlineMatch.index + inlineMatch[0].length;
-            }
-            if (lastTextIndex < part.content.length) finalParts.push({ type: 'text', content: part.content.substring(lastTextIndex) });
         });
         return finalParts;
     }, [parsedResponseText]);
@@ -225,6 +283,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         if (part.type === 'gallery') {
                                             const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
                                             return <ImageGallery key={`gallery-${index}`} images={part.images} onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)} />;
+                                        }
+                                        if (part.type === 'gallery-search') {
+                                            return <GalleryFromSearch key={`gallery-search-${index}`} searchQuery={part.query} onOpenLightbox={onOpenLightbox} />;
                                         }
                                         if (part.type === 'inline-image') {
                                             const imageIndex = allImages.findIndex(img => img.url === part.url);

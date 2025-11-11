@@ -78,13 +78,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
     );
   }
 
-  // "Profile" layout for exactly 3 images
+  // Row layout for 3 images
   if (len === 3) {
     return (
-      <div className="not-prose my-4 grid grid-cols-1 md:grid-cols-2 md:grid-rows-2 gap-2 md:aspect-video">
-        <GalleryImage image={images[0]} className="md:row-span-2 aspect-video md:aspect-auto" onClick={() => onImageClick(0)} />
-        <GalleryImage image={images[1]} className="md:col-start-2 aspect-video md:aspect-auto" onClick={() => onImageClick(1)} />
-        <GalleryImage image={images[2]} className="md:col-start-2 aspect-video md:aspect-auto" onClick={() => onImageClick(2)} />
+      <div className="not-prose my-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <GalleryImage image={images[0]} className="aspect-[4/3]" onClick={() => onImageClick(0)} />
+        <GalleryImage image={images[1]} className="aspect-[4/3]" onClick={() => onImageClick(1)} />
+        <GalleryImage image={images[2]} className="aspect-[4/3]" onClick={() => onImageClick(2)} />
       </div>
     );
   }

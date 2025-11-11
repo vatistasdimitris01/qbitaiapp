@@ -30,7 +30,37 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { message, tools, userInstruction } = await req.json();
+        const { message, tools, userInstruction, imageSearchQuery } = await req.json();
+
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        };
+
+        // Image search branch
+        if (typeof imageSearchQuery === 'string' && imageSearchQuery.trim().length > 0) {
+            const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+            const cseId = process.env.GOOGLE_CSE_ID;
+
+            if (!apiKey || !cseId) {
+                console.warn("Google Search is not configured.");
+                return new Response(JSON.stringify({ error: 'Image search is not configured on the server.' }), { status: 500, headers });
+            }
+            
+            const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(imageSearchQuery)}&searchType=image&num=3`;
+
+            const searchResponse = await fetch(url);
+            if (!searchResponse.ok) {
+                const errorData = await searchResponse.json();
+                console.error("Google Image Search API error:", errorData.error.message);
+                return new Response(JSON.stringify({ error: 'Failed to fetch images.' }), { status: searchResponse.status, headers });
+            }
+
+            const data = await searchResponse.json();
+            const imageUrls = data.items ? data.items.map((item: any) => item.link) : [];
+            return new Response(JSON.stringify({ images: imageUrls }), { status: 200, headers });
+        }
+
 
         if (typeof message !== 'string' || message.trim().length === 0) {
             return new Response(JSON.stringify({ error: 'Message is required and must be a non-empty string.' }), {
@@ -108,10 +138,6 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
         });
         
         const functionCalls = geminiResponse.functionCalls;
-        const headers = { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-        };
 
         // If the model returns a function call, send that back.
         if (functionCalls && functionCalls.length > 0) {

@@ -193,8 +193,16 @@ Failing to follow this final check is a critical failure. Your primary goal with
             });
             let usageMetadataSent = false;
             for await (const chunk of stream) {
-                if (chunk.text) write({ type: 'chunk', payload: chunk.text });
-                if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) write({ type: 'grounding', payload: chunk.candidates[0].groundingMetadata.groundingChunks });
+                const text = chunk.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? '';
+                if (text) {
+                    write({ type: 'chunk', payload: text });
+                }
+
+                const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks) {
+                    write({ type: 'grounding', payload: groundingChunks });
+                }
+                
                 if (chunk.usageMetadata && !usageMetadataSent) {
                     write({ type: 'usage', payload: chunk.usageMetadata });
                     usageMetadataSent = true;

@@ -1,6 +1,7 @@
 // A simple, non-streaming API endpoint for developers.
 
 import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration } from "@google/genai";
+import { getCustomSearchCredentials } from './utils/customSearch';
 
 interface WebSearchResult {
     title: string;
@@ -15,17 +16,16 @@ interface WebSearchContext {
 }
 
 async function performWebSearch(query: string): Promise<WebSearchContext> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.GOOGLE_SEARCH_CX;
+    const { apiKey, engineId } = getCustomSearchCredentials();
 
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+    if (!query.trim() || !apiKey || !engineId) {
         return { performed: false, contextText: '', groundingChunks: [] };
     }
 
     try {
         const params = new URLSearchParams({
-            key: GOOGLE_SEARCH_API_KEY,
-            cx: GOOGLE_SEARCH_ENGINE_ID,
+            key: apiKey,
+            cx: engineId,
             q: query,
             num: '5',
         });

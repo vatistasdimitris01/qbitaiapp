@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
+import { getCustomSearchCredentials } from './utils/customSearch';
 
 interface ApiAttachment {
     mimeType: string;
@@ -36,14 +37,13 @@ export const config = {
 };
 
 async function performImageSearch(query: string): Promise<string> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.GOOGLE_SEARCH_CX;
+    const { apiKey, engineId } = getCustomSearchCredentials();
 
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+    if (!query.trim() || !apiKey || !engineId) {
         return "";
     }
     try {
-        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
+        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
 
         if (imageResponse.ok) {
             const imageData = await imageResponse.json();
@@ -72,17 +72,16 @@ interface WebSearchContext {
 }
 
 async function performWebSearch(query: string): Promise<WebSearchContext> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.GOOGLE_SEARCH_CX;
+    const { apiKey, engineId } = getCustomSearchCredentials();
 
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+    if (!query.trim() || !apiKey || !engineId) {
         return { performed: false, contextText: '', groundingChunks: [] };
     }
 
     try {
         const params = new URLSearchParams({
-            key: GOOGLE_SEARCH_API_KEY,
-            cx: GOOGLE_SEARCH_ENGINE_ID,
+            key: apiKey,
+            cx: engineId,
             q: query,
             num: '5',
         });

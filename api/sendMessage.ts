@@ -21,10 +21,15 @@ interface LocationInfo {
     longitude?: number;
 }
 
-interface SearchResultItem {
+interface GoogleSearchResultItem {
     title: string;
     link: string;
     snippet: string;
+}
+
+interface FormattedSearchResult {
+    searchContext: string;
+    searchResults: { web: { uri: string; title: string; } }[];
 }
 
 const languageMap: { [key: string]: string } = {
@@ -41,13 +46,13 @@ export const config = {
   },
 };
 
-const performWebSearch = async (query: string): Promise<string> => {
+const performWebSearch = async (query: string): Promise<FormattedSearchResult> => {
     const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
     const cseId = process.env.GOOGLE_CSE_ID;
 
     if (!apiKey || !cseId) {
         console.warn("Google Search is not configured. Missing GOOGLE_API_KEY or GOOGLE_CSE_ID.");
-        return "";
+        return { searchContext: "", searchResults: [] };
     }
 
     const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
@@ -57,20 +62,30 @@ const performWebSearch = async (query: string): Promise<string> => {
         if (!response.ok) {
             const errorData = await response.json();
             console.error("Google Search API error:", errorData.error.message);
-            return ""; // Fail gracefully
+            return { searchContext: "", searchResults: [] };
         }
         const data = await response.json();
         if (!data.items || data.items.length === 0) {
-            return "";
+            return { searchContext: "", searchResults: [] };
         }
-        const searchResults = data.items.slice(0, 5) as SearchResultItem[];
-        return searchResults.map((item, index) => 
+        const searchItems = data.items.slice(0, 5) as GoogleSearchResultItem[];
+        
+        const searchContext = searchItems.map((item, index) => 
             `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
         ).join('\n\n');
 
+        const searchResults = searchItems.map(item => ({
+            web: {
+                uri: item.link,
+                title: item.title,
+            }
+        }));
+        
+        return { searchContext, searchResults };
+
     } catch (error) {
         console.error("Failed to perform web search:", error);
-        return "";
+        return { searchContext: "", searchResults: [] };
     }
 };
 
@@ -112,7 +127,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
         
         write({ type: 'searching' });
-        const searchContext = await performWebSearch(message);
+        const { searchContext, searchResults } = await performWebSearch(message);
+        
+        if (searchResults.length > 0) {
+            write({ type: 'sources', payload: searchResults });
+        }
         
         let userMessageText = message;
         if (searchContext) {
@@ -144,10 +163,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
-## 2. WEB SEARCH & CITATIONS
-- **Priority**: Your primary mode of operation is to use provided web search results to answer queries.
-- **Synthesize & Cite**: When \`## Web Search Results\` are provided in the user's prompt, you MUST base your answer on this information. Synthesize it into a coherent response and cite your sources using Markdown links. For example: \`This is a fact from a source [Title of Source](https://example.com/source)\`.
-- **Knowledge Fallback**: If the user's prompt does NOT contain \`## Web Search Results\`, you must answer using your internal knowledge. When doing so, you MUST add a brief disclaimer that the information may not be up-to-date (e.g., "Based on my last training data..."). Do NOT apologize or mention that you couldn't perform a search.
+## 2. WEB SEARCH & CONTEXT
+- **Priority**: When \`## Web Search Results\` are provided in the user's prompt, you MUST base your answer on that information. Synthesize it into a coherent response. **Do NOT cite the sources in your response** (e.g., do not use Markdown links like \`[Title](url)\`); sources are displayed separately in the UI.
+- **Knowledge Fallback**: If no \`## Web Search Results\` are provided, answer using your internal knowledge and add a brief disclaimer that the information may not be up-to-date (e.g., "Based on my last training data..."). Do NOT apologize or mention that you couldn't perform a search.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 

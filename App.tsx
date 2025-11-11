@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -491,6 +492,11 @@ const App: React.FC = () => {
                     case 'searching':
                         setAiStatus('searching');
                         break;
+                    case 'sources':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, groundingChunks: update.payload } : msg
+                        );
+                        break;
                     case 'chunk':
                         setAiStatus('generating');
                         newMessages = newMessages.map(msg =>
@@ -548,6 +554,11 @@ const App: React.FC = () => {
                 switch (update.type) {
                     case 'searching':
                         setAiStatus('searching');
+                        break;
+                    case 'sources':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === messageIdToRegenerate ? { ...msg, groundingChunks: update.payload } : msg
+                        );
                         break;
                     case 'chunk':
                         setAiStatus('generating');
@@ -669,11 +680,33 @@ const App: React.FC = () => {
             </div>
         </div>
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
-        {analysisModalContent && <CodeAnalysisModal code={analysisModalContent.code} lang={analysisModalContent.lang} onClose={() => setAnalysisModalContent(null)} t={t} />}
-        {selectionPopup && selectionPopup.visible && <SelectionPopup x={selectionPopup.x} y={selectionPopup.y} text={selectionPopup.text} onAsk={handleAskWithSelection} t={t} />}
-        {lightboxState && <Lightbox images={lightboxState.images} startIndex={lightboxState.startIndex} onClose={handleCloseLightbox} />}
+        {analysisModalContent &&
+          <CodeAnalysisModal
+            code={analysisModalContent.code}
+            lang={analysisModalContent.lang}
+            onClose={() => setAnalysisModalContent(null)}
+            t={t}
+          />
+        }
+        {selectionPopup?.visible && (
+          <SelectionPopup
+            x={selectionPopup.x}
+            y={selectionPopup.y}
+            text={selectionPopup.text}
+            onAsk={handleAskWithSelection}
+            t={t}
+          />
+        )}
+        {lightboxState && (
+            <Lightbox
+                images={lightboxState.images}
+                startIndex={lightboxState.startIndex}
+                onClose={handleCloseLightbox}
+            />
+        )}
     </div>
   );
 };
 
+// FIX: Add default export for App component
 export default App;

@@ -193,7 +193,8 @@ Failing to follow this final check is a critical failure. Your primary goal with
             });
             let usageMetadataSent = false;
             for await (const chunk of stream) {
-                const text = chunk.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? '';
+                const partTexts = chunk.candidates?.[0]?.content?.parts?.map(p => p.text ?? '') ?? [];
+                const text = partTexts.join('');
                 if (text) {
                     write({ type: 'chunk', payload: text });
                 }

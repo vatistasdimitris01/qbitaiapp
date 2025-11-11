@@ -1,25 +1,14 @@
 import React from 'react';
 // FIX: Correctly import the 'CitationSource' type, which is now defined in types.ts.
 import type { CitationSource } from '../types';
-
-// Helper to extract domain from a URL
-const getDomain = (url: string): string => {
-    try {
-        const hostname = new URL(url).hostname;
-        // Remove 'www.' if it exists
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        // Return a snippet of the URL if it's invalid
-        return url.split('/')[2] || 'source';
-    }
-};
+import { getDisplayDomain } from '../utils/url';
 
 interface CitationPillProps {
   source: CitationSource;
 }
 
 const CitationPill: React.FC<CitationPillProps> = ({ source }) => {
-  const domain = getDomain(source.url);
+  const domain = getDisplayDomain(source.url);
 
   return (
     <span className="inline-flex max-w-full items-center relative top-[-2px] animate-[show_150ms_ease-in] ml-1 align-baseline">

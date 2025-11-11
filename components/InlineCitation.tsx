@@ -3,16 +3,7 @@ import React, { useState, createContext, useContext, useRef, useEffect, useCallb
 import type { CitationSource } from '../types';
 // FIX: Correctly import 'ChevronLeftIcon' and 'ChevronRightIcon', which are now defined in icons.tsx.
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
-
-// --- Helper Functions ---
-const getDomain = (url: string): string => {
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        return url.split('/')[2] || 'source';
-    }
-};
+import { getDisplayDomain } from '../utils/url';
 
 // --- Hover Card Context & Hook ---
 interface HoverCardContextType {
@@ -69,7 +60,7 @@ export const InlineCitationCard: React.FC<{ children: React.ReactNode }> = ({ ch
 
 export const InlineCitationCardTrigger: React.FC<{ number: string; sources: CitationSource[] }> = ({ number, sources }) => {
   const { openCard } = useHoverCard();
-  const domain = sources.length > 0 ? getDomain(sources[0].url) : 'source';
+  const domain = sources.length > 0 ? getDisplayDomain(sources[0].url) : 'source';
 
   return (
     <button
@@ -161,7 +152,7 @@ export const InlineCitationSource: React.FC<CitationSource> = ({ title, url, des
         <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-foreground hover:underline no-underline block truncate">
             {title}
         </a>
-        <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5 truncate">{getDomain(url)}</p>
+        <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5 truncate">{getDisplayDomain(url)}</p>
         {description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{description}</p>}
     </div>
 );

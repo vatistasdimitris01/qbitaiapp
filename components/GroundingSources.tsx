@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { GroundingChunk, MapsPlaceReviewSnippet } from '../types';
 import { MapPinIcon } from './icons';
+import { getDisplayDomain, getFaviconUrl } from '../utils/url';
 
-const getDomain = (url: string): string => {
-    if (!url) return 'source';
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        return 'source';
-    }
-};
+const isImageUrl = (url: string): boolean => /\.(png|jpe?g|gif|webp|svg)$/i.test(url.split('?')[0] || '');
 
 interface GroundingSourcesProps {
     chunks: GroundingChunk[];
@@ -36,20 +29,15 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
             <div className="flex items-center -space-x-2 cursor-pointer">
                 {visibleChunks.map((chunk, index) => {
                      if ('web' in chunk && chunk.web.uri) {
-                        const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                        const faviconUrl = isRedirect 
-                            ? `https://www.google.com/s2/favicons?sz=24&domain_url=google.com`
-                            : `https://www.google.com/s2/favicons?sz=24&domain_url=${chunk.web.uri}`;
-
                         return (
                            <img
                                key={index}
-                               src={faviconUrl}
-                               alt={getDomain(chunk.web.uri)}
+                               src={getFaviconUrl(chunk.web.uri)}
+                               alt={getDisplayDomain(chunk.web.uri)}
                                title={chunk.web.title}
                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
                                onError={(e) => {
-                                   (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com';
+                                   (e.target as HTMLImageElement).src = '/favicon.ico';
                                }}
                            />
                        );
@@ -76,11 +64,6 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     <ul className="divide-y divide-default">
                         {chunks.map((chunk, index) => {
                             if ('web' in chunk && chunk.web.uri) {
-                                const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                                const faviconUrl = isRedirect
-                                    ? `https://www.google.com/s2/favicons?sz=16&domain_url=google.com`
-                                    : `https://www.google.com/s2/favicons?sz=16&domain_url=${chunk.web.uri}`;
-
                                 return (
                                     <li key={index}>
                                         <a
@@ -91,16 +74,16 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                         >
                                             <div className="flex items-start gap-3">
                                                 <img
-                                                    src={faviconUrl}
+                                                    src={getFaviconUrl(chunk.web.uri)}
                                                     alt=""
                                                     className="size-4 rounded mt-0.5"
                                                     onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=16&domain_url=google.com';
+                                                        (e.target as HTMLImageElement).src = '/favicon.ico';
                                                     }}
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium text-foreground truncate">{chunk.web.title}</p>
-                                                    <p className="text-xs text-muted-foreground truncate">{getDomain(chunk.web.uri)}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{getDisplayDomain(chunk.web.uri)}</p>
                                                 </div>
                                             </div>
                                         </a>
@@ -128,13 +111,40 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                             </a>
                                             {reviews.length > 0 && (
                                                 <div className="mt-2 pl-7 space-y-2">
-                                                    {reviews.map((review: MapsPlaceReviewSnippet, rIndex: number) => (
-                                                        <blockquote key={rIndex} className="text-xs border-l-2 border-default pl-2 italic text-muted-foreground">
-                                                            <a href={review.uri} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                                "{review.quote}" – {review.author}
-                                                            </a>
-                                                        </blockquote>
-                                                    ))}
+                                                    {reviews.map((review: MapsPlaceReviewSnippet, rIndex: number) => {
+                                                        const href = review.uri;
+                                                        if (!href) return null;
+                                                        const imageUrl = isImageUrl(href) ? href : undefined;
+
+                                                        if (imageUrl) {
+                                                            return (
+                                                                <a
+                                                                    key={rIndex}
+                                                                    href={imageUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="block"
+                                                                >
+                                                                    <img
+                                                                        src={imageUrl}
+                                                                        alt={chunk.maps.title}
+                                                                        className="w-full rounded-md object-cover"
+                                                                    />
+                                                                </a>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <blockquote
+                                                                key={rIndex}
+                                                                className="text-xs border-l-2 border-default pl-2 italic text-muted-foreground"
+                                                            >
+                                                                <a href={href} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                                    "{review.quote}" – {review.author}
+                                                                </a>
+                                                            </blockquote>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

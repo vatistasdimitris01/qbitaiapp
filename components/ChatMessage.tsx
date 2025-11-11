@@ -12,7 +12,6 @@ import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import SkeletonLoader from './SkeletonLoader';
-import GroundingSources from './GroundingSources';
 
 type ExecutionResult = {
   output: string | null;
@@ -138,7 +137,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
 
     const hasContent = useMemo(() => parsedResponseText.trim().length > 0, [parsedResponseText]);
-    const hasGrounding = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
 
     const handleCopy = () => {
         const textToCopy = isUser ? messageText : parsedResponseText;
@@ -177,7 +175,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         generating: [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')],
     })[aiStatus] || [t('chat.status.thinking')], [aiStatus, t]);
 
-    if (!isUser && isLoading && !hasContent && !hasThinking && !hasGrounding) {
+    if (!isUser && isLoading && !hasContent && !hasThinking) {
         return (
             <div className="flex w-full my-4 justify-start">
                 <div className="flex flex-col w-full max-w-3xl space-y-2">
@@ -189,7 +187,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
     
-    if (!isUser && !isLoading && !hasContent && !hasThinking && !hasGrounding) return null;
+    if (!isUser && !isLoading && !hasContent && !hasThinking) return null;
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -264,14 +262,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                     {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
                                 </div>
                             </div>
-                            {hasGrounding && (
-                                <div className="mt-4 flex justify-start w-full">
-                                    <GroundingSources chunks={message.groundingChunks!} t={t} />
-                                </div>
-                            )}
                         </>
                     )}
-                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || (!hasContent && !hasGrounding) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                          <div className="flex items-center gap-1">
                             {!isUser && (
                                 <>

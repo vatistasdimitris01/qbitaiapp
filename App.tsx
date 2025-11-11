@@ -491,11 +491,6 @@ const App: React.FC = () => {
                     case 'searching':
                         setAiStatus('searching');
                         break;
-                    case 'grounding':
-                        newMessages = newMessages.map(msg =>
-                            msg.id === aiMessageId ? { ...msg, groundingChunks: update.payload } : msg
-                        );
-                        break;
                     case 'chunk':
                         setAiStatus('generating');
                         newMessages = newMessages.map(msg =>
@@ -553,11 +548,6 @@ const App: React.FC = () => {
                 switch (update.type) {
                     case 'searching':
                         setAiStatus('searching');
-                        break;
-                    case 'grounding':
-                        newMessages = newMessages.map(msg =>
-                            msg.id === messageIdToRegenerate ? { ...msg, groundingChunks: update.payload } : msg
-                        );
                         break;
                     case 'chunk':
                         setAiStatus('generating');

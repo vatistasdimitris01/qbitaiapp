@@ -21,6 +21,12 @@ interface LocationInfo {
     longitude?: number;
 }
 
+interface SearchResultItem {
+    title: string;
+    link: string;
+    snippet: string;
+}
+
 const languageMap: { [key: string]: string } = {
     en: 'English',
     el: 'Greek',
@@ -33,6 +39,39 @@ export const config = {
   api: {
     bodyParser: false,
   },
+};
+
+const performWebSearch = async (query: string): Promise<string> => {
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+    const cseId = process.env.GOOGLE_CSE_ID;
+
+    if (!apiKey || !cseId) {
+        console.warn("Google Search is not configured. Missing GOOGLE_API_KEY or GOOGLE_CSE_ID.");
+        return "";
+    }
+
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Google Search API error:", errorData.error.message);
+            return ""; // Fail gracefully
+        }
+        const data = await response.json();
+        if (!data.items || data.items.length === 0) {
+            return "";
+        }
+        const searchResults = data.items.slice(0, 5) as SearchResultItem[];
+        return searchResults.map((item, index) => 
+            `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+        ).join('\n\n');
+
+    } catch (error) {
+        console.error("Failed to perform web search:", error);
+        return "";
+    }
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -68,7 +107,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ] as Part[],
             })).filter(c => c.parts.length > 0);
         
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        const write = (data: object) => res.write(JSON.stringify(data) + '\n');
+        
+        write({ type: 'searching' });
+        const searchContext = await performWebSearch(message);
+        
         let userMessageText = message;
+        if (searchContext) {
+            userMessageText = `## Web Search Results:\n${searchContext}\n\n---\n\n## User Query:\n${message}`;
+        }
+        
         if (location?.city && location?.country) {
             userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
         }
@@ -94,10 +144,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
-## 2. TOOL USAGE: GOOGLE SEARCH
-- You have access to a **Google Search tool**. You MUST use this tool to answer questions about recent events, current affairs, or any topic that requires up-to-date, real-world information.
-- **Decision Making**: You must autonomously decide when a search is necessary. Do not use the search tool for creative tasks, general knowledge, or simple greetings.
-- **Citations**: After using the search tool, the system will provide you with search results to ground your answer. Your response text should be based on these results. The user interface will automatically display the sources you used, so you **do not** need to manually add Markdown links or list sources in your text response. Simply provide a direct, comprehensive answer based on the information found.
+## 2. WEB SEARCH & CITATIONS
+- **Context**: You will receive web search results at the beginning of the prompt to provide context for answering the user's question.
+- **Synthesize**: Your primary role is to synthesize the information from these search results into a coherent, comprehensive, and accurate answer.
+- **Citation Requirement**: This is critical. You MUST cite your sources. After a sentence or paragraph that uses information from a source, add a Markdown link to it. For example: \`This is a fact from a source [Title of Source](https://example.com/source)\`.
+- **Adherence**: Base your answers strictly on the provided search results. Do not invent facts. If the information is not in the provided context, state that you couldn't find the answer in the search results.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 
@@ -110,26 +161,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
 `;
 
-
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;
-            
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
         try {
-            // FIX: Moved `tools` property inside the `config` object.
             const stream = await ai.models.generateContentStream({ 
                 model, 
                 contents, 
                 config: { 
                     systemInstruction: finalSystemInstruction,
-                    tools: [{googleSearch: {}}],
                 } 
             });
 
             let usageMetadataSent = false;
-            let searchEventSent = false;
             
             for await (const chunk of stream) {
                 let text = '';
@@ -143,15 +186,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (text) {
                     write({ type: 'chunk', payload: text });
-                }
-
-                const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-                if (groundingChunks && groundingChunks.length > 0) {
-                    if (!searchEventSent) {
-                        write({ type: 'searching' });
-                        searchEventSent = true;
-                    }
-                    write({ type: 'grounding', payload: groundingChunks });
                 }
                 
                 if (chunk.usageMetadata && !usageMetadataSent) {

@@ -12,6 +12,7 @@ import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import SkeletonLoader from './SkeletonLoader';
+import { getDisplayDomain, getFaviconUrl } from '../utils/url';
 
 type ExecutionResult = {
   output: string | null;
@@ -50,28 +51,6 @@ const getTextFromMessage = (content: any): string => {
     if (typeof content === 'string') return content;
     return '';
 }
-
-const getDomain = (url: string): string => {
-    if (!url) return 'source';
-    try {
-        return new URL(url).hostname.replace(/^www\./, '');
-    } catch (e) {
-        return url.split('/')[2] || 'source';
-    }
-};
-
-const getFaviconUrl = (url: string): string => {
-    if (!url) return '/favicon.ico';
-    try {
-        const parsed = new URL(url);
-        return `${parsed.origin}/favicon.ico`;
-    } catch (e) {
-        if (url.startsWith('http')) {
-            return `${url.replace(/\/$/, '')}/favicon.ico`;
-        }
-        return '/favicon.ico';
-    }
-};
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
     const isUser = message.type === MessageType.USER;
@@ -303,7 +282,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 <div className="flex items-center -space-x-2">
                                 {message.groundingChunks?.slice(0, 5).map((chunk, index) => {
                                     if ('web' in chunk && chunk.web.uri) {
-                                        return <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" title={chunk.web.title} key={index}><img src={getFaviconUrl(chunk.web.uri)} alt={getDomain(chunk.web.uri)} className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background" onError={(e) => { (e.target as HTMLImageElement).src = '/favicon.ico'; }} /></a>;
+                                        return <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" title={chunk.web.title} key={index}><img src={getFaviconUrl(chunk.web.uri)} alt={getDisplayDomain(chunk.web.uri)} className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background" onError={(e) => { (e.target as HTMLImageElement).src = '/favicon.ico'; }} /></a>;
                                     }
                                     if ('maps' in chunk && chunk.maps.uri) {
                                         return <a href={chunk.maps.uri} target="_blank" rel="noopener noreferrer" title={chunk.maps.title} key={index}><div className="size-5 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center"><MapPinIcon className="size-3 text-blue-500" /></div></a>;

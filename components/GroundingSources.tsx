@@ -1,29 +1,7 @@
 import React, { useState } from 'react';
 import { GroundingChunk, MapsPlaceReviewSnippet } from '../types';
 import { MapPinIcon } from './icons';
-
-const getDomain = (url: string): string => {
-    if (!url) return 'source';
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        return 'source';
-    }
-};
-
-const getFaviconUrl = (url: string): string => {
-    if (!url) return '/favicon.ico';
-    try {
-        const parsed = new URL(url);
-        return `${parsed.origin}/favicon.ico`;
-    } catch (e) {
-        if (url.startsWith('http')) {
-            return `${url.replace(/\/$/, '')}/favicon.ico`;
-        }
-        return '/favicon.ico';
-    }
-};
+import { getDisplayDomain, getFaviconUrl } from '../utils/url';
 
 const isImageUrl = (url: string): boolean => /\.(png|jpe?g|gif|webp|svg)$/i.test(url.split('?')[0] || '');
 
@@ -51,16 +29,11 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
             <div className="flex items-center -space-x-2 cursor-pointer">
                 {visibleChunks.map((chunk, index) => {
                      if ('web' in chunk && chunk.web.uri) {
-                        const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                        const faviconUrl = isRedirect
-                            ? 'https://www.google.com/favicon.ico'
-                            : getFaviconUrl(chunk.web.uri);
-
                         return (
                            <img
                                key={index}
-                               src={faviconUrl}
-                               alt={getDomain(chunk.web.uri)}
+                               src={getFaviconUrl(chunk.web.uri)}
+                               alt={getDisplayDomain(chunk.web.uri)}
                                title={chunk.web.title}
                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
                                onError={(e) => {
@@ -91,11 +64,6 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     <ul className="divide-y divide-default">
                         {chunks.map((chunk, index) => {
                             if ('web' in chunk && chunk.web.uri) {
-                                const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                                const faviconUrl = isRedirect
-                                    ? 'https://www.google.com/favicon.ico'
-                                    : getFaviconUrl(chunk.web.uri);
-
                                 return (
                                     <li key={index}>
                                         <a
@@ -106,7 +74,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                         >
                                             <div className="flex items-start gap-3">
                                                 <img
-                                                    src={faviconUrl}
+                                                    src={getFaviconUrl(chunk.web.uri)}
                                                     alt=""
                                                     className="size-4 rounded mt-0.5"
                                                     onError={(e) => {
@@ -115,7 +83,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium text-foreground truncate">{chunk.web.title}</p>
-                                                    <p className="text-xs text-muted-foreground truncate">{getDomain(chunk.web.uri)}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{getDisplayDomain(chunk.web.uri)}</p>
                                                 </div>
                                             </div>
                                         </a>

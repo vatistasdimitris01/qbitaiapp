@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Content, Part } from "@google/genai";
+// FIX: Import 'Type' enum from @google/genai for function declarations.
+import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -72,13 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
         
-        let userMessageText = message;
-        
-        if (location?.city && location?.country) {
-            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
-        }
-
-        const userMessageParts: Part[] = [{ text: userMessageText }];
+        const userMessageParts: Part[] = [{ text: message }];
         if (fileList.length > 0) {
             for (const file of fileList) {
                 const base64Data = (await fs.promises.readFile(file.filepath)).toString('base64');
@@ -100,9 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ## 2. WEB SEARCH & CONTEXT
-- **Tool Use**: You have access to Google Search and Google Maps. Use them when the user's query clearly requires up-to-the-minute information, details about recent events, or specifics about people, companies, or places. For general knowledge, historical facts, or creative tasks, rely on your internal knowledge first.
-- **Grounding**: When you use information from your search tool, your response will be grounded. You MUST base your answer on the information found. **Do NOT cite the sources in your response** (e.g., do not use Markdown links like \`[Title](url)\`); sources are displayed separately in the UI.
-- **Knowledge Fallback**: If you determine a search is not necessary, answer using your internal knowledge. You do not need to state that you are not searching the web.
+- **Tool Use**: You have access to a \`google_search\` tool. Use it by returning a function call when the user's query requires up-to-the-minute information, details about recent events, or specifics about people, companies, or places for which you lack sufficient knowledge. For general knowledge, historical facts, or creative tasks, rely on your internal knowledge first.
+- **Search Results**: After you call the \`google_search\` tool, you will be provided with the search results. You MUST base your final answer on the information provided in these results.
+- **Citations**: When you use information from the search results, you MUST cite your sources. The search results will include a URL for each snippet. Cite using standard markdown links like \`[Title](url)\` immediately after the sentence or fact it supports. This is a strict requirement.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 
@@ -122,72 +117,97 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        const config: any = {
-            systemInstruction: finalSystemInstruction,
-            tools: [{ googleSearch: {} }],
+        const googleSearchTool: FunctionDeclaration = {
+            name: 'google_search',
+            description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
+            parameters: {
+                // FIX: Use 'Type.OBJECT' enum instead of string literal.
+                type: Type.OBJECT,
+                properties: {
+                  query: {
+                    // FIX: Use 'Type.STRING' enum instead of string literal.
+                    type: Type.STRING,
+                    description: 'The search query.',
+                  },
+                },
+                required: ['query'],
+            },
         };
 
-        if (location && location.latitude && location.longitude) {
-            config.tools.push({ googleMaps: {} });
-            config.toolConfig = {
-                retrievalConfig: {
-                    latLng: {
-                        latitude: location.latitude,
-                        longitude: location.longitude,
-                    },
-                },
-            };
-        }
-
+        const config: GenerateContentConfig = {
+            systemInstruction: finalSystemInstruction,
+            tools: [{ functionDeclarations: [googleSearchTool] }],
+        };
 
         try {
-            const stream = await ai.models.generateContentStream({ 
-                model, 
-                contents, 
-                config
-            });
+            const firstResponse = await ai.models.generateContent({ model, contents, config });
+            const functionCalls = firstResponse.functionCalls;
 
-            let usageMetadataSent = false;
-            let sourcesSent = false;
-            let searchingSent = false;
-            
-            for await (const chunk of stream) {
-                const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+            if (functionCalls && functionCalls.length > 0) {
+                const functionCall = functionCalls[0];
+                if (functionCall.name !== 'google_search') {
+                    throw new Error(`Unsupported function call: ${functionCall.name}`);
+                }
 
-                if (!searchingSent && groundingMetadata) {
-                    write({ type: 'searching' });
-                    searchingSent = true;
+                write({ type: 'searching' });
+                const query = functionCall.args.query;
+                
+                // FIX: Add a type guard to ensure the query is a string before using it.
+                if (typeof query !== 'string') {
+                    throw new Error(`Invalid query from function call: expected a string for 'query', but got ${typeof query}`);
                 }
                 
-                if (groundingMetadata?.groundingChunks && groundingMetadata.groundingChunks.length > 0 && !sourcesSent) {
-                    write({ type: 'sources', payload: groundingMetadata.groundingChunks });
-                    sourcesSent = true;
+                const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                const cseId = process.env.GOOGLE_CSE_ID;
+
+                if (!apiKey || !cseId) {
+                    throw new Error("Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not configured in environment variables.");
                 }
 
-                let text = '';
-                if (chunk.candidates?.[0]?.content?.parts) {
-                    for (const part of chunk.candidates[0].content.parts) {
-                        if (part?.text) {
-                            text += part.text;
-                        }
+                const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`;
+                const searchResponse = await fetch(searchUrl);
+
+                if (!searchResponse.ok) {
+                    const errorBody = await searchResponse.text();
+                    throw new Error(`Google Search API failed with status ${searchResponse.status}: ${errorBody}`);
+                }
+                const searchResults = await searchResponse.json();
+
+                const formattedResults = searchResults.items?.map((item: any, index: number) => 
+                    `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+                ).join('\n\n---\n\n') || "No results found.";
+
+                const searchContext = `Here are the search results for "${query}":\n\n${formattedResults}`;
+                
+                const newContents: Content[] = [
+                    ...contents,
+                    { role: 'model', parts: [{ functionCall }] },
+                    { role: 'user', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
+                ];
+                
+                const stream = await ai.models.generateContentStream({ model, contents: newContents, config });
+                let usageMetadataSent = false;
+                for await (const chunk of stream) {
+                    const text = chunk.text;
+                    if (text) write({ type: 'chunk', payload: text });
+                    if (chunk.usageMetadata && !usageMetadataSent) {
+                        write({ type: 'usage', payload: chunk.usageMetadata });
+                        usageMetadataSent = true;
                     }
                 }
-
-                if (text) {
-                    write({ type: 'chunk', payload: text });
-                }
-                
-                if (chunk.usageMetadata && !usageMetadataSent) {
-                    write({ type: 'usage', payload: chunk.usageMetadata });
-                    usageMetadataSent = true;
-                }
+            } else {
+                const text = firstResponse.text;
+                if (text) write({ type: 'chunk', payload: text });
+                if (firstResponse.usageMetadata) write({ type: 'usage', payload: firstResponse.usageMetadata });
             }
+            
             write({ type: 'end' });
             res.end();
+
         } catch (error) {
-            console.error("Error during Gemini stream processing:", error);
+            console.error("Error during Gemini API call:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-            if (!res.headersSent) res.status(500).json({ error: `Stream generation failed: ${errorMessage}` });
+            if (!res.headersSent) res.status(500).json({ error: `API call failed: ${errorMessage}` });
             else res.end();
         }
 

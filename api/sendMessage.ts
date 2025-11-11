@@ -21,17 +21,6 @@ interface LocationInfo {
     longitude?: number;
 }
 
-interface GoogleSearchResultItem {
-    title: string;
-    link: string;
-    snippet: string;
-}
-
-interface FormattedSearchResult {
-    searchContext: string;
-    searchResults: { web: { uri: string; title: string; } }[];
-}
-
 const languageMap: { [key: string]: string } = {
     en: 'English',
     el: 'Greek',
@@ -44,49 +33,6 @@ export const config = {
   api: {
     bodyParser: false,
   },
-};
-
-const performWebSearch = async (query: string): Promise<FormattedSearchResult> => {
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-    const cseId = process.env.GOOGLE_CSE_ID;
-
-    if (!apiKey || !cseId) {
-        console.warn("Google Search is not configured. Missing GOOGLE_API_KEY or GOOGLE_CSE_ID.");
-        return { searchContext: "", searchResults: [] };
-    }
-
-    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
-
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Google Search API error:", errorData.error.message);
-            return { searchContext: "", searchResults: [] };
-        }
-        const data = await response.json();
-        if (!data.items || data.items.length === 0) {
-            return { searchContext: "", searchResults: [] };
-        }
-        const searchItems = data.items.slice(0, 5) as GoogleSearchResultItem[];
-        
-        const searchContext = searchItems.map((item, index) => 
-            `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
-        ).join('\n\n');
-
-        const searchResults = searchItems.map(item => ({
-            web: {
-                uri: item.link,
-                title: item.title,
-            }
-        }));
-        
-        return { searchContext, searchResults };
-
-    } catch (error) {
-        console.error("Failed to perform web search:", error);
-        return { searchContext: "", searchResults: [] };
-    }
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -126,17 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
         
-        write({ type: 'searching' });
-        const { searchContext, searchResults } = await performWebSearch(message);
-        
-        if (searchResults.length > 0) {
-            write({ type: 'sources', payload: searchResults });
-        }
-        
         let userMessageText = message;
-        if (searchContext) {
-            userMessageText = `## Web Search Results:\n${searchContext}\n\n---\n\n## User Query:\n${message}`;
-        }
         
         if (location?.city && location?.country) {
             userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
@@ -164,8 +100,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ## 2. WEB SEARCH & CONTEXT
-- **Priority**: When \`## Web Search Results\` are provided in the user's prompt, you MUST base your answer on that information. Synthesize it into a coherent response. **Do NOT cite the sources in your response** (e.g., do not use Markdown links like \`[Title](url)\`); sources are displayed separately in the UI.
-- **Knowledge Fallback**: If no \`## Web Search Results\` are provided, answer using your internal knowledge and add a brief disclaimer that the information may not be up-to-date (e.g., "Based on my last training data..."). Do NOT apologize or mention that you couldn't perform a search.
+- **Tool Use**: You have access to Google Search. You MUST use it for queries about recent events, specific people/places, or topics outside your core knowledge. Be proactive in searching.
+- **Grounding**: When you use information from your search tool, your response will be grounded. You MUST base your answer on the information found. **Do NOT cite the sources in your response** (e.g., do not use Markdown links like \`[Title](url)\`); sources are displayed separately in the UI.
+- **Knowledge Fallback**: If you choose not to use the search tool, answer using your internal knowledge. For topics where information might change over time, it's good practice to use search to be up-to-date.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 
@@ -191,12 +128,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 contents, 
                 config: { 
                     systemInstruction: finalSystemInstruction,
+                    tools: [{ googleSearch: {} }],
                 } 
             });
 
             let usageMetadataSent = false;
+            let sourcesSent = false;
+            let searchingSent = false;
             
             for await (const chunk of stream) {
+                const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+
+                if (!searchingSent && groundingMetadata) {
+                    write({ type: 'searching' });
+                    searchingSent = true;
+                }
+                
+                if (groundingMetadata?.groundingChunks && groundingMetadata.groundingChunks.length > 0 && !sourcesSent) {
+                    write({ type: 'sources', payload: groundingMetadata.groundingChunks });
+                    sourcesSent = true;
+                }
+
                 let text = '';
                 if (chunk.candidates?.[0]?.content?.parts) {
                     for (const part of chunk.candidates[0].content.parts) {

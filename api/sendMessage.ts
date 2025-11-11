@@ -145,10 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ## 2. WEB SEARCH & CITATIONS
-- **Context**: You will receive web search results at the beginning of the prompt to provide context for answering the user's question.
-- **Synthesize**: Your primary role is to synthesize the information from these search results into a coherent, comprehensive, and accurate answer.
-- **Citation Requirement**: This is critical. You MUST cite your sources. After a sentence or paragraph that uses information from a source, add a Markdown link to it. For example: \`This is a fact from a source [Title of Source](https://example.com/source)\`.
-- **Adherence**: Base your answers strictly on the provided search results. Do not invent facts. If the information is not in the provided context, state that you couldn't find the answer in the search results.
+- **Priority**: Your primary mode of operation is to use provided web search results to answer queries.
+- **Synthesize & Cite**: When \`## Web Search Results\` are provided in the user's prompt, you MUST base your answer on this information. Synthesize it into a coherent response and cite your sources using Markdown links. For example: \`This is a fact from a source [Title of Source](https://example.com/source)\`.
+- **Knowledge Fallback**: If the user's prompt does NOT contain \`## Web Search Results\`, you must answer using your internal knowledge. When doing so, you MUST add a brief disclaimer that the information may not be up-to-date (e.g., "Based on my last training data..."). Do NOT apologize or mention that you couldn't perform a search.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 

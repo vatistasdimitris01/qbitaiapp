@@ -488,6 +488,14 @@ const App: React.FC = () => {
                 if (c.id !== currentConvoId) return c;
                 let newMessages = [...c.messages];
                 switch (update.type) {
+                    case 'searching':
+                        setAiStatus('searching');
+                        break;
+                    case 'grounding':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === aiMessageId ? { ...msg, groundingChunks: update.payload } : msg
+                        );
+                        break;
                     case 'chunk':
                         setAiStatus('generating');
                         newMessages = newMessages.map(msg =>
@@ -543,6 +551,14 @@ const App: React.FC = () => {
                 if (c.id !== activeConversationId) return c;
                 let newMessages = [...c.messages];
                 switch (update.type) {
+                    case 'searching':
+                        setAiStatus('searching');
+                        break;
+                    case 'grounding':
+                        newMessages = newMessages.map(msg =>
+                            msg.id === messageIdToRegenerate ? { ...msg, groundingChunks: update.payload } : msg
+                        );
+                        break;
                     case 'chunk':
                         setAiStatus('generating');
                         newMessages = newMessages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, content: (msg.content as string) + update.payload } : msg);

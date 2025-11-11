@@ -12,6 +12,7 @@ import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import SkeletonLoader from './SkeletonLoader';
+import GroundingSources from './GroundingSources';
 
 type ExecutionResult = {
   output: string | null;
@@ -137,6 +138,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
 
     const hasContent = useMemo(() => parsedResponseText.trim().length > 0, [parsedResponseText]);
+    const hasGrounding = !isUser && message.groundingChunks && message.groundingChunks.length > 0;
 
     const handleCopy = () => {
         const textToCopy = isUser ? messageText : parsedResponseText;
@@ -175,7 +177,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         generating: [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')],
     })[aiStatus] || [t('chat.status.thinking')], [aiStatus, t]);
 
-    if (!isUser && isLoading && !hasContent && !hasThinking) {
+    if (!isUser && isLoading && !hasContent && !hasThinking && !hasGrounding) {
         return (
             <div className="flex w-full my-4 justify-start">
                 <div className="flex flex-col w-full max-w-3xl space-y-2">
@@ -187,7 +189,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
     
-    if (!isUser && !isLoading && !hasContent && !hasThinking) return null;
+    if (!isUser && !isLoading && !hasContent && !hasThinking && !hasGrounding) return null;
 
     return (
         <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -225,44 +227,51 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             </>
                         )
                     ) : (
-                        <div ref={contentRef} className="w-full">
-                            <div className="prose prose-sm max-w-none">
-                                {renderableContent.map((part, index) => {
-                                    if (part.type === 'gallery') {
-                                        const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
-                                        return <ImageGallery key={`gallery-${index}`} images={part.images} onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)} />;
-                                    }
-                                    if (part.type === 'inline-image') {
-                                        const imageIndex = allImages.findIndex(img => img.url === part.url);
-                                        return <InlineImage key={`inline-image-${index}`} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)} />;
-                                    }
-                                    if (part.type === 'code') {
-                                        const { lang, code, info, partIndex } = part;
-                                        const key = `${message.id}_${partIndex}`;
-                                        const title = info.match(/title="([^"]+)"/)?.[1];
-                                        const infoWithoutTitle = title ? info.replace(/title="[^"]+"/, '') : info;
-                                        const keywords = new Set(infoWithoutTitle.trim().split(/\s+/).filter(Boolean));
-                                        const baseLang = keywords.values().next().value || lang;
-                                        const isLegacyExample = baseLang.endsWith('-example');
-                                        const finalLang = isLegacyExample ? baseLang.slice(0, -'-example'.length) : baseLang;
-                                        return <CodeExecutor key={key} code={code} lang={finalLang} title={title} isExecutable={!keywords.has('no-run') && !isLegacyExample} autorun={keywords.has('autorun')} initialCollapsed={keywords.has('collapsed')} persistedResult={executionResults[key]} onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)} onFixRequest={(execError) => onFixRequest(code, finalLang, execError)} onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t} />;
-                                    }
-                                    // Sanitize text content to prevent rendering incomplete gallery code blocks during streaming
-                                    const sanitizedContent = (isLoading && index === renderableContent.length - 1) ? part.content.replace(/```json-gallery[\s\S]*$/, '') : part.content;
-                                    if (sanitizedContent.trim() === '') return null;
+                        <>
+                            <div ref={contentRef} className="w-full">
+                                <div className="prose prose-sm max-w-none">
+                                    {renderableContent.map((part, index) => {
+                                        if (part.type === 'gallery') {
+                                            const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
+                                            return <ImageGallery key={`gallery-${index}`} images={part.images} onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)} />;
+                                        }
+                                        if (part.type === 'inline-image') {
+                                            const imageIndex = allImages.findIndex(img => img.url === part.url);
+                                            return <InlineImage key={`inline-image-${index}`} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)} />;
+                                        }
+                                        if (part.type === 'code') {
+                                            const { lang, code, info, partIndex } = part;
+                                            const key = `${message.id}_${partIndex}`;
+                                            const title = info.match(/title="([^"]+)"/)?.[1];
+                                            const infoWithoutTitle = title ? info.replace(/title="[^"]+"/, '') : info;
+                                            const keywords = new Set(infoWithoutTitle.trim().split(/\s+/).filter(Boolean));
+                                            const baseLang = keywords.values().next().value || lang;
+                                            const isLegacyExample = baseLang.endsWith('-example');
+                                            const finalLang = isLegacyExample ? baseLang.slice(0, -'-example'.length) : baseLang;
+                                            return <CodeExecutor key={key} code={code} lang={finalLang} title={title} isExecutable={!keywords.has('no-run') && !isLegacyExample} autorun={keywords.has('autorun')} initialCollapsed={keywords.has('collapsed')} persistedResult={executionResults[key]} onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)} onFixRequest={(execError) => onFixRequest(code, finalLang, execError)} onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t} />;
+                                        }
+                                        // Sanitize text content to prevent rendering incomplete gallery code blocks during streaming
+                                        const sanitizedContent = (isLoading && index === renderableContent.length - 1) ? part.content.replace(/```json-gallery[\s\S]*$/, '') : part.content;
+                                        if (sanitizedContent.trim() === '') return null;
 
-                                    let finalHtml = marked.parse(sanitizedContent, { breaks: true, gfm: true }) as string;
-                                    if (isLoading && aiStatus === 'generating' && index === renderableContent.length - 1) {
-                                        const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
-                                        finalHtml = finalHtml.endsWith('</p>') ? `${finalHtml.slice(0, -4)} ${cursorHtml}</p>` : `${finalHtml}${cursorHtml}`;
-                                    }
-                                    return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
-                                })}
-                                {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
+                                        let finalHtml = marked.parse(sanitizedContent, { breaks: true, gfm: true }) as string;
+                                        if (isLoading && aiStatus === 'generating' && index === renderableContent.length - 1) {
+                                            const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
+                                            finalHtml = finalHtml.endsWith('</p>') ? `${finalHtml.slice(0, -4)} ${cursorHtml}</p>` : `${finalHtml}${cursorHtml}`;
+                                        }
+                                        return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
+                                    })}
+                                    {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
+                                </div>
                             </div>
-                        </div>
+                            {hasGrounding && (
+                                <div className="mt-4 flex justify-start w-full">
+                                    <GroundingSources chunks={message.groundingChunks!} t={t} />
+                                </div>
+                            )}
+                        </>
                     )}
-                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || !hasContent ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
+                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (isLoading || (!hasContent && !hasGrounding) ? 'opacity-0 pointer-events-none' : 'opacity-100')}`}>
                          <div className="flex items-center gap-1">
                             {!isUser && (
                                 <>

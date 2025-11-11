@@ -35,58 +35,6 @@ export const config = {
   },
 };
 
-async function performImageSearch(query: string): Promise<string> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
-
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
-        return "";
-    }
-    try {
-        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
-
-        if (imageResponse.ok) {
-            const imageData = await imageResponse.json();
-             if (imageData.items && imageData.items.length > 0) {
-                const results = imageData.items.map((item: any) => ({ url: item.link, alt: item.title }));
-                return `[IMAGE SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
-            }
-        }
-        return "";
-    } catch (error) {
-        console.error("Error performing image search:", error);
-        return "";
-    }
-}
-
-async function performWebSearch(query: string): Promise<string> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
-
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
-        return "";
-    }
-    try {
-        const response = await fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&num=5`);
-
-        if (response.ok) {
-            const data = await response.json();
-             if (data.items && data.items.length > 0) {
-                const results = data.items.map((item: any) => ({
-                    title: item.title,
-                    link: item.link,
-                    snippet: item.snippet
-                }));
-                return `[WEB SEARCH RESULTS]:\n${JSON.stringify(results)}\n\n`;
-            }
-        }
-        return "";
-    } catch (error) {
-        console.error("Error performing web search:", error);
-        return "";
-    }
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
@@ -120,12 +68,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ] as Part[],
             })).filter(c => c.parts.length > 0);
         
-        const imageContext = await performImageSearch(message);
-        const webContext = await performWebSearch(message);
         let userMessageText = message;
-        if (imageContext) userMessageText = `${imageContext}${userMessageText}`;
-        if (webContext) userMessageText = `${webContext}${userMessageText}`;
-        if (location?.city && location?.country) userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
+        if (location?.city && location?.country) {
+            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
+        }
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
         if (fileList.length > 0) {
@@ -138,25 +84,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
         const model = 'gemini-2.5-flash';
         const userLanguageName = languageMap[language as string] || 'English';
-
+        
         const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive AI assistant. Your responses must be professional, clear, and structured with Markdown.
 
 # ⚜️ CORE DIRECTIVES
 
-## 1. CONVERSATIONAL CONTEXT (HIGHEST PRIORITY)
-- Your primary directive is to understand and maintain the context of the entire conversation. You have access to the full chat history.
-- You **MUST** reference previous messages to understand follow-up questions. For example, if the user first asks "Who is Elon Musk?" and then says "show me an image," you MUST understand they want an image of Elon Musk. Failure to maintain context is a critical error.
-
-## 2. IDENTITY & LANGUAGE
+## 1. IDENTITY & LANGUAGE
 - **Your Name**: Qbit.
 - **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
-## 3. AVAILABLE TOOLS & CONTEXT (CRITICAL)
-- **Context 1: Pre-fetched Web Search Results**: To answer factual questions, a web search has already been performed. The results are provided in the user's message under \`[WEB SEARCH RESULTS]\`. This context contains a list of pages with titles, links, and snippets.
-- **Context 2: Pre-fetched Image Results**: For your convenience, a separate image search has already been performed. The results are provided in the user's message under \`[IMAGE SEARCH RESULTS]\`. You MUST use this context when creating image galleries.
-- **CRITICAL CITATION RULE**: When you use information from the \`[WEB SEARCH RESULTS]\`, you **MUST** cite your sources using Markdown links. Place the link immediately after the sentence or fact it supports. The link text should be the source title from the search results. For example: \`The capital of France is Paris [Name of Source Article](https://example.com/source-link)\`.
-- **IGNORE IRRELEVANT SEARCHES**: If the search results are clearly irrelevant to the user's query (e.g., for a greeting like "hello"), IGNORE them and respond conversationally without citations.
+## 2. TOOL USAGE: GOOGLE SEARCH
+- You have access to a **Google Search tool**. You MUST use this tool to answer questions about recent events, current affairs, or any topic that requires up-to-date, real-world information.
+- **Decision Making**: You must autonomously decide when a search is necessary. Do not use the search tool for creative tasks, general knowledge, or simple greetings.
+- **Citations**: After using the search tool, the system will provide you with search results to ground your answer. Your response text should be based on these results. The user interface will automatically display the sources you used, so you **do not** need to manually add Markdown links or list sources in your text response. Simply provide a direct, comprehensive answer based on the information found.
 
 # 🎨 RESPONSE FORMATTING & STYLE
 
@@ -164,48 +105,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Use Markdown for structure: headings, lists, bold, italics.
 - Use horizontal rules (\`---\`) sparingly to separate major sections.
 
-## 2. ENGAGEMENT (WHEN TO ASK QUESTIONS)
-- Your goal is to provide a complete answer and then stop, unless further interaction is logical.
-- **DO NOT ask follow-up questions for**: Simple factual queries, greetings, or when you provide a definitive code solution.
-- **DO ask 1-3 relevant follow-up questions for**: Exploratory topics (e.g., "vacation ideas"), complex explanations, or open-ended questions.
-- Place follow-up questions at the very end of your response.
-
-# 🛠️ TOOL USAGE: IMAGE GENERATION
-
-## 1. WHEN TO GENERATE IMAGES
-- You MUST **ALWAYS** generate an image gallery when the user's query is about any of the following topics:
-    - **PEOPLE** (e.g., "who is elon musk?")
-    - **PLACES**, **RESTAURANTS**, or **SHOPS** (e.g., "best restaurants in athens")
-- You MUST ALSO generate an image gallery if the user **EXPLICITLY ASKS** for images (e.g., "show me pictures of...").
-- For ALL OTHER web searches (e.g., "weather", "news"), you MUST provide a text-only answer.
-
-## 2. HOW TO GENERATE IMAGE GALLERIES (JSON STRUCTURE)
-- To display images, you MUST use a markdown code block with the language identifier \`json-gallery\`.
-- The JSON inside this block MUST follow this exact structure:
-    - The root is an object.
-    - It MUST have a key \`"type"\` with the string value \`"image_gallery"\`.
-    - It MUST have a key \`"images"\` which is an array of objects.
-    - Each object in the \`"images"\` array MUST have two keys:
-      1. \`"url"\`: The value for this key **MUST** be the exact, complete, and unmodified URL copied directly from the \`[IMAGE SEARCH RESULTS]\` context.
-      2. \`"alt"\`: A brief, descriptive text for the image.
-
-## 3. REQUIRED IMAGE LAYOUTS & QUANTITY
-### A. Rich Lists for Places
-- This is the **MANDATORY** format for any list of places, restaurants, or shops.
-- For **EACH** item in the list, you are **REQUIRED** to find **4 OR MORE** relevant images from the search results and present them in a single \`json-gallery\` block immediately following the item's title or description.
-### B. Profile Layout (for People)
-- When the query is about a single person, use a \`json-gallery\` with exactly **3 images**.
-### C. Inline Images
-- To place a single image inside text, use the tag: \`!g[alt text][URL]\`. The URL must be copied exactly from the search results.
-
-# ✅ FINAL REVIEW CHECKLIST (MANDATORY & CRITICAL)
-Before you output your final response, you MUST perform this final check on any image gallery or inline image you have created. This is not optional.
-1.  **URL VERIFICATION**: Go through every single image URL you have used. Does the URL string match **EXACTLY, character-for-character**, a URL from the provided \`[IMAGE SEARCH RESULTS]\`?
-2.  **NO INVENTED URLS**: Have you invented *any* URLs? This includes placeholders like \`example.com\`, relative paths like \`image.jpg\`, or any URL not present in the search results.
-3.  **CORRECTION**: If you find ANY URL that fails the check, you **MUST** delete it and replace it with a valid URL from your search results. If you cannot find a valid replacement, remove the image from your response.
-
-Failing to follow this final check is a critical failure. Your primary goal with images is reliability.
+## 2. ENGAGEMENT
+- Your goal is to provide a complete answer.
+- Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
 `;
+
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;
             
@@ -214,14 +118,19 @@ Failing to follow this final check is a critical failure. Your primary goal with
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
         try {
+            // FIX: Moved `tools` property inside the `config` object.
             const stream = await ai.models.generateContentStream({ 
                 model, 
                 contents, 
                 config: { 
                     systemInstruction: finalSystemInstruction,
+                    tools: [{googleSearch: {}}],
                 } 
             });
+
             let usageMetadataSent = false;
+            let searchEventSent = false;
+            
             for await (const chunk of stream) {
                 let text = '';
                 if (chunk.candidates?.[0]?.content?.parts) {
@@ -237,7 +146,11 @@ Failing to follow this final check is a critical failure. Your primary goal with
                 }
 
                 const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-                if (groundingChunks) {
+                if (groundingChunks && groundingChunks.length > 0) {
+                    if (!searchEventSent) {
+                        write({ type: 'searching' });
+                        searchEventSent = true;
+                    }
                     write({ type: 'grounding', payload: groundingChunks });
                 }
                 

@@ -51,7 +51,7 @@ export const translations = {
       },
       message: {
         thinking: 'Chain of Thought',
-        grounding: 'Used Google Search and found the following sources:',
+        grounding: 'Used Google Custom Search and found the following sources:',
         copy: 'Copy message',
         regenerate: 'Regenerate response',
         viewCode: 'View Code',
@@ -223,7 +223,7 @@ export const translations = {
       },
       message: {
         thinking: 'Ροή Σκέψης',
-        grounding: 'Χρησιμοποιήθηκε η Αναζήτηση Google και βρέθηκαν οι ακόλουθες πηγές:',
+        grounding: 'Χρησιμοποιήθηκε το Google Custom Search και βρέθηκαν οι ακόλουθες πηγές:',
         copy: 'Αντιγραφή μηνύματος',
         regenerate: 'Εκ νέου δημιουργία απάντησης',
         viewCode: 'Προβολή Κώδικα',
@@ -391,7 +391,7 @@ export const translations = {
       },
       message: {
         thinking: 'Cadena de Pensamiento',
-        grounding: 'Se utilizó la Búsqueda de Google y se encontraron las siguientes fuentes:',
+        grounding: 'Se utilizó Google Custom Search y se encontraron las siguientes fuentes:',
         copy: 'Copiar mensaje',
         regenerate: 'Regenerar respuesta',
         viewCode: 'Ver Código',
@@ -559,7 +559,7 @@ export const translations = {
       },
       message: {
         thinking: 'Chaîne de Pensée',
-        grounding: 'La recherche Google a été utilisée et les sources suivantes ont été trouvées :',
+        grounding: 'La recherche Google Custom Search a été utilisée et les sources suivantes ont été trouvées :',
         copy: 'Copier le message',
         regenerate: 'Régénérer la réponse',
         viewCode: 'Voir le Code',
@@ -727,7 +727,7 @@ export const translations = {
       },
       message: {
         thinking: 'Gedankenkette',
-        grounding: 'Die Google-Suche wurde verwendet und folgende Quellen wurden gefunden:',
+        grounding: 'Die Google Custom Search wurde verwendet und folgende Quellen wurden gefunden:',
         copy: 'Nachricht kopieren',
         regenerate: 'Antwort neu generieren',
         viewCode: 'Code anzeigen',

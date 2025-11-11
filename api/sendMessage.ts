@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
+import { getCustomSearchCredentials } from './utils/customSearch';
 
 interface ApiAttachment {
     mimeType: string;
@@ -36,14 +37,13 @@ export const config = {
 };
 
 async function performImageSearch(query: string): Promise<string> {
-    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
-    const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
+    const { apiKey, engineId } = getCustomSearchCredentials();
 
-    if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
+    if (!query.trim() || !apiKey || !engineId) {
         return "";
     }
     try {
-        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
+        const imageResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${encodeURIComponent(query)}&searchType=image&num=10`);
 
         if (imageResponse.ok) {
             const imageData = await imageResponse.json();
@@ -56,6 +56,70 @@ async function performImageSearch(query: string): Promise<string> {
     } catch (error) {
         console.error("Error performing image search:", error);
         return "";
+    }
+}
+
+interface WebSearchResult {
+    title: string;
+    url: string;
+    snippet: string;
+}
+
+interface WebSearchContext {
+    performed: boolean;
+    contextText: string;
+    groundingChunks: { web: { uri: string; title: string } }[];
+}
+
+async function performWebSearch(query: string): Promise<WebSearchContext> {
+    const { apiKey, engineId } = getCustomSearchCredentials();
+
+    if (!query.trim() || !apiKey || !engineId) {
+        return { performed: false, contextText: '', groundingChunks: [] };
+    }
+
+    try {
+        const params = new URLSearchParams({
+            key: apiKey,
+            cx: engineId,
+            q: query,
+            num: '5',
+        });
+
+        const webResponse = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`);
+        if (!webResponse.ok) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const data = await webResponse.json();
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const results: WebSearchResult[] = data.items
+            .filter((item: any) => item?.link && item?.title)
+            .map((item: any) => ({
+                title: item.title as string,
+                url: item.link as string,
+                snippet: typeof item.snippet === 'string' ? item.snippet.replace(/\s+/g, ' ').trim() : '',
+            }));
+
+        if (results.length === 0) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const contextLines = results.map((result, index) => {
+            const snippet = result.snippet ? `\n   Snippet: ${result.snippet}` : '';
+            return `${index + 1}. Title: ${result.title}\n   URL: ${result.url}${snippet}`;
+        });
+
+        const contextText = `[WEB SEARCH RESULTS]:\n${contextLines.join('\n')}\n\n`;
+        const groundingChunks = results.map(result => ({ web: { uri: result.url, title: result.title } }));
+
+        return { performed: true, contextText, groundingChunks };
+    } catch (error) {
+        console.error("Error performing web search:", error);
+        return { performed: true, contextText: '', groundingChunks: [] };
     }
 }
 
@@ -92,9 +156,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ] as Part[],
             })).filter(c => c.parts.length > 0);
         
+        const webSearchContext = await performWebSearch(message);
         const imageContext = await performImageSearch(message);
-        let userMessageText = message;
-        if (imageContext) userMessageText = `${imageContext}[USER MESSAGE]:\n${message}`;
+        let userMessageText = `[USER MESSAGE]:\n${message}`;
+        if (webSearchContext.contextText) userMessageText = `${webSearchContext.contextText}${userMessageText}`;
+        if (imageContext) userMessageText = `${imageContext}${userMessageText}`;
         if (location?.city && location?.country) userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
 
         const userMessageParts: Part[] = [{ text: userMessageText }];
@@ -123,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ## 3. AVAILABLE TOOLS & CONTEXT (CRITICAL)
-- **Tool 1: Internal Google Search**: You have a built-in tool to search the web for real-time information. You MUST use this to answer factual questions. The UI will display the sources you use automatically, so **DO NOT** add source links in your text.
+- **Context 1: Web Search Results**: The user's message may contain a \`[WEB SEARCH RESULTS]\` section with fresh information pulled from Google Custom Search. Use these results to ground your answers when they are relevant. The UI will display the sources automatically, so **DO NOT** add source links in your text.
 - **Context 2: Pre-fetched Image Results**: For your convenience, a separate image search has already been performed. The results are provided in the user's message under \`[IMAGE SEARCH RESULTS]\`. You MUST use this context when creating image galleries.
 - **IGNORE IRRELEVANT SEARCHES**: If your internal search results are clearly irrelevant (e.g., for a greeting like "hello"), IGNORE them and respond conversationally.
 
@@ -183,13 +249,19 @@ Failing to follow this final check is a critical failure. Your primary goal with
         const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
         try {
-            const stream = await ai.models.generateContentStream({ 
-                model, 
-                contents, 
-                config: { 
+            if (webSearchContext.performed) {
+                write({ type: 'searching', payload: message });
+                if (webSearchContext.groundingChunks.length > 0) {
+                    write({ type: 'grounding', payload: webSearchContext.groundingChunks });
+                }
+            }
+
+            const stream = await ai.models.generateContentStream({
+                model,
+                contents,
+                config: {
                     systemInstruction: finalSystemInstruction,
-                    tools: [{ googleSearch: {} }],
-                } 
+                }
             });
             let usageMetadataSent = false;
             for await (const chunk of stream) {

@@ -1,7 +1,71 @@
 // A simple, non-streaming API endpoint for developers.
-// It uses the built-in Google Search grounding tool by default, but also supports custom tools.
 
 import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration } from "@google/genai";
+import { getCustomSearchCredentials } from './utils/customSearch';
+
+interface WebSearchResult {
+    title: string;
+    url: string;
+    snippet: string;
+}
+
+interface WebSearchContext {
+    performed: boolean;
+    contextText: string;
+    groundingChunks: { web: { uri: string; title: string } }[];
+}
+
+async function performWebSearch(query: string): Promise<WebSearchContext> {
+    const { apiKey, engineId } = getCustomSearchCredentials();
+
+    if (!query.trim() || !apiKey || !engineId) {
+        return { performed: false, contextText: '', groundingChunks: [] };
+    }
+
+    try {
+        const params = new URLSearchParams({
+            key: apiKey,
+            cx: engineId,
+            q: query,
+            num: '5',
+        });
+
+        const webResponse = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`);
+        if (!webResponse.ok) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const data = await webResponse.json();
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const results: WebSearchResult[] = data.items
+            .filter((item: any) => item?.link && item?.title)
+            .map((item: any) => ({
+                title: item.title as string,
+                url: item.link as string,
+                snippet: typeof item.snippet === 'string' ? item.snippet.replace(/\s+/g, ' ').trim() : '',
+            }));
+
+        if (results.length === 0) {
+            return { performed: true, contextText: '', groundingChunks: [] };
+        }
+
+        const contextLines = results.map((result, index) => {
+            const snippet = result.snippet ? `\n   Snippet: ${result.snippet}` : '';
+            return `${index + 1}. Title: ${result.title}\n   URL: ${result.url}${snippet}`;
+        });
+
+        const contextText = `[WEB SEARCH RESULTS]:\n${contextLines.join('\n')}\n\n`;
+        const groundingChunks = results.map(result => ({ web: { uri: result.url, title: result.title } }));
+
+        return { performed: true, contextText, groundingChunks };
+    } catch (error) {
+        console.error('Error performing web search:', error);
+        return { performed: true, contextText: '', groundingChunks: [] };
+    }
+}
 
 // Vercel Edge Function config
 export const config = {
@@ -46,6 +110,12 @@ export default async function handler(req: Request) {
         
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
+        const webSearchContext = await performWebSearch(message);
+        let userMessageText = `[USER MESSAGE]:\n${message}`;
+        if (webSearchContext.contextText) {
+            userMessageText = `${webSearchContext.contextText}${userMessageText}`;
+        }
+
         const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive assistant. 🤖
 
 ---
@@ -55,10 +125,10 @@ export default async function handler(req: Request) {
 - If the user asks “who made you?”, “who created you?”, or any similar question, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
 
 ---
-## 🧰 AVAILABLE TOOLS
-- You have access to the following tools to assist the user:
-    - **Google Search**: For real-time information, news, and facts.
-    - **Function Calling**: If the user provides a 'tools' array in their API request, your primary goal is to determine if a tool can fulfill the request and return the appropriate function call JSON. Otherwise, respond with a text-based answer using Google Search if needed.
+## 🧰 AVAILABLE CONTEXT & TOOLS
+- You have access to the following resources to assist the user:
+    - **Web Search Context**: Fresh information from Google Custom Search may appear in the \`[WEB SEARCH RESULTS]\` section of the user's message. Use it to ground factual answers.
+    - **Function Calling**: If the user provides a 'tools' array in their API request, your primary goal is to determine if a tool can fulfill the request and return the appropriate function call JSON. Otherwise, respond with a text-based answer grounded in the provided context.
 
 ---
 ## ✍️ STYLE, TONE & FORMATTING
@@ -74,7 +144,7 @@ export default async function handler(req: Request) {
 
 ---
 ## ⚙️ INTERACTION RULES
-- **Citations**: When you use information from Google Search, you MUST cite your sources using standard markdown links. Place the link immediately after the sentence or fact it supports. The link text should be a brief description of the source. This is a strict requirement. For example: \`The sky appears blue due to a phenomenon called Rayleigh scattering [NASA's Explanation](https://spaceplace.nasa.gov/blue-sky/en/)\`.
+- **Citations**: When you use information from the provided web search results, you MUST cite your sources using standard markdown links. Place the link immediately after the sentence or fact it supports. The link text should be a brief description of the source. This is a strict requirement. For example: \`The sky appears blue due to a phenomenon called Rayleigh scattering [NASA's Explanation](https://spaceplace.nasa.gov/blue-sky/en/)\`.
 - **Response Finale & Engagement**: Your goal is to keep the conversation flowing naturally.
     - **Follow-up Questions**: At the end of your response, you should ask either one or three context-aware follow-up questions to encourage interaction.
         - Use **one question** for simple, direct answers to keep it concise.
@@ -94,16 +164,14 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
 
         const config: GenerateContentConfig = { systemInstruction: finalSystemInstruction };
 
-        // If custom tools are provided, use them. Otherwise, default to Google Search.
+        // If custom tools are provided, pass them through to the model.
         if (tools && Array.isArray(tools) && tools.length > 0) {
             config.tools = [{ functionDeclarations: tools as FunctionDeclaration[] }];
-        } else {
-            config.tools = [{ googleSearch: {} }];
         }
 
         const geminiResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: message }] }],
+            contents: [{ role: 'user', parts: [{ text: userMessageText }] }],
             config,
         });
         
@@ -120,7 +188,11 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
         
         // Otherwise, return the text response.
         const responseText = geminiResponse.text;
-        return new Response(JSON.stringify({ response: responseText }), { status: 200, headers });
+        const responsePayload: Record<string, unknown> = { response: responseText };
+        if (webSearchContext.groundingChunks.length > 0) {
+            responsePayload.groundingChunks = webSearchContext.groundingChunks;
+        }
+        return new Response(JSON.stringify(responsePayload), { status: 200, headers });
 
     } catch (error) {
         console.error('Error in /api/chat handler:', error);

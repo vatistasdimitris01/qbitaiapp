@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import formidable from 'formidable';
@@ -22,9 +21,6 @@ interface LocationInfo {
     longitude?: number;
 }
 
-const GOOGLE_SEARCH_API_KEY = "AIzaSyBdRP55b_bndyfHez2WgUJq48bXzrBnZHQ";
-const GOOGLE_SEARCH_CX = "a22b88fca4916445a";
-
 const languageMap: { [key: string]: string } = {
     en: 'English',
     el: 'Greek',
@@ -40,6 +36,9 @@ export const config = {
 };
 
 async function performImageSearch(query: string): Promise<string> {
+    const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+    const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
+
     if (!query || !GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
         return "";
     }

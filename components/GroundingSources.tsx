@@ -12,6 +12,21 @@ const getDomain = (url: string): string => {
     }
 };
 
+const getFaviconUrl = (url: string): string => {
+    if (!url) return '/favicon.ico';
+    try {
+        const parsed = new URL(url);
+        return `${parsed.origin}/favicon.ico`;
+    } catch (e) {
+        if (url.startsWith('http')) {
+            return `${url.replace(/\/$/, '')}/favicon.ico`;
+        }
+        return '/favicon.ico';
+    }
+};
+
+const isImageUrl = (url: string): boolean => /\.(png|jpe?g|gif|webp|svg)$/i.test(url.split('?')[0] || '');
+
 interface GroundingSourcesProps {
     chunks: GroundingChunk[];
     t: (key: string) => string;
@@ -37,9 +52,9 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                 {visibleChunks.map((chunk, index) => {
                      if ('web' in chunk && chunk.web.uri) {
                         const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                        const faviconUrl = isRedirect 
-                            ? `https://www.google.com/s2/favicons?sz=24&domain_url=google.com`
-                            : `https://www.google.com/s2/favicons?sz=24&domain_url=${chunk.web.uri}`;
+                        const faviconUrl = isRedirect
+                            ? 'https://www.google.com/favicon.ico'
+                            : getFaviconUrl(chunk.web.uri);
 
                         return (
                            <img
@@ -49,7 +64,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                title={chunk.web.title}
                                className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
                                onError={(e) => {
-                                   (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com';
+                                   (e.target as HTMLImageElement).src = '/favicon.ico';
                                }}
                            />
                        );
@@ -78,8 +93,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                             if ('web' in chunk && chunk.web.uri) {
                                 const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
                                 const faviconUrl = isRedirect
-                                    ? `https://www.google.com/s2/favicons?sz=16&domain_url=google.com`
-                                    : `https://www.google.com/s2/favicons?sz=16&domain_url=${chunk.web.uri}`;
+                                    ? 'https://www.google.com/favicon.ico'
+                                    : getFaviconUrl(chunk.web.uri);
 
                                 return (
                                     <li key={index}>
@@ -95,7 +110,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                                     alt=""
                                                     className="size-4 rounded mt-0.5"
                                                     onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=16&domain_url=google.com';
+                                                        (e.target as HTMLImageElement).src = '/favicon.ico';
                                                     }}
                                                 />
                                                 <div className="flex-1 min-w-0">
@@ -128,13 +143,40 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                             </a>
                                             {reviews.length > 0 && (
                                                 <div className="mt-2 pl-7 space-y-2">
-                                                    {reviews.map((review: MapsPlaceReviewSnippet, rIndex: number) => (
-                                                        <blockquote key={rIndex} className="text-xs border-l-2 border-default pl-2 italic text-muted-foreground">
-                                                            <a href={review.uri} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                                "{review.quote}" – {review.author}
-                                                            </a>
-                                                        </blockquote>
-                                                    ))}
+                                                    {reviews.map((review: MapsPlaceReviewSnippet, rIndex: number) => {
+                                                        const href = review.uri;
+                                                        if (!href) return null;
+                                                        const imageUrl = isImageUrl(href) ? href : undefined;
+
+                                                        if (imageUrl) {
+                                                            return (
+                                                                <a
+                                                                    key={rIndex}
+                                                                    href={imageUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="block"
+                                                                >
+                                                                    <img
+                                                                        src={imageUrl}
+                                                                        alt={chunk.maps.title}
+                                                                        className="w-full rounded-md object-cover"
+                                                                    />
+                                                                </a>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <blockquote
+                                                                key={rIndex}
+                                                                className="text-xs border-l-2 border-default pl-2 italic text-muted-foreground"
+                                                            >
+                                                                <a href={href} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                                    "{review.quote}" – {review.author}
+                                                                </a>
+                                                            </blockquote>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

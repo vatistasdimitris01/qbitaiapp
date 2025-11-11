@@ -39,62 +39,6 @@ type ExecutionResult = {
   downloadableFile?: { filename: string; mimetype: string; data: string; };
 };
 
-
-interface TextHoverEffectProps {
-  text: string;
-  className?: string;
-}
-
-const TextHoverEffect: React.FC<TextHoverEffectProps> = ({ text, className }) => {
-  const [activeLetterIndex, setActiveLetterIndex] = useState<number | null>(null);
-  const letters = useMemo(() => text.split(''), [text]);
-
-  useEffect(() => {
-    let index = 0;
-    const intervalId = setInterval(() => {
-      setActiveLetterIndex(index);
-      index = (index + 1) % letters.length;
-    }, 300);
-    
-    setActiveLetterIndex(0);
-
-    return () => clearInterval(intervalId);
-  }, [letters.length]);
-
-  return (
-    <div className={`flex justify-center items-center ${className}`}>
-      {letters.map((letter, i) => (
-        <span
-          key={i}
-          className="text-4xl sm:text-6xl md:text-8xl font-bold transition-all duration-300 ease-in-out"
-          style={{
-            color: i === activeLetterIndex ? 'var(--foreground)' : 'var(--muted-foreground)',
-            opacity: i === activeLetterIndex ? 1 : 0.5,
-            transform: i === activeLetterIndex ? 'scale(1.1)' : 'scale(1)',
-          }}
-        >
-          {letter}
-        </span>
-      ))}
-    </div>
-  );
-};
-
-const Loader: React.FC<{t: (key:string) => string}> = ({t}) => {
-  return (
-    <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground">
-      <TextHoverEffect text={t('loader.text')} />
-      <div className="flex items-center mt-12 text-muted-foreground text-sm">
-        <svg className="animate-spin h-4 w-4 mr-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span>{t('loader.subtext')}</span>
-      </div>
-    </div>
-  );
-};
-
 const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, delay: number) => {
     useEffect(() => {
         const handler = setTimeout(() => effect(), delay);
@@ -127,7 +71,6 @@ const getRandomGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.l
 
 
 const App: React.FC = () => {
-  const [isAppReady, setIsAppReady] = useState(false);
   const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -180,7 +123,6 @@ const App: React.FC = () => {
   }, [isPythonReady]);
 
   useEffect(() => {
-    setIsAppReady(true);
     checkPythonReady();
   }, [checkPythonReady]);
 
@@ -627,8 +569,6 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
   };
 
-  if (!isAppReady) return <Loader t={t} />;
-
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
@@ -667,14 +607,6 @@ const App: React.FC = () => {
                     </button>
                 )}
                 <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-4">
-                    {isLoading && (
-                        <div className="flex justify-center mb-3">
-                            <button onClick={handleAbortGeneration} className="flex items-center gap-2 px-4 py-2 bg-card border border-default rounded-lg text-sm text-foreground hover:bg-token-surface-secondary shadow-lg animate-fade-in-up">
-                                <StopCircleIcon className="size-4" />
-                                {t('chat.input.stop')}
-                            </button>
-                        </div>
-                    )}
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
                 </footer>
             </div>

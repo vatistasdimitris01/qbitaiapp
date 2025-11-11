@@ -179,18 +179,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         searching: [t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle')],
         generating: [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')],
     })[aiStatus] || [t('chat.status.thinking')], [aiStatus, t]);
-
-    if (!isUser && isLoading && !hasContent && !hasThinking && !hasSources) {
-        return (
-            <div className="flex w-full my-4 justify-start">
-                <div className="flex flex-col w-full max-w-3xl space-y-2">
-                    <SkeletonLoader className="h-4 w-4/5" />
-                    <SkeletonLoader className="h-4 w-full" />
-                    <SkeletonLoader className="h-4 w-2/3" />
-                </div>
-            </div>
-        );
-    }
     
     if (!isUser && !isLoading && !hasContent && !hasThinking && !hasSources) return null;
 

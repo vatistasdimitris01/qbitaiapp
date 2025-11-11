@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PlusIcon, ArrowUpIcon, XIcon, ReplyIcon, MicIcon, StopCircleIcon } from './icons';
 import { FileAttachment } from '../types';
@@ -191,8 +192,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     </button>
                     <textarea ref={internalTextareaRef} dir="auto" aria-label={placeholder} className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted mx-2 py-2" style={{ resize: 'none' }} placeholder={placeholder} rows={1} value={text} onChange={handleInputChange} onKeyDown={handleKeyDown} />
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {hasContent ? (
-                            <button type="submit" aria-label={t('chat.input.submit')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!hasContent || isLoading}>
+                        {isLoading ? (
+                             <button type="button" onClick={onAbortGeneration} aria-label={t('chat.input.stop')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground transition-colors">
+                                 <StopCircleIcon className="w-5 h-5" />
+                             </button>
+                        ) : hasContent ? (
+                            <button type="submit" aria-label={t('chat.input.submit')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!hasContent}>
                                 <ArrowUpIcon className="w-5 h-5"/>
                             </button>
                         ) : (

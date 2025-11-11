@@ -1,15 +1,17 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
 
+// --- Interfaces ---
 interface ApiAttachment {
     mimeType: string;
     data: string; // base64 encoded
 }
 
 interface HistoryItem {
-    type: 'USER' | 'AI_RESPONSE' | 'SYSTEM' | 'ERROR' | 'AGENT_ACTION' | 'AGENT_PLAN';
+    type: 'USER' | 'AI_RESPONSE';
     content: string;
     files?: ApiAttachment[];
 }
@@ -46,7 +48,19 @@ export const config = {
   },
 };
 
-const performWebSearch = async (query: string): Promise<FormattedSearchResult> => {
+// --- Helper Functions ---
+
+const parseForm = (req: VercelRequest): Promise<{ fields: formidable.Fields; files: formidable.Files }> => {
+    const form = formidable({});
+    return new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+            if (err) reject(err);
+            else resolve({ fields, files });
+        });
+    });
+};
+
+const performWebSearch = async (query: string, location: LocationInfo | null): Promise<FormattedSearchResult> => {
     const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
     const cseId = process.env.GOOGLE_CSE_ID;
 
@@ -55,7 +69,14 @@ const performWebSearch = async (query: string): Promise<FormattedSearchResult> =
         return { searchContext: "", searchResults: [] };
     }
 
-    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
+    let searchQuery = query;
+    if (location?.city && location?.country) {
+        if (/\b(near me|nearby|around here)\b/i.test(searchQuery)) {
+            searchQuery = searchQuery.replace(/\b(near me|nearby|around here)\b/i, `in ${location.city}, ${location.country}`);
+        }
+    }
+
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(searchQuery)}`;
 
     try {
         const response = await fetch(url);
@@ -70,7 +91,7 @@ const performWebSearch = async (query: string): Promise<FormattedSearchResult> =
         }
         const searchItems = data.items.slice(0, 5) as GoogleSearchResultItem[];
         
-        const searchContext = searchItems.map((item, index) => 
+        const searchContext = "Here are the top web search results:\n\n" + searchItems.map((item, index) => 
             `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
         ).join('\n\n');
 
@@ -82,152 +103,144 @@ const performWebSearch = async (query: string): Promise<FormattedSearchResult> =
         }));
         
         return { searchContext, searchResults };
-
     } catch (error) {
-        console.error("Failed to perform web search:", error);
+        console.error("Error performing web search:", error);
         return { searchContext: "", searchResults: [] };
     }
 };
 
+// --- Main Handler ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
+        return res.status(405).json({ error: { message: 'Method not allowed' } });
     }
 
     try {
-        const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-            const form = formidable({});
-            form.parse(req, (err, fields, files) => {
-                if (err) reject(err); else resolve({ fields, files });
-            });
-        });
-
-        const payloadJSON = fields.payload?.[0];
-        if (!payloadJSON) throw new Error("Missing 'payload' in form data.");
-        const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
+        const { fields, files } = await parseForm(req);
+        const payload = JSON.parse(fields.payload as string);
         
-        const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
+        const { history, message, personaInstruction, location, language } = payload as {
+            history: HistoryItem[];
+            message: string;
+            personaInstruction?: string;
+            location: LocationInfo | null;
+            language?: string;
+        };
 
-        if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const geminiHistory: Content[] = (history as HistoryItem[])
-            .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
-            .map(msg => ({
-                role: msg.type === 'USER' ? 'user' : 'model',
-                parts: [
-                    ...(msg.content ? [{ text: msg.content }] : []),
-                    ...(msg.files ? msg.files.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.data } })) : [])
-                ] as Part[],
-            })).filter(c => c.parts.length > 0);
+        const systemInstruction = `You are Qbit, a helpful, intelligent, and proactive assistant. 🤖
+
+---
+# 💡 CORE SYSTEM SPECIFICATION
+## 🧩 IDENTITY & PERSONALITY
+- Your persona is a precise, professional, and engaging AI assistant.
+- If the user asks “who made you?”, “who created you?”, or any similar question, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
+
+---
+## 🧰 AVAILABLE TOOLS
+- You have access to Google Search for real-time information. When context from the web is provided, your primary goal is to synthesize that information into a coherent, helpful answer for the user.
+
+---
+## ✍️ STYLE, TONE & FORMATTING
+- **Markdown Usage**: Use Markdown to structure your responses for clarity.
+    - **Lists of Places**: For lists of places (restaurants, landmarks, shops, etc.), you MUST format each item with a title, a few bullet points with details, and an image gallery tag like this: \`!gallery["a realistic photo of Karamanlidika restaurant Athens"]\`. Separate each place with a markdown divider (\`---\`).
+- **Tone**: Maintain a confident, helpful, and neutral tone.
+- **Emojis**: Use emojis sparingly and only where they genuinely add value.
+
+---
+## ⚙️ INTERACTION RULES
+- **Citations**: When you use information from Google Search, you MUST cite your sources. The search results will be provided to you with numbered sources like \`[1] Title: ...\`.
+- **Response Finale & Engagement**: Your goal is to keep the conversation flowing naturally.
+    - At the end of your response, ask one or three context-aware follow-up questions to encourage interaction.
+    - For longer, structured responses, add a markdown divider (\`---\`) before the follow-up questions.
+- **Code**: For brief code elements, use single backticks (\\\`code\\\`).
+
+---
+## 🎯 CORE PHILOSOPHY
+Think like an engineer. Write like a professional. Act like a collaborator. Deliver with clarity and precision. ✨`;
+
+        const finalSystemInstruction = personaInstruction
+            ? `${personaInstruction}\n\n---\n\n${systemInstruction}`
+            : systemInstruction;
+
+        let userMessageForAI = message;
+        let groundingChunks: FormattedSearchResult['searchResults'] = [];
         
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        const write = (data: object) => res.write(JSON.stringify(data) + '\n');
-        
-        write({ type: 'searching' });
-        const { searchContext, searchResults } = await performWebSearch(message);
-        
-        if (searchResults.length > 0) {
-            write({ type: 'sources', payload: searchResults });
-        }
-        
-        let userMessageText = message;
-        if (searchContext) {
-            userMessageText = `## Web Search Results:\n${searchContext}\n\n---\n\n## User Query:\n${message}`;
-        }
-        
-        if (location?.city && location?.country) {
-            userMessageText = `[User's Location: ${location.city}, ${location.country}]\n\n${userMessageText}`;
+        const requiresSearch = /\b(search|latest|current|who is|what is|find|news)\b/i.test(message) || /\b(near me|nearby|restaurants|hotels)\b/i.test(message);
+
+        if (requiresSearch) {
+            res.write(JSON.stringify({ type: 'searching' }) + '\n');
+            const searchResult = await performWebSearch(message, location);
+            if (searchResult.searchContext) {
+                userMessageForAI = `Based on the following web search results, please answer my question.\n\n---\n\n${searchResult.searchContext}\n\n---\n\nMy question is: "${message}"`;
+                groundingChunks = searchResult.searchResults;
+                res.write(JSON.stringify({ type: 'sources', payload: groundingChunks }) + '\n');
+            }
         }
 
-        const userMessageParts: Part[] = [{ text: userMessageText }];
-        if (fileList.length > 0) {
-            for (const file of fileList) {
-                const base64Data = (await fs.promises.readFile(file.filepath)).toString('base64');
-                userMessageParts.push({ inlineData: { mimeType: file.mimetype || 'application/octet-stream', data: base64Data } });
+        const historyForGemini: Content[] = history.map(msg => ({
+            role: msg.type === 'USER' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+        }));
+
+        const userParts: Part[] = [];
+        
+        let contextPreamble = `Current date: ${new Date().toISOString()}.`;
+        if (language && languageMap[language]) {
+            contextPreamble += ` Please respond in ${languageMap[language]}.`;
+        }
+
+        userParts.push({ text: `${contextPreamble}\n\n${userMessageForAI}` });
+
+        if (files.file) {
+            const uploadedFiles = Array.isArray(files.file) ? files.file : [files.file];
+            for (const file of uploadedFiles) {
+                const fileBuffer = fs.readFileSync(file.filepath);
+                userParts.push({
+                    inlineData: {
+                        mimeType: file.mimetype || 'application/octet-stream',
+                        data: fileBuffer.toString('base64'),
+                    },
+                });
             }
         }
         
-        const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
-        const userLanguageName = languageMap[language as string] || 'English';
-        
-        const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive AI assistant. Your responses must be professional, clear, and structured with Markdown.
+        const stream = await ai.models.generateContentStream({
+            model: "gemini-2.5-flash",
+            contents: [...historyForGemini, { role: 'user', parts: userParts }],
+            config: {
+                systemInstruction: finalSystemInstruction
+            },
+        });
 
-# ⚜️ CORE DIRECTIVES
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.writeHead(200);
 
-## 1. IDENTITY & LANGUAGE
-- **Your Name**: Qbit.
-- **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
-- **Language**: Your entire response MUST be in **${userLanguageName}**.
+        let totalPromptTokens = 0;
+        let totalCandidatesTokens = 0;
 
-## 2. WEB SEARCH & CONTEXT
-- **Priority**: When \`## Web Search Results\` are provided in the user's prompt, you MUST base your answer on that information. Synthesize it into a coherent response. **Do NOT cite the sources in your response** (e.g., do not use Markdown links like \`[Title](url)\`); sources are displayed separately in the UI.
-- **Knowledge Fallback**: If no \`## Web Search Results\` are provided, answer using your internal knowledge and add a brief disclaimer that the information may not be up-to-date (e.g., "Based on my last training data..."). Do NOT apologize or mention that you couldn't perform a search.
-
-# 🎨 RESPONSE FORMATTING & STYLE
-
-## 1. MARKDOWN USAGE
-- Use Markdown for structure: headings, lists, bold, italics.
-- Use horizontal rules (\`---\`) sparingly to separate major sections.
-- **Lists of Places**: When you generate a list of places (e.g., restaurants, landmarks, points of interest), you MUST follow this structure for each item:
-  - A heading for the place name (e.g., \`### 1. Place Name\`).
-  - A line with key details like rating or type in bold (e.g., \`**★ 4.7 • Fine dining restaurant**\`).
-  - An image gallery tag. The format is \`!gallery["A descriptive image search query for the place"]\`. For example, for 'Oiko Restaurant' in Athens, you would write \`!gallery["Oiko Restaurant Athens fine dining"]\`. You MUST do this for at least the first 3 items in any list of places.
-  - A bulleted list of details (e.g., Location, Why it's good, Tip).
-
-## 2. ENGAGEMENT
-- Your goal is to provide a complete answer.
-- Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
-`;
-
-        const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;
-
-        try {
-            const stream = await ai.models.generateContentStream({ 
-                model, 
-                contents, 
-                config: { 
-                    systemInstruction: finalSystemInstruction,
-                } 
-            });
-
-            let usageMetadataSent = false;
-            
-            for await (const chunk of stream) {
-                let text = '';
-                if (chunk.candidates?.[0]?.content?.parts) {
-                    for (const part of chunk.candidates[0].content.parts) {
-                        if (part?.text) {
-                            text += part.text;
-                        }
-                    }
-                }
-
-                if (text) {
-                    write({ type: 'chunk', payload: text });
-                }
-                
-                if (chunk.usageMetadata && !usageMetadataSent) {
-                    write({ type: 'usage', payload: chunk.usageMetadata });
-                    usageMetadataSent = true;
-                }
+        for await (const chunk of stream) {
+            if (chunk.text) {
+                res.write(JSON.stringify({ type: 'chunk', payload: chunk.text }) + '\n');
             }
-            write({ type: 'end' });
-            res.end();
-        } catch (error) {
-            console.error("Error during Gemini stream processing:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-            if (!res.headersSent) res.status(500).json({ error: `Stream generation failed: ${errorMessage}` });
-            else res.end();
+            if (chunk.usageMetadata) {
+                totalPromptTokens += chunk.usageMetadata.promptTokenCount;
+                totalCandidatesTokens += chunk.usageMetadata.candidatesTokenCount;
+            }
         }
+        
+        res.write(JSON.stringify({ type: 'usage', payload: {
+            promptTokenCount: totalPromptTokens,
+            candidatesTokenCount: totalCandidatesTokens,
+            totalTokenCount: totalPromptTokens + totalCandidatesTokens
+        }}) + '\n');
+        
+        res.write(JSON.stringify({ type: 'end' }) + '\n');
+        res.end();
 
     } catch (error) {
         console.error('Error in sendMessage handler:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (!res.headersSent) res.status(500).json({ error: `Failed to process request: ${errorMessage}` });
-        else res.end();
+        res.status(500).json({ error: { message: error instanceof Error ? error.message : 'An unknown error occurred' } });
     }
 }

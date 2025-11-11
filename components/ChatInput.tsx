@@ -186,18 +186,34 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             )}
             <div className="flex w-full max-w-4xl items-end gap-2">
                 <input ref={fileInputRef} className="hidden" multiple type="file" name="files" onChange={handleFileChange} accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json" />
+                
+                {/* Mobile-only '+' button */}
                 <button
                     type="button"
                     aria-label={t('chat.input.attach')}
                     onClick={handleAttachClick}
-                    className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-user-message text-foreground flex-shrink-0 transition-transform hover:scale-110 disabled:opacity-50"
+                    className="inline-flex sm:hidden items-center justify-center h-10 w-10 rounded-full bg-user-message text-foreground flex-shrink-0 transition-transform hover:scale-110 disabled:opacity-50"
                     disabled={isLoading}
                 >
                     <PlusIcon className="w-5 h-5" />
                 </button>
+
                 <form onSubmit={handleSubmit} className="relative w-full">
-                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-2xl py-1.5 pl-3 pr-1.5">
-                        <textarea ref={internalTextareaRef} dir="auto" aria-label={placeholder} className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted py-2" style={{ resize: 'none' }} placeholder={placeholder} rows={1} value={text} onChange={handleInputChange} onKeyDown={handleKeyDown} />
+                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-2xl sm:rounded-full py-1.5 sm:py-1 pl-3 sm:pl-2 pr-1.5">
+                        
+                        {/* Desktop-only '+' button */}
+                        <button
+                            type="button"
+                            aria-label={t('chat.input.attach')}
+                            onClick={handleAttachClick}
+                            className="hidden sm:inline-flex items-center justify-center h-9 w-9 rounded-full hover:bg-token-surface-secondary text-muted disabled:opacity-60 transition-colors mr-1"
+                            disabled={isLoading}
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                        </button>
+                        
+                        <textarea ref={internalTextareaRef} dir="auto" aria-label={placeholder} className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted py-2 sm:py-1.5" style={{ resize: 'none' }} placeholder={placeholder} rows={1} value={text} onChange={handleInputChange} onKeyDown={handleKeyDown} />
+                        
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                             {isLoading ? (
                                 <button type="button" onClick={onAbortGeneration} aria-label={t('chat.input.stop')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground transition-colors">

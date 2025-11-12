@@ -30,6 +30,15 @@ const languageMap: { [key: string]: string } = {
     de: 'German',
 };
 
+const searchContextTranslations: { [lang: string]: string } = {
+    en: 'Here are the search results for "{query}":\n\n{results}',
+    el: 'Αυτά είναι τα αποτελέσματα αναζήτησης για "{query}":\n\n{results}',
+    es: 'Aquí están los resultados de búsqueda para "{query}":\n\n{results}',
+    fr: 'Voici les résultats de recherche pour "{query}":\n\n{results}',
+    de: 'Hier sind die Suchergebnisse für "{query}":\n\n{results}',
+};
+
+
 export const config = {
   api: {
     bodyParser: false,
@@ -83,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
         const model = 'gemini-2.5-flash';
-        const userLanguageName = languageMap[language as string] || 'English';
+        const langCode = (language as string) || 'en';
+        const userLanguageName = languageMap[langCode] || 'English';
         
         const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive AI assistant. Your responses must be professional, clear, and structured with Markdown.
 
@@ -187,7 +197,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
                 ).join('\n\n---\n\n') || "No results found.";
 
-                const searchContext = `Here are the search results for "${query}":\n\n${formattedResults}`;
+                const searchContextTemplate = searchContextTranslations[langCode] || searchContextTranslations.en;
+                const searchContext = searchContextTemplate
+                    .replace('{query}', query)
+                    .replace('{results}', formattedResults);
                 
                 const newContents: Content[] = [
                     ...contents,

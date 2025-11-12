@@ -117,7 +117,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   - A heading for the place name (e.g., \`### 1. Place Name\`).
   - A line with key details like rating or type in bold (e.g., \`**★ 4.7 • Fine dining restaurant**\`).
   - An image gallery tag. The format is \`!gallery["A descriptive image search query for the place"]\`. For example, for 'Oiko Restaurant' in Athens, you would write \`!gallery["Oiko Restaurant Athens fine dining"]\`. You MUST do this for at least the first 3 items in any list of places.
-  - A bulleted list of details (e.g., Location, Why it's good, Tip).
 
 ## 2. CODE GENERATION
 - When providing code, especially Python, you MUST use Markdown code blocks.
@@ -135,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   plt.title("Sine Wave")
   plt.show() # This will be captured and displayed as an image.
   \`\`\`
-- **Data Visualization**: Encourage the use of libraries like Matplotlib or Plotly for creating charts and graphs. The environment can render these visualizations.
+- **Data Visualization**: When asked to create a graph, like a weather chart, first use the \`google_search\` tool to find the necessary data. Then, generate Python code using libraries like Matplotlib or Plotly to create the visualization. The environment can render these visualizations.
 - **Other Languages**: For non-executable examples or snippets in other languages, use the appropriate language identifier (e.g., \`javascript\`, \`html\`).
 
 ## 3. ENGAGEMENT
@@ -224,35 +223,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ];
                 
                 const stream = await ai.models.generateContentStream({ model, contents: newContents, config });
-                let usageMetadataSent = false;
+
                 for await (const chunk of stream) {
-                    const text = chunk.text;
-                    if (text) write({ type: 'chunk', payload: text });
-                    if (chunk.usageMetadata && !usageMetadataSent) {
+                    const chunkText = chunk.text;
+                    if (chunkText) {
+                        write({ type: 'chunk', payload: chunkText });
+                    }
+                    if (chunk.usageMetadata) {
                         write({ type: 'usage', payload: chunk.usageMetadata });
-                        usageMetadataSent = true;
                     }
                 }
             } else {
-                const text = firstResponse.text;
-                if (text) write({ type: 'chunk', payload: text });
-                if (firstResponse.usageMetadata) write({ type: 'usage', payload: firstResponse.usageMetadata });
+                // No function call, just stream the response
+                const stream = await ai.models.generateContentStream({ model, contents, config });
+                for await (const chunk of stream) {
+                    const chunkText = chunk.text;
+                    if (chunkText) {
+                        write({ type: 'chunk', payload: chunkText });
+                    }
+                    if (chunk.usageMetadata) {
+                        write({ type: 'usage', payload: chunk.usageMetadata });
+                    }
+                }
             }
-            
+        } finally {
             write({ type: 'end' });
             res.end();
-
-        } catch (error) {
-            console.error("Error during Gemini API call:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-            if (!res.headersSent) res.status(500).json({ error: `API call failed: ${errorMessage}` });
-            else res.end();
         }
-
     } catch (error) {
-        console.error('Error in sendMessage handler:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (!res.headersSent) res.status(500).json({ error: `Failed to process request: ${errorMessage}` });
-        else res.end();
+        console.error("Error in /api/sendMessage handler:", error);
+        res.status(500).json({ error: { message: error instanceof Error ? error.message : String(error) } });
     }
 }

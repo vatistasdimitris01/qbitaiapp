@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// FIX: Import 'Type' enum from @google/genai for function declarations.
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
@@ -89,13 +90,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 # ⚜️ CORE DIRECTIVES
 
 ## 1. IDENTITY & LANGUAGE
-
 - **Your Name**: Qbit.
 - **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
 - **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ## 2. WEB SEARCH & CONTEXT
-
 - **Tool Use**: You have access to a \`google_search\` tool. Use it by returning a function call when the user's query requires up-to-the-minute information, details about recent events, or specifics about people, companies, or places for which you lack sufficient knowledge. For general knowledge, historical facts, or creative tasks, rely on your internal knowledge first.
 - **Search Results**: After you call the \`google_search\` tool, you will be provided with the search results. You MUST base your final answer on the information provided in these results.
 - **Citations**: When you use information from the search results, you MUST cite your sources. The search results will include a URL for each snippet. Cite using standard markdown links like \`[Title](url)\` immediately after the sentence or fact it supports. This is a strict requirement.
@@ -103,7 +102,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 # 🎨 RESPONSE FORMATTING & STYLE
 
 ## 1. MARKDOWN USAGE
-
 - Use Markdown for structure: headings, lists, bold, italics.
 - Use horizontal rules (\`---\`) sparingly to separate major sections.
 - **Lists of Places**: When you generate a list of places (e.g., restaurants, landmarks, points of interest), you MUST follow this structure for each item:
@@ -113,7 +111,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   - A bulleted list of details (e.g., Location, Why it's good, Tip).
 
 ## 2. ENGAGEMENT
-
 - Your goal is to provide a complete answer.
 - Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
 `;
@@ -124,9 +121,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             name: 'google_search',
             description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
             parameters: {
+                // FIX: Use 'Type.OBJECT' enum instead of string literal.
                 type: Type.OBJECT,
                 properties: {
                   query: {
+                    // FIX: Use 'Type.STRING' enum instead of string literal.
                     type: Type.STRING,
                     description: 'The search query.',
                   },
@@ -153,6 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 write({ type: 'searching' });
                 const query = functionCall.args.query;
                 
+                // FIX: Add a type guard to ensure the query is a string before using it.
                 if (typeof query !== 'string') {
                     throw new Error(`Invalid query from function call: expected a string for 'query', but got ${typeof query}`);
                 }
@@ -161,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const cseId = process.env.GOOGLE_CSE_ID;
 
                 if (!apiKey || !cseId) {
-                    throw new Error("Server configuration error: Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not set. Please configure environment variables.");
+                    throw new Error("Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not configured in environment variables.");
                 }
 
                 const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`;
@@ -169,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (!searchResponse.ok) {
                     const errorBody = await searchResponse.text();
-                    throw new Error(`Google Search API failed with status ${searchResponse.status}. Please check your API key, CSE ID, or Google Cloud project setup. Details: ${errorBody}`);
+                    throw new Error(`Google Search API failed with status ${searchResponse.status}: ${errorBody}`);
                 }
                 const searchResults = await searchResponse.json();
                 

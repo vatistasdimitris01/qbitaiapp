@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -41,8 +42,7 @@ const GalleryFromSearch: React.FC<{ searchQuery: string; onOpenLightbox: (images
                     body: JSON.stringify({ imageSearchQuery: searchQuery }),
                 });
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: 'Unknown error fetching images.' }));
-                    throw new Error(errorData.error || `Failed to fetch images with status ${response.status}`);
+                    throw new Error('Failed to fetch images');
                 }
                 const data = await response.json();
                 if (data.images && data.images.length > 0) {

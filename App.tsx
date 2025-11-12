@@ -585,7 +585,7 @@ const App: React.FC = () => {
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-40 sm:pb-4 h-full">
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4 h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -606,7 +606,7 @@ const App: React.FC = () => {
                         <ChevronDownIcon className="size-6" />
                     </button>
                 )}
-                <footer className="relative w-full px-0 pb-0 sm:max-w-4xl sm:mx-auto sm:px-6 sm:pb-4">
+                <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
                 </footer>
             </div>

@@ -172,9 +172,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   -H "Content-Type: application/json" \\
   -d '{
   "message": "Tell me the latest news on AI in the style of a pirate.",
-  "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+  "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak.",
+  "language": "${language}"
 }'`;
-  const curlSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\": \\"Tell me the latest news on AI in the style of a pirate.\\", \\"userInstruction\\": \\"You are a swashbuckling pirate captain. All your responses must be in pirate speak.\\"}"`;
+  const curlSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\": \\"Tell me the latest news on AI in the style of a pirate.\\", \\"userInstruction\\": \\"You are a swashbuckling pirate captain. All your responses must be in pirate speak.\\", \\"language\\": \\"${language}\\"}"`;
 
   const pythonSnippet = `import requests
 import json
@@ -182,7 +183,8 @@ import json
 url = "https://aiqbit.vercel.app/api/chat"
 payload = {
     "message": "Tell me the latest news on AI in the style of a pirate.",
-    "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+    "userInstruction": "You are a swashbuckling pirate captain. All your responses must be in pirate speak.",
+    "language": "${language}"
 }
 headers = {"Content-Type": "application/json"}
 
@@ -200,7 +202,8 @@ except requests.exceptions.RequestException as e:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "Tell me the latest news on AI in the style of a pirate.",
-        userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+        userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak.",
+        language: "${language}"
       }),
     });
     if (!response.ok) throw new Error(\`HTTP error! \${response.status}\`);
@@ -218,6 +221,7 @@ function AiNewsComponent() {
   const [response, setResponse] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const language = "${language}"; // Or get from context/props
 
   useEffect(() => {
     const fetchResponse = async () => {
@@ -227,7 +231,8 @@ function AiNewsComponent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: "Tell me the latest news on AI in the style of a pirate.",
-            userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak."
+            userInstruction: "You are a swashbuckling pirate captain. All your responses must be in pirate speak.",
+            language: language
           }),
         });
         if (!res.ok) throw new Error(\`HTTP error! \${res.status}\`);
@@ -240,7 +245,7 @@ function AiNewsComponent() {
       }
     };
     fetchResponse();
-  }, []);
+  }, [language]);
 
   if (isLoading) return <div>Loading news...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -276,6 +281,7 @@ const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
 -H "Content-Type: application/json" \\
 -d '{
   "message": "What is the weather like in Boston?",
+  "language": "${language}",
   "tools": [
     {
       "name": "get_current_weather",
@@ -294,7 +300,7 @@ const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
     }
   ]
 }'`;
-const curlToolSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\":\\"What is the weather like in Boston?\\",\\"tools\\":[{\\"name\\":\\"get_current_weather\\",\\"description\\":\\"Get the current weather in a given location\\",\\"parameters\\":{\\"type\\":\\"OBJECT\\",\\"properties\\":{\\"location\\":{\\"type\\":\\"STRING\\",\\"description\\":\\"The city and state, e.g. San Francisco, CA\\"},\\"unit\\":{\\"type\\":\\"STRING\\",\\"enum\\":[\\"celsius\\",\\"fahrenheit\\"]}},\\"required\\":[\\"location\\"]}}]}"`;
+const curlToolSnippetFlat = `curl -X POST https://aiqbit.vercel.app/api/chat -H "Content-Type: application/json" -d "{\\"message\\":\\"What is the weather like in Boston?\\",\\"language\\":\\"${language}\\",\\"tools\\":[{\\"name\\":\\"get_current_weather\\",\\"description\\":\\"Get the current weather in a given location\\",\\"parameters\\":{\\"type\\":\\"OBJECT\\",\\"properties\\":{\\"location\\":{\\"type\\":\\"STRING\\",\\"description\\":\\"The city and state, e.g. San Francisco, CA\\"},\\"unit\\":{\\"type\\":\\"STRING\\",\\"enum\\":[\\"celsius\\",\\"fahrenheit\\"]}},\\"required\\":[\\"location\\"]}}]}"`;
 
 const pythonToolSnippet = `import requests
 import json
@@ -303,6 +309,7 @@ url = "https://aiqbit.vercel.app/api/chat"
 
 payload = {
     "message": "What is the weather like in Boston?",
+    "language": "${language}",
     "tools": [
         {
             "name": "get_current_weather",
@@ -357,6 +364,7 @@ const jsToolSnippet = `async function getWeather() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "What is the weather like in Boston?",
+        language: "${language}",
         tools: [weatherTool],
       }),
     });
@@ -384,6 +392,7 @@ const weatherTool = {
 function WeatherWidget() {
   const [functionCall, setFunctionCall] = useState(null);
   const [error, setError] = useState('');
+  const language = "${language}"; // Or get from context/props
 
   useEffect(() => {
     const fetchWeatherCall = async () => {
@@ -393,6 +402,7 @@ function WeatherWidget() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: "What is the weather like in Boston?",
+            language: language,
             tools: [weatherTool],
           }),
         });
@@ -406,7 +416,7 @@ function WeatherWidget() {
       }
     };
     fetchWeatherCall();
-  }, []);
+  }, [language]);
 
   if (error) return <div>Error: {error}</div>;
   if (!functionCall) return <div>Loading...</div>;

@@ -8,6 +8,14 @@ export const config = {
   runtime: 'edge',
 };
 
+const languageMap: { [key: string]: string } = {
+    en: 'English',
+    el: 'Greek',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+};
+
 // The main handler for the API route
 export default async function handler(req: Request) {
     // Handle CORS preflight requests
@@ -30,7 +38,7 @@ export default async function handler(req: Request) {
     }
 
     try {
-        const { message, tools, userInstruction, imageSearchQuery } = await req.json();
+        const { message, tools, userInstruction, imageSearchQuery, language } = await req.json();
 
         const headers = { 
             'Content-Type': 'application/json',
@@ -76,6 +84,8 @@ export default async function handler(req: Request) {
         
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
+        const userLanguageName = languageMap[language as string] || 'English';
+
         const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive assistant. 🤖
 
 ---
@@ -83,6 +93,7 @@ export default async function handler(req: Request) {
 ## 🧩 IDENTITY & PERSONALITY
 - Your persona is a precise, professional, and engaging AI assistant.
 - If the user asks “who made you?”, “who created you?”, or any similar question, you MUST respond with the following text: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/". Do not add any conversational filler before or after this statement.
+- **Language**: Your entire response MUST be in **${userLanguageName}**.
 
 ---
 ## 🧰 AVAILABLE TOOLS

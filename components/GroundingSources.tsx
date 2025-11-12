@@ -21,6 +21,15 @@ const getHostname = (url: string): string => {
     }
 };
 
+const getOrigin = (url: string): string => {
+    if (!url) return '';
+    try {
+        return new URL(url).origin;
+    } catch (e) {
+        return '';
+    }
+};
+
 interface GroundingSourcesProps {
     chunks: GroundingChunk[];
     t: (key: string) => string;
@@ -40,9 +49,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
         <ul className="divide-y divide-default">
             {chunks.map((chunk, index) => {
                 if ('web' in chunk && chunk.web.uri) {
-                    const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                    const hostname = isRedirect ? 'google.com' : getHostname(chunk.web.uri);
-                    const faviconUrl = `https://www.google.com/s2/favicons?sz=16&domain_url=${hostname}`;
+                    const origin = getOrigin(chunk.web.uri);
+                    const faviconUrl = origin ? `${origin}/favicon.ico` : '';
 
                     return (
                         <li key={index}>
@@ -58,7 +66,14 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                         alt=""
                                         className="size-4 rounded mt-0.5"
                                         onError={(e) => {
-                                            (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=16&domain_url=google.com';
+                                            const target = e.target as HTMLImageElement;
+                                            if (target.src.endsWith('/favicon.ico')) {
+                                                const hostname = getHostname(chunk.web.uri);
+                                                target.src = `https://www.google.com/s2/favicons?sz=16&domain_url=${hostname}`;
+                                            } else {
+                                                target.src = 'https://www.google.com/s2/favicons?sz=16&domain_url=google.com';
+                                                target.onerror = null;
+                                            }
                                         }}
                                     />
                                     <div className="flex-1 min-w-0">
@@ -120,9 +135,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                 <div className="flex items-center -space-x-2 cursor-pointer">
                     {visibleChunks.map((chunk, index) => {
                          if ('web' in chunk && chunk.web.uri) {
-                            const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                            const hostname = isRedirect ? 'google.com' : getHostname(chunk.web.uri);
-                            const faviconUrl = `https://www.google.com/s2/favicons?sz=24&domain_url=${hostname}`;
+                            const origin = getOrigin(chunk.web.uri);
+                            const faviconUrl = origin ? `${origin}/favicon.ico` : '';
 
                             return (
                                <img
@@ -132,7 +146,14 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                    title={chunk.web.title}
                                    className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
                                    onError={(e) => {
-                                       (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com';
+                                        const target = e.target as HTMLImageElement;
+                                        if (target.src.endsWith('/favicon.ico')) {
+                                            const hostname = getHostname(chunk.web.uri);
+                                            target.src = `https://www.google.com/s2/favicons?sz=24&domain_url=${hostname}`;
+                                        } else {
+                                            target.src = 'https://www.google.com/s2/favicons?sz=24&domain_url=google.com';
+                                            target.onerror = null;
+                                        }
                                    }}
                                />
                            );

@@ -172,9 +172,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     throw new Error(`Google Search API failed with status ${searchResponse.status}: ${errorBody}`);
                 }
                 const searchResults = await searchResponse.json();
+                
+                if (searchResults.items && searchResults.items.length > 0) {
+                    const groundingChunks = searchResults.items.map((item: any) => ({
+                        web: {
+                            uri: item.link,
+                            title: item.title,
+                        },
+                    }));
+                    write({ type: 'sources', payload: groundingChunks });
+                }
 
-                const formattedResults = searchResults.items?.map((item: any, index: number) => 
-                    `[${index + 1}] Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+                const formattedResults = searchResults.items?.map((item: any) => 
+                    `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
                 ).join('\n\n---\n\n') || "No results found.";
 
                 const searchContext = `Here are the search results for "${query}":\n\n${formattedResults}`;

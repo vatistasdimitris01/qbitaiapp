@@ -119,7 +119,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   - An image gallery tag. The format is \`!gallery["A descriptive image search query for the place"]\`. For example, for 'Oiko Restaurant' in Athens, you would write \`!gallery["Oiko Restaurant Athens fine dining"]\`. You MUST do this for at least the first 3 items in any list of places.
   - A bulleted list of details (e.g., Location, Why it's good, Tip).
 
-## 2. ENGAGEMENT
+## 2. CODE GENERATION
+- When providing code, especially Python, you MUST use Markdown code blocks.
+- **Executable Python**: For Python code that solves a problem, performs calculations, or generates visualizations, use a fenced code block with the language identifier \`python\`.
+  \`\`\`python
+  # Your executable Python code here
+  \`\`\`
+- **Auto-run Python**: For self-contained code that directly answers a user's request (e.g., "plot a sine wave"), add the \`autorun\` keyword to the info string of the code block. This suggests the code should be run automatically.
+  \`\`\`python autorun
+  import matplotlib.pyplot as plt
+  import numpy as np
+  x = np.linspace(0, 2 * np.pi, 400)
+  y = np.sin(x)
+  plt.plot(x, y)
+  plt.title("Sine Wave")
+  plt.show() # This will be captured and displayed as an image.
+  \`\`\`
+- **Data Visualization**: Encourage the use of libraries like Matplotlib or Plotly for creating charts and graphs. The environment can render these visualizations.
+- **Other Languages**: For non-executable examples or snippets in other languages, use the appropriate language identifier (e.g., \`javascript\`, \`html\`).
+
+## 3. ENGAGEMENT
 - Your goal is to provide a complete answer.
 - Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
 `;
@@ -130,11 +149,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             name: 'google_search',
             description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
             parameters: {
-// FIX: Use Type.OBJECT from the @google/genai SDK instead of the string 'OBJECT'.
                 type: Type.OBJECT,
                 properties: {
                   query: {
-// FIX: Use Type.STRING from the @google/genai SDK instead of the string 'STRING'.
                     type: Type.STRING,
                     description: 'The search query.',
                   },

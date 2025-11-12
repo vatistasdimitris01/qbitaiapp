@@ -44,16 +44,17 @@ export default async function handler(req: Request) {
 
             if (!apiKey || !cseId) {
                 console.warn("Google Search is not configured.");
-                return new Response(JSON.stringify({ error: 'Image search is not configured on the server.' }), { status: 500, headers });
+                return new Response(JSON.stringify({ error: 'Server configuration error: Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not set for image search. Please configure environment variables.' }), { status: 500, headers });
             }
             
             const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(imageSearchQuery)}&searchType=image&num=3`;
 
             const searchResponse = await fetch(url);
             if (!searchResponse.ok) {
-                const errorData = await searchResponse.json();
-                console.error("Google Image Search API error:", errorData.error.message);
-                return new Response(JSON.stringify({ error: 'Failed to fetch images.' }), { status: searchResponse.status, headers });
+                const errorData = await searchResponse.json().catch(() => ({}));
+                const specificError = errorData.error?.message || `Google Image Search API failed with status ${searchResponse.status}.`;
+                console.error("Google Image Search API error:", specificError);
+                return new Response(JSON.stringify({ error: `Failed to fetch images: ${specificError}` }), { status: searchResponse.status, headers });
             }
 
             const data = await searchResponse.json();

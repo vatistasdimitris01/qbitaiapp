@@ -187,7 +187,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             <div className="w-full max-w-4xl">
                 <input ref={fileInputRef} className="hidden" multiple type="file" name="files" onChange={handleFileChange} accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json" />
                 <form onSubmit={handleSubmit} className="relative w-full">
-                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-2xl sm:rounded-full py-1 pl-2 pr-1.5">
+                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-3xl sm:rounded-full py-2.5 sm:py-1 pl-2 pr-1.5">
                         <button
                             type="button"
                             aria-label={t('chat.input.attach')}

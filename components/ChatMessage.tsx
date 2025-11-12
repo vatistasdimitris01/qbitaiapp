@@ -110,17 +110,22 @@ const textToHtml = (text: string): string => {
     if (!text) return '';
     const placeholders: { [key:string]: string } = {};
     let placeholderId = 0;
-    // This regex will find display math, inline math, and inline code
-    const mathAndCodeRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)|`[^`]+`|\$[^\$\n\r]+\$)/g;
+    
+    // This regex will find display math and non-greedy inline math.
+    // It purposefully does NOT match inline code (`...`) so that `marked` can handle it.
+    const mathRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)|(\$[^\$\n\r]+?\$))/g;
 
-    const textWithPlaceholders = text.replace(mathAndCodeRegex, (match) => {
+    const textWithPlaceholders = text.replace(mathRegex, (match) => {
         const id = `__QBIT_PLACEHOLDER_${placeholderId++}__`;
         placeholders[id] = match;
         return id;
     });
 
+    // Let marked parse the text. It will correctly handle markdown like inline code.
+    // Math expressions are protected as placeholders.
     let html = marked.parse(textWithPlaceholders, { breaks: true, gfm: true }) as string;
 
+    // Restore the math expressions.
     for (const id in placeholders) {
         html = html.replace(id, placeholders[id]);
     }

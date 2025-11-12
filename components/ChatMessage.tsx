@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -108,6 +105,28 @@ const getTextFromMessage = (content: any): string => {
     if (typeof content === 'string') return content;
     return '';
 }
+
+const textToHtml = (text: string): string => {
+    if (!text) return '';
+    const placeholders: { [key:string]: string } = {};
+    let placeholderId = 0;
+    // This regex will find display math, inline math, and inline code
+    const mathAndCodeRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)|`[^`]+`|\$[^\$\n\r]+\$)/g;
+
+    const textWithPlaceholders = text.replace(mathAndCodeRegex, (match) => {
+        const id = `__QBIT_PLACEHOLDER_${placeholderId++}__`;
+        placeholders[id] = match;
+        return id;
+    });
+
+    let html = marked.parse(textWithPlaceholders, { breaks: true, gfm: true }) as string;
+
+    for (const id in placeholders) {
+        html = html.replace(id, placeholders[id]);
+    }
+    
+    return html;
+};
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
     const isUser = message.type === MessageType.USER;
@@ -306,7 +325,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         const sanitizedContent = (isLoading && index === renderableContent.length - 1) ? part.content.replace(/```json-gallery[\s\S]*$/, '') : part.content;
                                         if (sanitizedContent.trim() === '') return null;
 
-                                        let finalHtml = marked.parse(sanitizedContent, { breaks: true, gfm: true }) as string;
+                                        let finalHtml = textToHtml(sanitizedContent);
                                         if (isLoading && aiStatus === 'generating' && index === renderableContent.length - 1) {
                                             const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
                                             finalHtml = finalHtml.endsWith('</p>') ? `${finalHtml.slice(0, -4)} ${cursorHtml}</p>` : `${finalHtml}${cursorHtml}`;

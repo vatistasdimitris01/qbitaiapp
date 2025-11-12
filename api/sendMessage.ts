@@ -5,7 +5,7 @@ import fs from 'fs';
 
 interface ApiAttachment {
     mimeType: string;
-    data: string; // base64 encoded
+    data: string; // base66 encoded
 }
 
 interface HistoryItem {
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-2.5-pro'; // Changed model to gemini-2.5-pro
         const userLanguageName = languageMap[language as string] || 'English';
         
         const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive AI assistant. Your responses must be professional, clear, and structured with Markdown.
@@ -138,6 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
             tools: [{ functionDeclarations: [googleSearchTool] }],
+            thinkingConfig: { thinkingBudget: 32768 }, // Added thinkingConfig
         };
 
         try {

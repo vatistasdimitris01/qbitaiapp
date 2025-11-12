@@ -219,7 +219,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const newContents: Content[] = [
                     ...contents,
                     { role: 'model', parts: [{ functionCall }] },
-                    { role: 'user', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
+                    { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
                 ];
                 
                 const stream = await ai.models.generateContentStream({ model, contents: newContents, config });

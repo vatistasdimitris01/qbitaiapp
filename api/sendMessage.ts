@@ -5,7 +5,7 @@ import fs from 'fs';
 
 interface ApiAttachment {
     mimeType: string;
-    data: string; // base66 encoded
+    data: string; // base64 encoded
 }
 
 interface HistoryItem {

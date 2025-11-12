@@ -12,6 +12,15 @@ const getDomain = (url: string): string => {
     }
 };
 
+const getHostname = (url: string): string => {
+    if (!url) return 'google.com';
+    try {
+        return new URL(url).hostname;
+    } catch (e) {
+        return 'google.com';
+    }
+};
+
 interface GroundingSourcesProps {
     chunks: GroundingChunk[];
     t: (key: string) => string;
@@ -32,9 +41,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
             {chunks.map((chunk, index) => {
                 if ('web' in chunk && chunk.web.uri) {
                     const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                    const faviconUrl = isRedirect
-                        ? `https://www.google.com/s2/favicons?sz=16&domain_url=google.com`
-                        : `https://www.google.com/s2/favicons?sz=16&domain_url=${chunk.web.uri}`;
+                    const hostname = isRedirect ? 'google.com' : getHostname(chunk.web.uri);
+                    const faviconUrl = `https://www.google.com/s2/favicons?sz=16&domain_url=${hostname}`;
 
                     return (
                         <li key={index}>
@@ -113,9 +121,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     {visibleChunks.map((chunk, index) => {
                          if ('web' in chunk && chunk.web.uri) {
                             const isRedirect = chunk.web.uri.includes('vertexaisearch.cloud.google.com');
-                            const faviconUrl = isRedirect 
-                                ? `https://www.google.com/s2/favicons?sz=24&domain_url=google.com`
-                                : `https://www.google.com/s2/favicons?sz=24&domain_url=${chunk.web.uri}`;
+                            const hostname = isRedirect ? 'google.com' : getHostname(chunk.web.uri);
+                            const faviconUrl = `https://www.google.com/s2/favicons?sz=24&domain_url=${hostname}`;
 
                             return (
                                <img

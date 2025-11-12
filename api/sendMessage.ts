@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// FIX: Import 'Type' enum from @google/genai for function declarations.
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
@@ -131,11 +130,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             name: 'google_search',
             description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
             parameters: {
-                // FIX: Use 'Type.OBJECT' enum instead of string literal.
+// FIX: Use Type.OBJECT from the @google/genai SDK instead of the string 'OBJECT'.
                 type: Type.OBJECT,
                 properties: {
                   query: {
-                    // FIX: Use 'Type.STRING' enum instead of string literal.
+// FIX: Use Type.STRING from the @google/genai SDK instead of the string 'STRING'.
                     type: Type.STRING,
                     description: 'The search query.',
                   },
@@ -162,7 +161,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 write({ type: 'searching' });
                 const query = functionCall.args.query;
                 
-                // FIX: Add a type guard to ensure the query is a string before using it.
                 if (typeof query !== 'string') {
                     throw new Error(`Invalid query from function call: expected a string for 'query', but got ${typeof query}`);
                 }

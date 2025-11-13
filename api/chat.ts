@@ -1,7 +1,7 @@
 // A simple, non-streaming API endpoint for developers.
 // It uses the built-in Google Search grounding tool by default, but also supports custom tools.
 
-import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration, Content, Type } from "@google/genai";
 
 // Vercel Edge Function config
 export const config = {
@@ -135,28 +135,100 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
 
         const config: GenerateContentConfig = { systemInstruction: finalSystemInstruction };
 
-        // If custom tools are provided, use them. Otherwise, default to Google Search.
+        const googleSearchTool: FunctionDeclaration = {
+            name: 'google_search',
+            description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  query: {
+                    type: Type.STRING,
+                    description: 'The search query.',
+                  },
+                },
+                required: ['query'],
+            },
+        };
+
+        let finalTools: FunctionDeclaration[];
         if (tools && Array.isArray(tools) && tools.length > 0) {
-            config.tools = [{ functionDeclarations: tools as FunctionDeclaration[] }];
+            finalTools = tools as FunctionDeclaration[];
         } else {
-            config.tools = [{ googleSearch: {} }];
+            finalTools = [googleSearchTool];
         }
-
-        const geminiResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: 'user', parts: [{ text: message }] }],
-            config,
-        });
+        config.tools = [{ functionDeclarations: finalTools }];
         
-        const functionCalls = geminiResponse.functionCalls;
+        const model = "gemini-2.5-flash";
+        const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
-        // If the model returns a function call, send that back.
+        const firstResponse = await ai.models.generateContent({ model, contents, config });
+        const functionCalls = firstResponse.functionCalls;
+
         if (functionCalls && functionCalls.length > 0) {
-            return new Response(JSON.stringify({ functionCalls }), { status: 200, headers });
+            // If user provided custom tools, just return the function call for them to handle.
+            if (tools && Array.isArray(tools) && tools.length > 0) {
+                return new Response(JSON.stringify({ functionCalls }), { status: 200, headers });
+            }
+
+            // Otherwise, it's our default google_search tool that we need to handle.
+            const functionCall = functionCalls[0];
+            if (functionCall.name === 'google_search') {
+                const query = functionCall.args.query;
+                if (typeof query !== 'string') {
+                    throw new Error(`Invalid query from function call: expected a string for 'query', but got ${typeof query}`);
+                }
+
+                const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                const cseId = process.env.GOOGLE_CSE_ID;
+
+                if (!apiKey || !cseId) {
+                    throw new Error("Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not configured.");
+                }
+
+                const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`;
+                const searchResponse = await fetch(searchUrl);
+
+                if (!searchResponse.ok) {
+                    const errorBody = await searchResponse.text();
+                    throw new Error(`Google Search API failed with status ${searchResponse.status}: ${errorBody}`);
+                }
+                const searchResults = await searchResponse.json();
+
+                const searchContextTranslations: { [lang: string]: string } = {
+                    en: 'Here are the search results for "{query}":\n\n{results}',
+                    el: 'Αυτά είναι τα αποτελέσματα αναζήτησης για "{query}":\n\n{results}',
+                    es: 'Aquí están los resultados de búsqueda para "{query}":\n\n{results}',
+                    fr: 'Voici les résultats de recherche pour "{query}":\n\n{results}',
+                    de: 'Hier sind die Suchergebnisse für "{query}":\n\n{results}',
+                };
+                const langCode = (language as string) || 'en';
+
+                const formattedResults = searchResults.items?.map((item: any) => 
+                    `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+                ).join('\n\n---\n\n') || "No results found.";
+
+                const searchContextTemplate = searchContextTranslations[langCode] || searchContextTranslations.en;
+                const searchContext = searchContextTemplate
+                    .replace('{query}', query)
+                    .replace('{results}', formattedResults);
+                
+                const newContents: Content[] = [
+                    ...contents,
+                    { role: 'model', parts: [{ functionCall }] },
+                    { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
+                ];
+
+                const secondResponse = await ai.models.generateContent({ model, contents: newContents, config });
+                const responseText = secondResponse.text;
+                return new Response(JSON.stringify({ response: responseText }), { status: 200, headers });
+            } else {
+                 // A different tool was called, but the user didn't provide it. Return it anyway.
+                return new Response(JSON.stringify({ functionCalls }), { status: 200, headers });
+            }
         }
         
-        // Otherwise, return the text response.
-        const responseText = geminiResponse.text;
+        // Otherwise, return the text response from the first call.
+        const responseText = firstResponse.text;
         return new Response(JSON.stringify({ response: responseText }), { status: 200, headers });
 
     } catch (error) {

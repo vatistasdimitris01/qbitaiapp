@@ -585,7 +585,7 @@ const App: React.FC = () => {
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4 h-full">
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-64 h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -600,15 +600,20 @@ const App: React.FC = () => {
               </div>
             </main>
             
-            <div className="mt-auto pt-4">
-                {showScrollToBottom && !isLoading && (
-                    <button onClick={handleScrollToBottomClick} className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
-                        <ChevronDownIcon className="size-6" />
-                    </button>
-                )}
-                <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
-                    <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
-                </footer>
+            <div className="absolute bottom-0 inset-x-0">
+                <div className="absolute bottom-0 inset-x-0 h-64 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
+                <div className="relative pt-2">
+                    {showScrollToBottom && !isLoading && (
+                        <div className="flex justify-center">
+                            <button onClick={handleScrollToBottomClick} className="mb-2 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
+                                <ChevronDownIcon className="size-6" />
+                            </button>
+                        </div>
+                    )}
+                    <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
+                        <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
+                    </footer>
+                </div>
             </div>
         </div>
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />

@@ -337,7 +337,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                         }
                                         return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
                                     })}
-                                    {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'searching' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
+                                    {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
                                 </div>
                             </div>
                             {hasSources && (

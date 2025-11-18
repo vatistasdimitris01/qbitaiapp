@@ -582,8 +582,8 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col h-full relative">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-64 h-full">
+            <main ref={mainContentRef} className="flex-1 overflow-y-auto no-scrollbar">
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-32 h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -598,17 +598,16 @@ const App: React.FC = () => {
               </div>
             </main>
             
-            <div className="absolute bottom-0 inset-x-0">
-                <div className="absolute bottom-0 inset-x-0 h-64 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
-                <div className="relative pt-2 border-t border-default">
+            <div className="absolute bottom-0 inset-x-0 z-20 bg-background/85 backdrop-blur-xl border-t border-default/30 pb-[env(safe-area-inset-bottom)]">
+                <div className="relative w-full">
                     {showScrollToBottom && !isLoading && (
-                        <div className="flex justify-center">
-                            <button onClick={handleScrollToBottomClick} className="mb-2 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
+                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-auto">
+                            <button onClick={handleScrollToBottomClick} className="p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
                                 <ChevronDownIcon className="size-6" />
                             </button>
                         </div>
                     )}
-                    <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
+                    <footer className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
                         <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
                     </footer>
                 </div>

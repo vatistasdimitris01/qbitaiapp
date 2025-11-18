@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -11,7 +12,6 @@ import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
-import { StopCircleIcon } from './components/icons';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
@@ -582,8 +582,8 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col h-full relative">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto no-scrollbar">
-              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-32 h-full">
+            <main ref={mainContentRef} className="relative h-full overflow-y-auto no-scrollbar">
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-40 min-h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -591,25 +591,27 @@ const App: React.FC = () => {
                           return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} />;
                       })
                   ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center py-20">
                           <GreetingMessage text={greeting} />
                       </div>
                   )}
               </div>
             </main>
             
-            <div className="absolute bottom-0 inset-x-0 z-20 bg-background/85 backdrop-blur-xl border-t border-default/30 pb-[env(safe-area-inset-bottom)]">
-                <div className="relative w-full">
-                    {showScrollToBottom && !isLoading && (
-                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-auto">
-                            <button onClick={handleScrollToBottomClick} className="p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
-                                <ChevronDownIcon className="size-6" />
-                            </button>
+            <div className="fixed bottom-0 z-20 w-full md:pl-72 transition-all duration-300 ease-in-out left-0 right-0 pointer-events-none">
+                <div className="bg-gradient-to-t from-background via-background/85 to-transparent backdrop-blur-xl pb-[env(safe-area-inset-bottom)] pt-10">
+                    <div className="relative w-full max-w-4xl mx-auto px-4 sm:px-6 pointer-events-auto">
+                         {showScrollToBottom && !isLoading && (
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-auto z-30">
+                                <button onClick={handleScrollToBottomClick} className="p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
+                                    <ChevronDownIcon className="size-6" />
+                                </button>
+                            </div>
+                        )}
+                        <div className="mb-4">
+                            <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
                         </div>
-                    )}
-                    <footer className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
-                        <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
-                    </footer>
+                    </div>
                 </div>
             </div>
         </div>

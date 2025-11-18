@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
+import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -165,11 +165,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         try {
-            const firstResponse = await ai.models.generateContent({ model, contents, config });
-            const functionCalls = firstResponse.functionCalls;
+            // We use streaming primarily to detect function calls efficiently without a double-roundtrip latency for simple text.
+            const initialStream = await ai.models.generateContentStream({ model, contents, config });
+            
+            let functionCallToHandle: FunctionCall | null = null;
 
-            if (functionCalls && functionCalls.length > 0) {
-                const functionCall = functionCalls[0];
+            for await (const chunk of initialStream) {
+                // Check for function calls in the chunk
+                if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                    functionCallToHandle = chunk.functionCalls[0];
+                    break; // Stop processing the stream, we need to handle the tool
+                }
+
+                const chunkText = chunk.text;
+                if (chunkText) {
+                    write({ type: 'chunk', payload: chunkText });
+                }
+                if (chunk.usageMetadata) {
+                    write({ type: 'usage', payload: chunk.usageMetadata });
+                }
+            }
+
+            if (functionCallToHandle) {
+                const functionCall = functionCallToHandle;
                 if (functionCall.name !== 'google_search') {
                     throw new Error(`Unsupported function call: ${functionCall.name}`);
                 }
@@ -218,25 +236,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 const newContents: Content[] = [
                     ...contents,
-                    { role: 'model', parts: [{ functionCall }] },
+                    { role: 'model', parts: [{ functionCall: functionCall }] },
                     { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
                 ];
                 
-                const stream = await ai.models.generateContentStream({ model, contents: newContents, config });
+                // Stream the final response after tool execution
+                const finalStream = await ai.models.generateContentStream({ model, contents: newContents, config });
 
-                for await (const chunk of stream) {
-                    const chunkText = chunk.text;
-                    if (chunkText) {
-                        write({ type: 'chunk', payload: chunkText });
-                    }
-                    if (chunk.usageMetadata) {
-                        write({ type: 'usage', payload: chunk.usageMetadata });
-                    }
-                }
-            } else {
-                // No function call, just stream the response
-                const stream = await ai.models.generateContentStream({ model, contents, config });
-                for await (const chunk of stream) {
+                for await (const chunk of finalStream) {
                     const chunkText = chunk.text;
                     if (chunkText) {
                         write({ type: 'chunk', payload: chunkText });

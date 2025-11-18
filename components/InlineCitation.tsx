@@ -1,7 +1,5 @@
 import React, { useState, createContext, useContext, useRef, useEffect, useCallback } from 'react';
-// FIX: Correctly import the 'CitationSource' type, which is now defined in types.ts.
 import type { CitationSource } from '../types';
-// FIX: Correctly import 'ChevronLeftIcon' and 'ChevronRightIcon', which are now defined in icons.tsx.
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 
 // --- Helper Functions ---

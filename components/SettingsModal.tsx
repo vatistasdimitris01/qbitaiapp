@@ -17,7 +17,6 @@ interface SettingsModalProps {
   conversations: Conversation[];
   setConversations: (conversations: Conversation[]) => void;
   activeConversationId: string | null;
-  // FIX: The `t` function should return a string, not void.
   t: (key: string, params?: Record<string, string>) => string;
 }
 

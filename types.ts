@@ -1,5 +1,4 @@
 
-
 export enum MessageType {
   USER = 'USER',
   AI_RESPONSE = 'AI_RESPONSE',
@@ -84,7 +83,6 @@ export interface Tab {
   title?: string;
 }
 
-// FIX: Add missing 'CitationSource' interface.
 export interface CitationSource {
   url: string;
   title: string;
@@ -92,7 +90,6 @@ export interface CitationSource {
   quote?: string;
 }
 
-// Re-added for application structure
 export interface Persona {
   id: string;
   name: string;

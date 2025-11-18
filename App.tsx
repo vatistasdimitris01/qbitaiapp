@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -602,7 +600,7 @@ const App: React.FC = () => {
             
             <div className="absolute bottom-0 inset-x-0">
                 <div className="absolute bottom-0 inset-x-0 h-64 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
-                <div className="relative pt-2">
+                <div className="relative pt-2 border-t border-default">
                     {showScrollToBottom && !isLoading && (
                         <div className="flex justify-center">
                             <button onClick={handleScrollToBottomClick} className="mb-2 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
@@ -645,5 +643,4 @@ const App: React.FC = () => {
   );
 };
 
-// FIX: Add default export for App component
 export default App;

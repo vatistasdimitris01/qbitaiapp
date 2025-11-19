@@ -1,4 +1,3 @@
-
 // This service manages the singleton Web Worker for Python code execution.
 
 export type PythonExecutorUpdate = {

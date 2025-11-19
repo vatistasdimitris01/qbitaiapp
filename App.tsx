@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -640,5 +638,4 @@ const App: React.FC = () => {
   );
 };
 
-// FIX: Add default export for App component
 export default App;

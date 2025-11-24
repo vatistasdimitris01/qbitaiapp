@@ -100,10 +100,10 @@ window.mermaid = mermaid;
   --sidebar-active-foreground: #18181b;
   --sidebar-border: transparent;
   --card: #ffffff;
-  --border: #f4f4f5; /* Very light border for separation */
+  --border: #f4f4f5; 
   --user-message-bg: #f4f4f5;
   --token-surface: #ffffff;
-  --token-surface-secondary: #f9fafb;
+  --token-surface-secondary: #f8f9fa;
   --token-text-primary: #18181b;
   --token-text-secondary: #71717a;
   --token-border: #e4e4e7;
@@ -190,36 +190,36 @@ body {
   --tw-prose-th-borders: #d4d4d8;
   --tw-prose-td-borders: #e4e4e7;
   overflow-wrap: break-word; word-break: break-word;
-  font-size: 1rem;
-  line-height: 1.75;
+  font-size: 0.95rem;
+  line-height: 1.7;
 }
 .dark .prose {
   --tw-prose-bullets: #52525b;
   --tw-prose-th-borders: #3f3f46;
   --tw-prose-td-borders: #27272a;
 }
-.prose h1, .prose h2, .prose h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; line-height: 1.25; }
-.prose h1 { font-size: 1.5rem; letter-spacing: -0.025em; }
-.prose h2 { font-size: 1.25rem; letter-spacing: -0.025em; }
-.prose h3 { font-size: 1.125rem; }
-.prose p { margin-top: 0.75em; margin-bottom: 0.75em; }
-.prose ul, .prose ol { margin-top: 0.75em; margin-bottom: 0.75em; padding-left: 1.25em; }
+.prose h1, .prose h2, .prose h3 { margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; line-height: 1.25; }
+.prose h1 { font-size: 1.35rem; letter-spacing: -0.02em; }
+.prose h2 { font-size: 1.15rem; letter-spacing: -0.015em; }
+.prose h3 { font-size: 1.05rem; }
+.prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
+.prose ul, .prose ol { margin-top: 0.5em; margin-bottom: 0.5em; padding-left: 1.25em; }
 .prose a { color: var(--tw-prose-links); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
 .prose a:hover { border-bottom-color: var(--tw-prose-links); text-decoration: none; }
 .prose pre {
   color: var(--tw-prose-pre-code);
   background-color: var(--tw-prose-pre-bg);
-  overflow-x: auto; font-size: 0.875em; line-height: 1.714;
-  margin-top: 1.25em; margin-bottom: 1.25em; border-radius: 0.5rem; padding: 1em;
+  overflow-x: auto; font-size: 0.85em; line-height: 1.6;
+  margin-top: 1em; margin-bottom: 1em; border-radius: 0.5rem; padding: 1em;
   border: 1px solid var(--border);
 }
 .prose code:not(pre > code) {
-  font-size: 0.875rem; padding: 0.125rem 0.25rem; margin: 0 0.1rem; border-radius: 0.25rem;
+  font-size: 0.85rem; padding: 0.1rem 0.3rem; margin: 0 0.1rem; border-radius: 0.25rem;
   background-color: var(--token-surface-secondary); color: var(--foreground); border: 1px solid var(--border);
   font-weight: 500;
 }
 .prose code:not(pre > code)::before, .prose code:not(pre > code)::after { content: none; }
-.prose blockquote { border-left: 2px solid var(--border); padding-left: 1em; margin: 1.5em 0; font-style: italic; color: var(--muted-foreground); }
+.prose blockquote { border-left: 2px solid var(--border); padding-left: 1em; margin: 1em 0; font-style: italic; color: var(--muted-foreground); }
 
 .typing-indicator.cursor {
   width: 2px; height: 1.1em; border-radius: 1px;
@@ -236,9 +236,9 @@ body {
 }
 .output-block {
     background-color: var(--background); color: var(--foreground);
-    border-radius: 0.75rem; padding: 0.75rem 1rem;
+    border-radius: 0.5rem; padding: 0.75rem 1rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875rem; border: 1px solid var(--border);
+    font-size: 0.85rem; border: 1px solid var(--border);
     transition: all 0.2s ease-in-out;
 }
 .output-block.success { border-color: var(--border); }
@@ -248,9 +248,8 @@ body {
 .error-text { color: #ef4444; }
 .dark .error-text { color: #f87171; }
 
-.code-block-area { background-color: var(--code-bg); border-radius: 0.75rem; }
+.code-block-area { background-color: var(--code-bg); border-radius: 0.5rem; }
 .code-block-area .hljs { background: transparent !important; color: var(--code-text-default); }
-/* HLJS styles remain same */
 
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes shine { from { background-position: -200% center; } to { background-position: 200% center; } }

@@ -3,11 +3,10 @@ import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CodeXmlIcon, CheckIcon, GitForkIcon
+    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
-import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import GroundingSources from './GroundingSources';
@@ -42,8 +41,6 @@ const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; ti
 );
 
 const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
-const isVideoFile = (mimeType: string) => mimeType.startsWith('video/');
-const isAudioFile = (mimeType: string) => mimeType.startsWith('audio/');
 
 const getTextFromMessage = (content: any): string => {
     if (typeof content === 'string') return content;
@@ -155,19 +152,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
 
     return (
-        <div className={`flex w-full my-8 group/message ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex w-full mb-6 group/message ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
                 
                 {/* Thinking Block */}
                 {hasThinking && (
-                    <div className="w-full mb-4">
-                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 text-muted-foreground text-xs font-medium hover:text-foreground transition-colors p-1.5 rounded-lg bg-token-surface-secondary/50 w-fit">
+                    <div className="w-full mb-3">
+                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors p-1.5 rounded-lg w-fit">
                             <BrainIcon className="size-3.5" />
                             <span>{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-3 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
-                            <div className="mt-3 pl-3 border-l border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
+                            <div className="mt-2 pl-2 border-l-2 border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
                                 <div dangerouslySetInnerHTML={{ __html: marked.parse(parsedThinkingText || '') }} />
                             </div>
                         )}
@@ -177,7 +174,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-user-message px-5 py-2.5 rounded-2xl text-[0.95rem] leading-relaxed text-foreground max-w-full">
+                         <div className="bg-user-message px-4 py-2 rounded-[20px] text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
@@ -189,15 +186,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                              )}
                          </div>
                     ) : (
-                        <div ref={contentRef} className="w-full text-[0.95rem] leading-7">
+                        <div ref={contentRef} className="w-full text-[0.95rem] leading-7 space-y-4">
                             {renderableContent.map((part, index) => {
                                 if (part.type === 'code') {
                                     return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
                                 }
                                 if (part.type === 'text') {
-                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert mb-2" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
+                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
                                 }
-                                return null; // Handle other types as needed
+                                if (part.type === 'gallery') {
+                                    return <ImageGallery key={index} images={part.images} onImageClick={(i) => onOpenLightbox(part.images, i)} />;
+                                }
+                                if (part.type === 'inline-image') {
+                                    return <InlineImage key={index} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox([{url: part.url, alt: part.alt}], 0)} />;
+                                }
+                                return null;
                             })}
                             {isLoading && renderableContent.length === 0 && <AITextLoading />}
                         </div>
@@ -205,14 +208,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
                     {/* Grounding Sources */}
                     {message.groundingChunks && message.groundingChunks.length > 0 && (
-                         <div className="mt-3 mb-1">
+                         <div className="mt-2 mb-1">
                              <GroundingSources chunks={message.groundingChunks} t={t} />
                          </div>
                     )}
 
                     {/* Message Actions */}
                     {!isLoading && (
-                        <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
+                        <div className={`flex items-center gap-0.5 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
                             <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
                                 {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
                             </IconButton>

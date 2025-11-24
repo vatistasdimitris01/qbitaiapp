@@ -12,7 +12,7 @@ declare global {
 }
 
 const LoadingSpinner = () => (
-    <svg className="animate-spin h-5 w-5 mr-3 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin h-4 w-4 mr-2 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -78,7 +78,7 @@ const ActionButton: React.FC<{ onClick: () => void; title: string; children: Rea
         title={title}
         aria-label={title}
         disabled={disabled}
-        className="p-1 rounded-sm text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        className="p-1.5 rounded-md text-muted-foreground hover:bg-token-surface-secondary hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     >
         {children}
     </button>
@@ -88,7 +88,7 @@ const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode;
     <div
         title={title}
         aria-label={title}
-        className="p-1 rounded-sm text-muted-foreground/50 cursor-not-allowed"
+        className="p-1.5 rounded-md text-muted-foreground/30 cursor-not-allowed"
     >
         {children}
     </div>
@@ -112,8 +112,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
     const [reactExecTrigger, setReactExecTrigger] = useState(0);
-
-    const lineCount = useMemo(() => (typeof code === 'string' ? code : '').split('\n').length, [code]);
 
     const runPython = useCallback(async () => {
         setStatus('executing');
@@ -341,7 +339,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     }, [isLoading, prevIsLoading, autorun, isPythonReady, persistedResult, handleRunCode]);
 
     useEffect(() => {
-        // If the code was autorun, expand it after the first run so the user sees what was executed.
         if (autorun && hasRunOnce) {
             setIsCollapsed(false);
         }
@@ -390,18 +387,15 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const handleStopCode = () => {
         if (lang === 'python') {
             stopPythonExecution();
-            onStopExecution(); // Signal to App to update readiness state
+            onStopExecution(); 
             setStatus('idle');
             setError(t('code.stopped'));
             setOutput('');
         }
-        // Stopping for JS/React/HTML is not implemented as they run synchronously.
     };
     
     const OutputDisplay = () => {
         const isFatalError = status === 'error';
-
-        // Determine if there is any visual output to render.
         const hasVisibleOutput = (output && typeof output !== 'string') || 
                                  (typeof output === 'string' && output.trim() !== '') ||
                                  (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ||
@@ -412,44 +406,32 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                                        !(output && typeof output !== 'string') &&
                                        !(lang === 'python' && typeof output === 'string' && output.startsWith('{'));
 
-        // Don't render anything if there's no output, no errors, and no files to show.
         if (!error && !hasVisibleOutput && !downloadableFile && !htmlBlobUrl) {
             return null;
         }
         
         return (
             <div className="flex flex-col gap-2">
-                {/* 1. RENDER ERROR / WARNINGS */}
                 {error && (
                     <div className={`output-block ${isFatalError ? 'error' : 'success'}`}>
                         <div className="flex justify-between items-start gap-4">
                             <pre className={`text-sm whitespace-pre-wrap flex-1 ${isFatalError ? 'error-text' : ''}`}>{error}</pre>
                             {isFatalError && onFixRequest && (
-                                <button
-                                    onClick={() => onFixRequest(error)}
-                                    title={t('code.fixCode')}
-                                    className="p-1.5 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"
-                                >
-                                    <Wand2Icon className="size-5" />
-                                </button>
+                                <button onClick={() => onFixRequest(error)} title={t('code.fixCode')} className="p-1 text-muted-foreground hover:bg-background rounded-md hover:text-foreground transition-colors"><Wand2Icon className="size-4" /></button>
                             )}
                         </div>
                     </div>
                 )}
                 
-                {/* 2. RENDER PRIMARY OUTPUT (but only if the execution was not a fatal error) */}
                 {!isFatalError && hasVisibleOutput && (
                     <>
                         {output && typeof output !== 'string' && <div>{output}</div>}
-                        
                         {output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
                             <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
                         )}
-                        
                         {(lang === 'react' || lang === 'jsx') && (
                             <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
                         )}
-                        
                         {showRegularOutputBlock && (
                             <div className="text-sm output-block success">
                                 <pre>{typeof output === 'string' ? output.trim() : ''}</pre>
@@ -458,29 +440,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     </>
                 )}
 
-                {/* 3. RENDER DOWNLOADS (can appear even with warnings) */}
                 {!isFatalError && (downloadableFile || htmlBlobUrl) && (
-                     <div className="text-sm output-block success">
-                        <div className="flex items-center gap-2">
+                     <div className="text-sm output-block success flex gap-2">
                             {downloadableFile && (
-                                <button
-                                    onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
-                                    className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                                >
-                                    <DownloadIcon className="size-3.5 mr-1.5" />
-                                    {t('code.downloadAgain')}
-                                </button>
+                                <button onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)} className="flex items-center text-xs font-medium px-2 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><DownloadIcon className="size-3.5 mr-1.5" />{t('code.downloadAgain')}</button>
                             )}
                             {htmlBlobUrl && (
-                                <button
-                                    onClick={() => window.open(htmlBlobUrl, '_blank')}
-                                    className="flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"
-                                >
-                                    <EyeIcon className="size-3.5 mr-1.5" />
-                                    {t('code.openInNewTab')}
-                                </button>
+                                <button onClick={() => window.open(htmlBlobUrl, '_blank')} className="flex items-center text-xs font-medium px-2 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><EyeIcon className="size-3.5 mr-1.5" />{t('code.openInNewTab')}</button>
                             )}
-                        </div>
                     </div>
                 )}
             </div>
@@ -491,19 +458,19 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const isRunButtonDisabled = (isPython && !isPythonReady) || status === 'executing';
 
     return (
-        <div className="not-prose my-4">
-            <div className="bg-card border border-default rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 bg-token-surface-secondary/50 border-b border-default">
+        <div className="not-prose my-3 font-sans">
+            <div className="bg-token-surface border border-default rounded-xl overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between px-3 py-1.5 border-b border-default/50 bg-transparent">
                     <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground capitalize">{title || lang}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider">{title || lang}</span>
                         {isPython && !isPythonReady && status !== 'executing' && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <LoadingSpinner />
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <div className="size-2 bg-yellow-500 rounded-full animate-pulse"></div>
                                 <span>{t('code.loading')}</span>
                             </div>
                         )}
                     </div>
-                     <div className="flex items-center gap-0.5 bg-background p-0.5 rounded-md border border-default shadow-sm">
+                     <div className="flex items-center gap-0.5">
                         <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
                             {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
                         </ActionButton>
@@ -532,8 +499,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
 
                 <div className={`code-container ${isCollapsed ? 'collapsed' : ''}`}>
                     <div className="min-h-0 overflow-hidden">
-                        <div className="p-4 bg-background">
-                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area rounded-lg">
+                        <div className="p-0 bg-background">
+                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area rounded-none bg-transparent">
                                 <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
                             </pre>
                         </div>
@@ -543,7 +510,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             
             <div className="mt-2 space-y-2">
                 {isExecutable && status === 'executing' && (
-                     <div className="flex items-center text-sm text-muted-foreground p-3 border border-default rounded-xl bg-token-surface-secondary">
+                     <div className="flex items-center text-sm text-muted-foreground p-2 border border-default rounded-lg bg-token-surface-secondary/50">
                         <LoadingSpinner />
                         <span>{t('code.executing')}</span>
                     </div>

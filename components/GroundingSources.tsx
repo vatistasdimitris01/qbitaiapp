@@ -46,7 +46,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
     const hiddenCount = chunks.length - visibleChunks.length;
 
     const SourceList = () => (
-        <ul className="divide-y divide-default">
+        <ul className="divide-y divide-default/50">
             {chunks.map((chunk, index) => {
                 if ('web' in chunk && chunk.web.uri) {
                     const origin = getOrigin(chunk.web.uri);
@@ -58,13 +58,13 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                 href={chunk.web.uri}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block p-3 rounded-md hover:bg-token-surface-secondary"
+                                className="block p-3 rounded-lg hover:bg-token-surface-secondary transition-colors"
                             >
                                 <div className="flex items-start gap-3">
                                     <img
                                         src={faviconUrl}
                                         alt=""
-                                        className="size-4 rounded mt-0.5"
+                                        className="size-4 rounded-sm mt-0.5 opacity-80"
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             if (target.src.endsWith('/favicon.ico')) {
@@ -89,7 +89,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     const reviews = chunk.maps.placeAnswerSources?.[0]?.reviewSnippets || [];
                     return (
                         <li key={index}>
-                            <div className="p-3 rounded-md hover:bg-token-surface-secondary">
+                            <div className="p-3 rounded-lg hover:bg-token-surface-secondary transition-colors">
                                 <a
                                     href={chunk.maps.uri}
                                     target="_blank"
@@ -128,11 +128,11 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
         <>
             <button
                 type="button"
-                className="relative flex items-center"
+                className="flex items-center gap-2 group"
                 onClick={() => setIsModalOpen(true)}
                 aria-label={t('chat.message.grounding')}
             >
-                <div className="flex items-center -space-x-2 cursor-pointer">
+                <div className="flex items-center -space-x-1.5 cursor-pointer">
                     {visibleChunks.map((chunk, index) => {
                          if ('web' in chunk && chunk.web.uri) {
                             const origin = getOrigin(chunk.web.uri);
@@ -144,7 +144,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                    src={faviconUrl}
                                    alt={getDomain(chunk.web.uri)}
                                    title={chunk.web.title}
-                                   className="size-5 rounded-full bg-token-surface-secondary ring-2 ring-background"
+                                   className="size-4 rounded-full bg-token-surface-secondary ring-2 ring-background grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
                                    onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         if (target.src.endsWith('/favicon.ico')) {
@@ -160,8 +160,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                        }
                        if ('maps' in chunk && chunk.maps.uri) {
                            return (
-                               <div key={index} title={chunk.maps.title} className="size-5 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center">
-                                   <MapPinIcon className="size-3 text-blue-500" />
+                               <div key={index} title={chunk.maps.title} className="size-4 rounded-full bg-blue-100 dark:bg-blue-900/50 ring-2 ring-background flex items-center justify-center">
+                                   <MapPinIcon className="size-2.5 text-blue-500" />
                                </div>
                            );
                        }
@@ -169,32 +169,32 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                     })}
                 </div>
                 {hiddenCount > 0 && (
-                    <div className="ml-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-token-surface-secondary text-xs font-medium text-muted-foreground ring-2 ring-background cursor-pointer">
+                    <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                         +{hiddenCount}
-                    </div>
+                    </span>
                 )}
             </button>
 
             {isModalOpen && (
                 <div 
-                    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up" 
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in-up" 
                     onClick={() => setIsModalOpen(false)}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="sources-modal-title"
                 >
                     <div 
-                        className="bg-card rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden border border-default" 
+                        className="bg-card rounded-2xl shadow-xl w-full max-w-sm max-h-[70vh] flex flex-col overflow-hidden border border-default/50" 
                         onClick={e => e.stopPropagation()}
                     >
-                        <header className="flex items-center justify-between py-2.5 pl-4 pr-2 border-b border-default flex-shrink-0">
-                            <h3 id="sources-modal-title" className="text-base font-semibold text-foreground">{t('chat.message.grounding')}</h3>
+                        <header className="flex items-center justify-between py-3 pl-4 pr-3 border-b border-default/50 flex-shrink-0">
+                            <h3 id="sources-modal-title" className="text-sm font-semibold text-foreground">{t('chat.message.grounding')}</h3>
                             <button 
                                 onClick={() => setIsModalOpen(false)} 
-                                className="p-2 rounded-full hover:bg-token-surface-secondary"
+                                className="p-1.5 rounded-full hover:bg-token-surface-secondary text-muted-foreground hover:text-foreground transition-colors"
                                 aria-label="Close sources"
                             >
-                                <XIcon className="size-5 text-muted-foreground" />
+                                <XIcon className="size-4" />
                             </button>
                         </header>
                         <div className="flex-1 overflow-y-auto p-2">

@@ -14,13 +14,6 @@ interface HistoryItem {
     files?: ApiAttachment[];
 }
 
-interface LocationInfo {
-    city: string;
-    country: string;
-    latitude?: number;
-    longitude?: number;
-}
-
 const languageMap: { [key: string]: string } = {
     en: 'English',
     el: 'Greek',
@@ -30,13 +23,12 @@ const languageMap: { [key: string]: string } = {
 };
 
 const searchContextTranslations: { [lang: string]: string } = {
-    en: 'Here are the search results for "{query}":\n\n{results}',
-    el: 'Αυτά είναι τα αποτελέσματα αναζήτησης για "{query}":\n\n{results}',
-    es: 'Aquí están los resultados de búsqueda para "{query}":\n\n{results}',
-    fr: 'Voici les résultats de recherche pour "{query}":\n\n{results}',
-    de: 'Hier sind die Suchergebnisse für "{query}":\n\n{results}',
+    en: 'Search results for "{query}":\n{results}',
+    el: 'Αποτελέσματα αναζήτησης για "{query}":\n{results}',
+    es: 'Resultados de búsqueda para "{query}":\n{results}',
+    fr: 'Résultats de recherche pour "{query}":\n{results}',
+    de: 'Suchergebnisse für "{query}":\n{results}',
 };
-
 
 export const config = {
   api: {
@@ -90,70 +82,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-flash-lite-latest';
+        const model = 'gemini-flash-lite-latest'; // Explicitly using the Lite model
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const baseSystemInstruction = `You are Qbit, a helpful, intelligent, and proactive AI assistant. Your responses must be professional, clear, and structured with Markdown.
+        const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
 
-# ⚜️ CORE DIRECTIVES
+1. **Language**: Respond in ${userLanguageName}.
+2. **Identity**: If asked about your creator, reply: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
+3. **Web Search**: Use the \`google_search\` tool for recent events or unknown facts. Cite sources with markdown links: \`[Title](url)\`.
+4. **Formatting**: 
+   - Use clean Markdown. 
+   - Be concise and professional.
+   - Use \`!gallery["query"]\` for lists of places/items to show images.
+   - Use Python code blocks with \`autorun\` if you need to calculate or visualize data.
 
-## 1. IDENTITY & LANGUAGE
-- **Your Name**: Qbit.
-- **Your Creator**: If asked "who made you?", you MUST reply ONLY with: "I was created by Vatistas Dimitris. You can find him on X: https://x.com/vatistasdim and Instagram: https://www.instagram.com/vatistasdimitris/".
-- **Language**: Your entire response MUST be in **${userLanguageName}**.
+Think step-by-step but keep the final output clean and direct.`;
 
-## 2. WEB SEARCH & CONTEXT
-- **Tool Use**: You have access to a \`google_search\` tool. Use it by returning a function call when the user's query requires up-to-the-minute information, details about recent events, or specifics about people, companies, or places for which you lack sufficient knowledge. For general knowledge, historical facts, or creative tasks, rely on your internal knowledge first.
-- **Search Results**: After you call the \`google_search\` tool, you will be provided with the search results. You MUST base your final answer on the information provided in these results.
-- **Citations**: When you use information from the search results, you MUST cite your sources. The search results will include a URL for each snippet. Cite using standard markdown links like \`[Title](url)\` immediately after the sentence or fact it supports. This is a strict requirement.
-
-# 🎨 RESPONSE FORMATTING & STYLE
-
-## 1. MARKDOWN USAGE
-- Use Markdown for structure: headings, lists, bold, italics.
-- Use horizontal rules (\`---\`) sparingly to separate major sections.
-- **Lists of Places**: When you generate a list of places (e.g., restaurants, landmarks, points of interest), you MUST follow this structure for each item:
-  - A heading for the place name (e.g., \`### 1. Place Name\`).
-  - A line with key details like rating or type in bold (e.g., \`**★ 4.7 • Fine dining restaurant**\`).
-  - An image gallery tag. The format is \`!gallery["A descriptive image search query for the place"]\`. For example, for 'Oiko Restaurant' in Athens, you would write \`!gallery["Oiko Restaurant Athens fine dining"]\`. You MUST do this for at least the first 3 items in any list of places.
-
-## 2. CODE GENERATION
-- When providing code, especially Python, you MUST use Markdown code blocks.
-- **Executable Python**: For Python code that solves a problem, performs calculations, or generates visualizations, use a fenced code block with the language identifier \`python\`.
-  \`\`\`python
-  # Your executable Python code here
-  \`\`\`
-- **Auto-run Python**: For self-contained code that directly answers a user's request (e.g., "plot a sine wave"), add the \`autorun\` keyword to the info string of the code block. This suggests the code should be run automatically.
-  \`\`\`python autorun
-  import matplotlib.pyplot as plt
-  import numpy as np
-  x = np.linspace(0, 2 * np.pi, 400)
-  y = np.sin(x)
-  plt.plot(x, y)
-  plt.title("Sine Wave")
-  plt.show() # This will be captured and displayed as an image.
-  \`\`\`
-- **Data Visualization**: When asked to create a graph, like a weather chart, first use the \`google_search\` tool to find the necessary data. Then, generate Python code using libraries like Matplotlib or Plotly to create the visualization. The environment can render these visualizations.
-- **Other Languages**: For non-executable examples or snippets in other languages, use the appropriate language identifier (e.g., \`javascript\`, \`html\`).
-
-## 3. ENGAGEMENT
-- Your goal is to provide a complete answer.
-- Ask 1-3 relevant follow-up questions for exploratory topics, complex explanations, or open-ended questions to keep the conversation going. Place them at the very end of your response.
-`;
-
-        const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n---\n\n${baseSystemInstruction}` : baseSystemInstruction;
+        const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
-            description: 'Get information from the web using Google Search. Use this for current events, news, or for topics you do not have sufficient internal knowledge about.',
+            description: 'Get information from the web using Google Search.',
             parameters: {
                 type: Type.OBJECT,
                 properties: {
-                  query: {
-                    type: Type.STRING,
-                    description: 'The search query.',
-                  },
+                  query: { type: Type.STRING, description: 'The search query.' },
                 },
                 required: ['query'],
             },
@@ -165,92 +119,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         try {
-            // We use streaming primarily to detect function calls efficiently without a double-roundtrip latency for simple text.
             const initialStream = await ai.models.generateContentStream({ model, contents, config });
-            
             let functionCallToHandle: FunctionCall | null = null;
 
             for await (const chunk of initialStream) {
-                // Check for function calls in the chunk
                 if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                     functionCallToHandle = chunk.functionCalls[0];
-                    break; // Stop processing the stream, we need to handle the tool
+                    break;
                 }
-
-                const chunkText = chunk.text;
-                if (chunkText) {
-                    write({ type: 'chunk', payload: chunkText });
-                }
-                if (chunk.usageMetadata) {
-                    write({ type: 'usage', payload: chunk.usageMetadata });
-                }
+                if (chunk.text) write({ type: 'chunk', payload: chunk.text });
+                if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
             }
 
             if (functionCallToHandle) {
                 const functionCall = functionCallToHandle;
-                if (functionCall.name !== 'google_search') {
-                    throw new Error(`Unsupported function call: ${functionCall.name}`);
-                }
+                if (functionCall.name !== 'google_search') throw new Error(`Unsupported function: ${functionCall.name}`);
 
                 write({ type: 'searching' });
-                const query = functionCall.args.query;
-                
-                if (typeof query !== 'string') {
-                    throw new Error(`Invalid query from function call: expected a string for 'query', but got ${typeof query}`);
-                }
+                const query = functionCall.args.query as string;
                 
                 const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                 const cseId = process.env.GOOGLE_CSE_ID;
+                if (!apiKey || !cseId) throw new Error("Search config missing.");
 
-                if (!apiKey || !cseId) {
-                    throw new Error("Google Custom Search API Key (GOOGLE_API_KEY) or CSE ID (GOOGLE_CSE_ID) is not configured in environment variables.");
-                }
-
-                const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`;
-                const searchResponse = await fetch(searchUrl);
-
-                if (!searchResponse.ok) {
-                    const errorBody = await searchResponse.text();
-                    throw new Error(`Google Search API failed with status ${searchResponse.status}: ${errorBody}`);
-                }
+                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`);
                 const searchResults = await searchResponse.json();
                 
-                if (searchResults.items && searchResults.items.length > 0) {
+                if (searchResults.items) {
                     const groundingChunks = searchResults.items.map((item: any) => ({
-                        web: {
-                            uri: item.link,
-                            title: item.title,
-                        },
+                        web: { uri: item.link, title: item.title },
                     }));
                     write({ type: 'sources', payload: groundingChunks });
                 }
 
                 const formattedResults = searchResults.items?.map((item: any) => 
                     `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
-                ).join('\n\n---\n\n') || "No results found.";
+                ).join('\n\n---\n\n') || "No results.";
 
-                const searchContextTemplate = searchContextTranslations[langCode] || searchContextTranslations.en;
-                const searchContext = searchContextTemplate
+                const searchContext = (searchContextTranslations[langCode] || searchContextTranslations.en)
                     .replace('{query}', query)
                     .replace('{results}', formattedResults);
                 
                 const newContents: Content[] = [
                     ...contents,
-                    { role: 'model', parts: [{ functionCall: functionCall }] },
+                    { role: 'model', parts: [{ functionCall }] },
                     { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
                 ];
                 
-                // Stream the final response after tool execution
                 const finalStream = await ai.models.generateContentStream({ model, contents: newContents, config });
-
                 for await (const chunk of finalStream) {
-                    const chunkText = chunk.text;
-                    if (chunkText) {
-                        write({ type: 'chunk', payload: chunkText });
-                    }
-                    if (chunk.usageMetadata) {
-                        write({ type: 'usage', payload: chunk.usageMetadata });
-                    }
+                    if (chunk.text) write({ type: 'chunk', payload: chunk.text });
+                    if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
             }
         } finally {
@@ -258,7 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.end();
         }
     } catch (error) {
-        console.error("Error in /api/sendMessage handler:", error);
+        console.error("API Error:", error);
         res.status(500).json({ error: { message: error instanceof Error ? error.message : String(error) } });
     }
 }

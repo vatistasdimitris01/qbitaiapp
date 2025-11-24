@@ -3,14 +3,13 @@ import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, FileTextIcon, CodeXmlIcon, CheckIcon, GitForkIcon, MapPinIcon
+    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CodeXmlIcon, CheckIcon, GitForkIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
 import AudioPlayer from './AudioPlayer';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
-import SkeletonLoader from './SkeletonLoader';
 import GroundingSources from './GroundingSources';
 
 type ExecutionResult = {
@@ -18,61 +17,6 @@ type ExecutionResult = {
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
   downloadableFile?: { filename: string; mimetype: string; data: string; };
-};
-
-interface ImageInfo {
-  url: string;
-  alt: string;
-  source?: string;
-}
-
-const GalleryFromSearch: React.FC<{ searchQuery: string; onOpenLightbox: (images: ImageInfo[], startIndex: number) => void }> = ({ searchQuery, onOpenLightbox }) => {
-    const [images, setImages] = useState<ImageInfo[]>([]);
-    const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-
-    useEffect(() => {
-        const fetchImages = async () => {
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageSearchQuery: searchQuery }),
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to fetch images');
-                }
-                const data = await response.json();
-                if (data.images && data.images.length > 0) {
-                    setImages(data.images.map((url: string) => ({ url, alt: searchQuery, source: 'Google Images' })));
-                    setStatus('loaded');
-                } else {
-                    // Don't show an error, just show nothing if no images found.
-                    setStatus('loaded');
-                    setImages([]);
-                }
-            } catch (error) {
-                console.error('Error fetching gallery images:', error);
-                setStatus('error');
-            }
-        };
-        fetchImages();
-    }, [searchQuery]);
-
-    if (status === 'loading') {
-        return (
-            <div className="not-prose my-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
-                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
-                <SkeletonLoader className="aspect-[4/3] rounded-lg" />
-            </div>
-        );
-    }
-
-    if (status === 'error' || images.length === 0) {
-        return null; // Don't show anything if it fails or returns no images
-    }
-
-    return <ImageGallery images={images} onImageClick={(index) => onOpenLightbox(images, index)} />;
 };
 
 interface ChatMessageProps {
@@ -91,8 +35,8 @@ interface ChatMessageProps {
     onOpenLightbox: (images: any[], startIndex: number) => void;
 }
 
-const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
-    <button onClick={onClick} className="p-1.5 text-muted-foreground md:hover:bg-token-surface-secondary rounded-md md:hover:text-foreground transition-colors" aria-label={ariaLabel}>
+const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
+    <button onClick={onClick} className="p-1.5 text-muted-foreground/50 hover:text-foreground transition-colors rounded-md" title={title}>
         {children}
     </button>
 );
@@ -110,26 +54,16 @@ const textToHtml = (text: string): string => {
     if (!text) return '';
     const placeholders: { [key:string]: string } = {};
     let placeholderId = 0;
-    
-    // This regex will find display math and non-greedy inline math.
-    // It purposefully does NOT match inline code (`...`) so that `marked` can handle it.
     const mathRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)|(\$[^\$\n\r]+?\$))/g;
-
     const textWithPlaceholders = text.replace(mathRegex, (match) => {
         const id = `__QBIT_PLACEHOLDER_${placeholderId++}__`;
         placeholders[id] = match;
         return id;
     });
-
-    // Let marked parse the text. It will correctly handle markdown like inline code.
-    // Math expressions are protected as placeholders.
     let html = marked.parse(textWithPlaceholders, { breaks: true, gfm: true }) as string;
-
-    // Restore the math expressions.
     for (const id in placeholders) {
         html = html.replace(id, placeholders[id]);
     }
-    
     return html;
 };
 
@@ -144,7 +78,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }, [aiStatus]);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
-    const isShortUserMessage = isUser && !messageText.includes('\n') && messageText.length < 50;
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
@@ -177,21 +110,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     const lang = codeMatch[1] || 'plaintext';
                     const code = codeMatch[2];
                     if (lang === 'json-gallery') {
-                        try {
+                         try {
                             const galleryData = JSON.parse(code);
                             if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
                                 finalParts.push({ type: 'gallery', images: galleryData.images });
                             }
-                        } catch (e) { /* Incomplete or invalid JSON, will be handled as text */ }
+                        } catch (e) { }
                     } else {
                         finalParts.push({ type: 'code', lang, code, info: part.split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
                     }
                 }
             } else if (part.startsWith('!gallery')) {
-                const galleryMatch = /!gallery\["(.*?)"\]/.exec(part);
-                if (galleryMatch) {
-                    finalParts.push({ type: 'gallery-search', query: galleryMatch[1] });
-                }
+                finalParts.push({ type: 'gallery-search', query: /!gallery\["(.*?)"\]/.exec(part)?.[1] });
             } else {
                 let lastTextIndex = 0;
                 let inlineMatch;
@@ -210,21 +140,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         return finalParts;
     }, [parsedResponseText]);
 
-    const allImages = useMemo(() => {
-        const collectedImages: { url: string; alt: string; source?: string }[] = [];
-        renderableContent.forEach(part => {
-            if (part.type === 'gallery') collectedImages.push(...part.images);
-            else if (part.type === 'inline-image') collectedImages.push({ url: part.url, alt: part.alt });
-        });
-        return collectedImages;
-    }, [renderableContent]);
-
-
-    const hasContent = useMemo(() => parsedResponseText.trim().length > 0, [parsedResponseText]);
-    const hasSources = useMemo(() => message.groundingChunks && message.groundingChunks.length > 0, [message.groundingChunks]);
-    const showAiActions = !isLoading && (hasContent || hasSources);
-
-
     const handleCopy = () => {
         const textToCopy = isUser ? messageText : parsedResponseText;
         if (textToCopy) {
@@ -235,134 +150,84 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         }
     };
 
-    const pythonCodeBlocks = useMemo(() => renderableContent.filter(part => part.type === 'code' && part.lang === 'python').map(part => part.code || ''), [renderableContent]);
-    const thinkingHtml = useMemo(() => parsedThinkingText ? marked.parse(parsedThinkingText, { breaks: true, gfm: true }) as string : '', [parsedThinkingText]);
-
-    useEffect(() => {
-        if (contentRef.current && message.type !== MessageType.USER) {
-            try {
-                if ((window as any).renderMathInElement) (window as any).renderMathInElement(contentRef.current, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false });
-                const mermaidElements = contentRef.current.querySelectorAll('.mermaid');
-                if (mermaidElements.length > 0 && (window as any).mermaid) {
-                    (window as any).mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
-                    (window as any).mermaid.run({ nodes: mermaidElements });
-                }
-                contentRef.current.querySelectorAll('input[type=checkbox]').forEach((el) => el.setAttribute('disabled', 'true'));
-            } catch (error) { console.error('Post-render processing error:', error); }
-        }
-    }, [renderableContent, message.type, message.id]);
-
     const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
-    const hasAttachments = isUser && message.files && message.files.length > 0;
-    const isAudioOnlyMessage = useMemo(() => isUser && message.files?.length === 1 && isAudioFile(message.files[0].type) && message.content === t('chat.input.audioMessage'), [isUser, message.files, message.content, t]);
-
-    const loadingTexts = useMemo(() => ({
-        thinking: [t('chat.status.thinking'), t('chat.status.processing'), t('chat.status.analyzing'), t('chat.status.consulting')],
-        searching: [t('chat.status.searching'), t('chat.status.finding'), t('chat.status.consultingGoogle')],
-        generating: [t('chat.status.generating'), t('chat.status.composing'), t('chat.status.formatting')],
-    })[aiStatus] || [t('chat.status.thinking')], [aiStatus, t]);
     
-    if (!isUser && !isLoading && !hasContent && !hasThinking && !hasSources) return null;
+    if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
 
     return (
-        <div className={`flex w-full my-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`group flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`flex w-full my-8 group/message ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
+                
+                {/* Thinking Block */}
                 {hasThinking && (
-                    <div className="w-full mb-3">
-                        <button type="button" onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex w-full items-center gap-2 text-muted-foreground text-sm hover:text-foreground transition-colors p-2 rounded-lg hover:bg-token-surface-secondary/50" aria-expanded={isThinkingOpen}>
-                            <BrainIcon className="size-4" /><span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
-                            <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
+                    <div className="w-full mb-4">
+                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 text-muted-foreground text-xs font-medium hover:text-foreground transition-colors p-1.5 rounded-lg bg-token-surface-secondary/50 w-fit">
+                            <BrainIcon className="size-3.5" />
+                            <span>{t('chat.message.thinking')}</span>
+                            <ChevronDownIcon className={`size-3 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
-                            <div className="mt-2 pl-4 border-l-2 border-default ml-3"><div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} /></div>
+                            <div className="mt-3 pl-3 border-l border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
+                                <div dangerouslySetInnerHTML={{ __html: marked.parse(parsedThinkingText || '') }} />
+                            </div>
                         )}
                     </div>
                 )}
                 
-                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start w-full'}`}>
+                {/* Message Content */}
+                <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                        isAudioOnlyMessage ? <AudioPlayer src={message.files![0].dataUrl} t={t} /> : (
-                            <>
-                                {messageText && (
-                                    <div className={`w-fit max-w-full rounded-2xl px-5 py-3 bg-user-message text-foreground shadow-sm`}>
-                                        <p className="whitespace-pre-wrap">{messageText}</p>
-                                    </div>
-                                )}
-                                {hasAttachments && (
-                                    <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
-                                        {message.files?.map((file, index) => (
-                                            <div key={index} className={`${isAudioFile(file.type) ? 'w-auto' : 'w-48'} flex-shrink-0`}>
-                                                {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-xl border border-default" />
-                                                    : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-xl border border-default bg-black" />
-                                                    : isAudioFile(file.type) ? <AudioPlayer src={file.dataUrl} t={t} />
-                                                    : <div className="w-full h-20 flex flex-col items-center justify-center text-center p-2 bg-token-surface-secondary border border-default rounded-xl" title={file.name}><FileTextIcon className="size-6 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )
+                         <div className="bg-user-message px-5 py-2.5 rounded-2xl text-[0.95rem] leading-relaxed text-foreground max-w-full">
+                             {messageText}
+                             {message.files && message.files.length > 0 && (
+                                 <div className="mt-2 flex flex-wrap gap-2">
+                                     {message.files.map((f, i) => (
+                                         isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-black/5 dark:border-white/5" alt="" /> :
+                                         <div key={i} className="px-2 py-1 bg-background/50 rounded text-xs border border-black/5 dark:border-white/5">{f.name}</div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
                     ) : (
-                        <>
-                            <div ref={contentRef} className="w-full">
-                                <div className="prose prose-base max-w-none leading-relaxed">
-                                    {renderableContent.map((part, index) => {
-                                        if (part.type === 'gallery') {
-                                            const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
-                                            return <ImageGallery key={`gallery-${index}`} images={part.images} onImageClick={(imageIndex) => onOpenLightbox(allImages, startIndex >= 0 ? startIndex + imageIndex : 0)} />;
-                                        }
-                                        if (part.type === 'gallery-search') {
-                                            return <GalleryFromSearch key={`gallery-search-${index}`} searchQuery={part.query} onOpenLightbox={onOpenLightbox} />;
-                                        }
-                                        if (part.type === 'inline-image') {
-                                            const imageIndex = allImages.findIndex(img => img.url === part.url);
-                                            return <InlineImage key={`inline-image-${index}`} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox(allImages, imageIndex >= 0 ? imageIndex : 0)} />;
-                                        }
-                                        if (part.type === 'code') {
-                                            const { lang, code, info, partIndex } = part;
-                                            const key = `${message.id}_${partIndex}`;
-                                            const title = info.match(/title="([^"]+)"/)?.[1];
-                                            const infoWithoutTitle = title ? info.replace(/title="[^"]+"/, '') : info;
-                                            const keywords = new Set(infoWithoutTitle.trim().split(/\s+/).filter(Boolean));
-                                            const baseLang = keywords.values().next().value || lang;
-                                            const isLegacyExample = baseLang.endsWith('-example');
-                                            const finalLang = isLegacyExample ? baseLang.slice(0, -'-example'.length) : baseLang;
-                                            return <CodeExecutor key={key} code={code} lang={finalLang} title={title} isExecutable={!keywords.has('no-run') && !isLegacyExample} autorun={keywords.has('autorun')} initialCollapsed={keywords.has('collapsed')} persistedResult={executionResults[key]} onExecutionComplete={(result) => onStoreExecutionResult(message.id, partIndex, result)} onFixRequest={(execError) => onFixRequest(code, finalLang, execError)} onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t} />;
-                                        }
-                                        // Sanitize text content to prevent rendering incomplete gallery code blocks during streaming
-                                        const sanitizedContent = (isLoading && index === renderableContent.length - 1) ? part.content.replace(/```json-gallery[\s\S]*$/, '') : part.content;
-                                        if (sanitizedContent.trim() === '') return null;
-
-                                        let finalHtml = textToHtml(sanitizedContent);
-                                        if (isLoading && aiStatus === 'generating' && index === renderableContent.length - 1) {
-                                            const cursorHtml = '<span class="typing-indicator cursor" style="margin-bottom: -0.2em; height: 1.2em"></span>';
-                                            finalHtml = finalHtml.endsWith('</p>') ? `${finalHtml.slice(0, -4)} ${cursorHtml}</p>` : `${finalHtml}${cursorHtml}`;
-                                        }
-                                        return <div key={`text-${index}`} dangerouslySetInnerHTML={{ __html: finalHtml }} />;
-                                    })}
-                                    {isLoading && renderableContent.length === 0 && (aiStatus === 'thinking' || aiStatus === 'generating') && <AITextLoading texts={loadingTexts} />}
-                                </div>
-                            </div>
-                            {hasSources && (
-                                <div className="w-full mt-4">
-                                    <GroundingSources chunks={message.groundingChunks!} t={t} />
-                                </div>
-                            )}
-                        </>
+                        <div ref={contentRef} className="w-full text-[0.95rem] leading-7">
+                            {renderableContent.map((part, index) => {
+                                if (part.type === 'code') {
+                                    return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
+                                }
+                                if (part.type === 'text') {
+                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert mb-2" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
+                                }
+                                return null; // Handle other types as needed
+                            })}
+                            {isLoading && renderableContent.length === 0 && <AITextLoading />}
+                        </div>
                     )}
-                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-3 mt-1.5 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (showAiActions ? 'opacity-100' : 'opacity-0 pointer-events-none')}`}>
-                         <div className="flex items-center gap-1 bg-background/50 rounded-lg p-0.5">
+
+                    {/* Grounding Sources */}
+                    {message.groundingChunks && message.groundingChunks.length > 0 && (
+                         <div className="mt-3 mb-1">
+                             <GroundingSources chunks={message.groundingChunks} t={t} />
+                         </div>
+                    )}
+
+                    {/* Message Actions */}
+                    {!isLoading && (
+                        <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
+                            <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
+                                {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
+                            </IconButton>
                             {!isUser && (
                                 <>
-                                    <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}</IconButton>
-                                    <IconButton onClick={() => message.id && onRegenerate(message.id)} aria-label={t('chat.message.regenerate')}><RefreshCwIcon className="size-4" /></IconButton>
-                                    <IconButton onClick={() => message.id && onFork(message.id)} aria-label={t('chat.message.fork')}><GitForkIcon className="size-4" /></IconButton>
-                                    {pythonCodeBlocks.length > 0 && <IconButton onClick={() => onShowAnalysis(pythonCodeBlocks.join('\n\n# --- \n\n'), 'python')} aria-label={t('chat.message.viewCode')}><CodeXmlIcon className="size-5" /></IconButton>}
+                                    <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
+                                        <RefreshCwIcon className="size-3.5" />
+                                    </IconButton>
+                                    <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
+                                        <GitForkIcon className="size-3.5" />
+                                    </IconButton>
                                 </>
                             )}
-                            {isUser && <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}</IconButton>}
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -84,16 +84,6 @@ const ActionButton: React.FC<{ onClick: () => void; title: string; children: Rea
     </button>
 );
 
-const DisabledActionButton: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
-    <div
-        title={title}
-        aria-label={title}
-        className="p-1.5 rounded-md text-muted-foreground/30 cursor-not-allowed"
-    >
-        {children}
-    </div>
-);
-
 
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, onStopExecution, isPythonReady, isLoading = false, t }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
@@ -458,59 +448,56 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const isRunButtonDisabled = (isPython && !isPythonReady) || status === 'executing';
 
     return (
-        <div className="not-prose my-3 font-sans">
-            <div className="bg-token-surface border border-default rounded-xl overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between px-3 py-1.5 border-b border-default/50 bg-transparent">
+        <div className="not-prose my-4 font-sans max-w-full">
+            <div className="bg-code-bg border border-default rounded-lg overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between px-3 py-1.5 border-b border-default/50 bg-background/50">
                     <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider">{title || lang}</span>
+                         {/* Mac-style dots or simple title */}
+                         <div className="flex gap-1.5 mr-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/80"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
+                        </div>
+                        <span className="font-mono text-[11px] text-muted-foreground font-medium">{title || lang}</span>
                         {isPython && !isPythonReady && status !== 'executing' && (
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <div className="size-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                                <span>{t('code.loading')}</span>
-                            </div>
+                            <span className="text-[10px] text-yellow-600 dark:text-yellow-500 opacity-80">{t('code.loading')}</span>
                         )}
                     </div>
-                     <div className="flex items-center gap-0.5">
+                     <div className="flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
                         <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
-                            {isCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+                            {isCollapsed ? <ChevronsUpDownIcon className="size-3.5" /> : <ChevronsDownUpIcon className="size-3.5" />}
                         </ActionButton>
                         
                         {isExecutable ? (
                              status === 'executing' ? (
                                 <ActionButton onClick={handleStopCode} title={t('code.stop')}>
-                                    <div className="w-3 h-3 bg-foreground rounded-sm"></div>
+                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm animate-pulse"></div>
                                 </ActionButton>
                             ) : (
                                 <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
-                                    {hasRunOnce ? <RefreshCwIcon className="size-4" /> : <PlayIcon className="size-4" />}
+                                    {hasRunOnce ? <RefreshCwIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
                                 </ActionButton>
                             )
-                        ) : (
-                            <DisabledActionButton title={t('code.notExecutable')}>
-                                <XIcon className="size-4" />
-                            </DisabledActionButton>
-                        )}
+                        ) : null}
                         
                         <ActionButton onClick={handleCopy} title={isCopied ? t('code.copied') : t('code.copy')}>
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+                            {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
                         </ActionButton>
                     </div>
                 </div>
 
-                <div className={`code-container ${isCollapsed ? 'collapsed' : ''}`}>
-                    <div className="min-h-0 overflow-hidden">
-                        <div className="p-0 bg-background">
-                            <pre className="!m-0 !p-4 overflow-x-auto code-block-area rounded-none bg-transparent">
-                                <code className={`language-${lang} hljs`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                            </pre>
-                        </div>
+                <div className={`transition-all duration-300 ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'} overflow-y-auto`}>
+                    <div className="p-0 bg-code-bg">
+                        <pre className="!m-0 !p-3 overflow-x-auto code-block-area rounded-none bg-transparent">
+                            <code className={`language-${lang} hljs !text-[13px] !leading-relaxed`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                        </pre>
                     </div>
                 </div>
             </div>
             
             <div className="mt-2 space-y-2">
                 {isExecutable && status === 'executing' && (
-                     <div className="flex items-center text-sm text-muted-foreground p-2 border border-default rounded-lg bg-token-surface-secondary/50">
+                     <div className="flex items-center text-xs text-muted-foreground px-2 py-1">
                         <LoadingSpinner />
                         <span>{t('code.executing')}</span>
                     </div>

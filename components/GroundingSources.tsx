@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GroundingChunk, MapsPlaceReviewSnippet } from '../types';
-import { MapPinIcon, XIcon } from './icons';
+import { MapPinIcon, XIcon, SearchIcon } from './icons';
 
 const getDomain = (url: string): string => {
     if (!url) return 'source';
@@ -128,7 +128,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
         <>
             <button
                 type="button"
-                className="flex items-center gap-2 group"
+                className="flex items-center gap-2 group px-2 py-1 rounded-full bg-token-surface-secondary border border-transparent hover:border-default transition-all"
                 onClick={() => setIsModalOpen(true)}
                 aria-label={t('chat.message.grounding')}
             >
@@ -144,7 +144,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                    src={faviconUrl}
                                    alt={getDomain(chunk.web.uri)}
                                    title={chunk.web.title}
-                                   className="size-4 rounded-full bg-token-surface-secondary ring-2 ring-background grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
+                                   className="size-4 rounded-full bg-token-surface ring-2 ring-background grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
                                    onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         if (target.src.endsWith('/favicon.ico')) {
@@ -168,11 +168,10 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                        return null;
                     })}
                 </div>
-                {hiddenCount > 0 && (
-                    <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                        +{hiddenCount}
-                    </span>
-                )}
+                <div className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+                    <span>{chunks.length} Sources</span>
+                    <SearchIcon className="size-2.5 opacity-50" />
+                </div>
             </button>
 
             {isModalOpen && (

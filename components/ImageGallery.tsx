@@ -22,26 +22,26 @@ const GalleryImage: React.FC<{
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden cursor-pointer group bg-token-surface-secondary ${className}`}
+      className={`relative rounded-lg overflow-hidden cursor-pointer group bg-token-surface-secondary border border-default ${className}`}
       onClick={onClick}
     >
       {status === 'loading' && <SkeletonLoader className="absolute inset-0" />}
       {status === 'error' && (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground p-2 text-center text-xs">
-          <svg xmlns="http://www.w3.org/2000/svg" className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" className="size-6 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
       )}
       <img
         src={image.url}
         alt={image.alt}
-        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+        className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
       />
       {status === 'loaded' && (
         <>
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
           {overlayText && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-medium backdrop-blur-[2px]">
               {overlayText}
@@ -61,7 +61,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
   // Layout for a single image
   if (len === 1) {
     return (
-      <div className="not-prose my-3">
+      <div className="not-prose my-2">
         <GalleryImage image={images[0]} className="aspect-video max-w-sm" onClick={() => onImageClick(0)} />
       </div>
     );
@@ -70,7 +70,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
   // Layout for 2 images
   if (len === 2) {
     return (
-      <div className="not-prose my-3 grid grid-cols-2 gap-2">
+      <div className="not-prose my-2 grid grid-cols-2 gap-1.5 max-w-lg">
         <GalleryImage image={images[0]} className="aspect-square" onClick={() => onImageClick(0)} />
         <GalleryImage image={images[1]} className="aspect-square" onClick={() => onImageClick(1)} />
       </div>
@@ -80,7 +80,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
   // Row layout for 3 images
   if (len === 3) {
     return (
-      <div className="not-prose my-3 grid grid-cols-3 gap-2">
+      <div className="not-prose my-2 grid grid-cols-3 gap-1.5 max-w-xl">
         <GalleryImage image={images[0]} className="aspect-square" onClick={() => onImageClick(0)} />
         <GalleryImage image={images[1]} className="aspect-square" onClick={() => onImageClick(1)} />
         <GalleryImage image={images[2]} className="aspect-square" onClick={() => onImageClick(2)} />
@@ -88,12 +88,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
     );
   }
   
-  // Gallery for 4+ images (responsive 2x2 grid on desktop)
+  // Gallery for 4+ images (responsive 2x2 grid)
   if (len >= 4) {
     const visibleImages = images.slice(0, 4);
     const hiddenCount = images.length - 4;
     return (
-      <div className="not-prose my-3 grid grid-cols-2 gap-2 max-w-md">
+      <div className="not-prose my-2 grid grid-cols-2 gap-1.5 max-w-md">
         {visibleImages.map((image, index) => {
           const overlay = index === 3 && hiddenCount > 0 ? `+${hiddenCount}` : null;
           return <GalleryImage key={index} image={image} overlayText={overlay} onClick={() => onImageClick(index)} className="aspect-[4/3]" />;

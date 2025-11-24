@@ -37,8 +37,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            textarea.style.height = 'auto';
-            const newHeight = Math.min(textarea.scrollHeight, 150);
+            textarea.style.height = '24px'; // Base height matching leading-relaxed
+            const newHeight = Math.min(textarea.scrollHeight, 120);
             textarea.style.height = `${newHeight}px`;
         }
     }, []);
@@ -136,19 +136,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
              {(replyContextText || attachmentPreviews.length > 0) && (
                 <div className="w-full max-w-3xl animate-fade-in-up">
                     {replyContextText && (
-                        <div className="flex items-center justify-between gap-2 bg-background/80 backdrop-blur-md rounded-xl border border-default p-3 mb-2 shadow-sm">
-                            <div className="text-sm text-muted-foreground line-clamp-1 border-l-2 border-foreground pl-2">{replyContextText}</div>
+                        <div className="flex items-center justify-between gap-2 bg-token-surface border border-default p-2 rounded-xl mb-2 shadow-sm">
+                            <div className="text-xs text-muted-foreground line-clamp-1 border-l-2 border-foreground pl-2">{replyContextText}</div>
                             <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-token-surface-secondary"><XIcon className="size-3" /></button>
                         </div>
                     )}
                     
                     {attachmentPreviews.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
                             {attachmentPreviews.map((attachment, index) => (
-                                <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-default bg-background">
+                                <div key={index} className="relative group shrink-0 size-10 rounded-lg overflow-hidden border border-default bg-background">
                                     <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                     <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <XIcon className="size-4 text-white" />
+                                        <XIcon className="size-3 text-white" />
                                     </button>
                                 </div>
                             ))}
@@ -159,11 +159,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             
             <div className="w-full max-w-3xl relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[24px] p-1.5 shadow-sm transition-all focus-within:ring-1 focus-within:ring-foreground/5 ring-0">
+                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[26px] pl-2 pr-2 py-2 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
                     <button
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0 ml-1 mb-1"
+                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0 mb-0.5"
                         disabled={isLoading}
                     >
                         <PlusIcon className="size-5" />
@@ -172,7 +172,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/40 py-2.5 px-3 max-h-[150px] min-h-[40px] text-[15px] leading-relaxed" 
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-1.5 px-2 max-h-[120px] min-h-[32px] text-[15px] leading-relaxed" 
                         style={{ resize: 'none' }} 
                         placeholder={placeholder} 
                         rows={1} 
@@ -181,7 +181,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onKeyDown={handleKeyDown} 
                     />
                     
-                    <div className="flex items-center gap-1 shrink-0 mr-1 mb-1">
+                    <div className="flex items-center gap-1 shrink-0 mb-0.5">
                         {isLoading ? (
                             <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity">
                                 <StopCircleIcon className="size-3.5" />
@@ -198,7 +198,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     </div>
                 </form>
             </div>
-             <p className="text-[10px] text-center text-muted-foreground/40 font-medium tracking-wide">{t('chat.input.disclaimer')}</p>
+             <p className="text-[10px] text-center text-muted-foreground/30 font-medium tracking-wide">{t('chat.input.disclaimer')}</p>
         </div>
     );
 });

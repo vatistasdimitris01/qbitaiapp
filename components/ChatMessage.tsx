@@ -35,7 +35,7 @@ interface ChatMessageProps {
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button onClick={onClick} className="p-1.5 text-muted-foreground/50 hover:text-foreground transition-colors rounded-md" title={title}>
+    <button onClick={onClick} className="p-1 text-muted-foreground/40 hover:text-foreground transition-colors rounded-md" title={title}>
         {children}
     </button>
 );
@@ -118,7 +118,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     }
                 }
             } else if (part.startsWith('!gallery')) {
-                finalParts.push({ type: 'gallery-search', query: /!gallery\["(.*?)"\]/.exec(part)?.[1] });
+                // Ignore gallery search for now to prevent broken rendering or implement custom fetch logic later
+                // finalParts.push({ type: 'gallery-search', query: /!gallery\["(.*?)"\]/.exec(part)?.[1] });
             } else {
                 let lastTextIndex = 0;
                 let inlineMatch;
@@ -159,12 +160,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {hasThinking && (
                     <div className="w-full mb-3">
                         <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors p-1.5 rounded-lg w-fit">
-                            <BrainIcon className="size-3.5" />
+                            <BrainIcon className="size-3" />
                             <span>{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-3 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
-                            <div className="mt-2 pl-2 border-l-2 border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
+                            <div className="mt-2 pl-3 border-l-2 border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
                                 <div dangerouslySetInnerHTML={{ __html: marked.parse(parsedThinkingText || '') }} />
                             </div>
                         )}
@@ -174,7 +175,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-user-message px-4 py-2 rounded-[20px] text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm">
+                         <div className="bg-token-surface-secondary dark:bg-zinc-800 px-4 py-2 rounded-[24px] rounded-br-sm text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm border border-default">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
@@ -215,17 +216,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
                     {/* Message Actions */}
                     {!isLoading && (
-                        <div className={`flex items-center gap-0.5 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
+                        <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
                             <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
+                                {isCopied ? <CheckIcon className="size-3 text-green-500" /> : <CopyIcon className="size-3" />}
                             </IconButton>
                             {!isUser && (
                                 <>
                                     <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
-                                        <RefreshCwIcon className="size-3.5" />
+                                        <RefreshCwIcon className="size-3" />
                                     </IconButton>
                                     <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
-                                        <GitForkIcon className="size-3.5" />
+                                        <GitForkIcon className="size-3" />
                                     </IconButton>
                                 </>
                             )}

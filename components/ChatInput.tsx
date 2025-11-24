@@ -155,13 +155,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     return (
         <div className="flex flex-col gap-2 justify-center w-full relative items-center">
              {(replyContextText || attachmentPreviews.length > 0) && (
-                <div className="w-full max-w-4xl px-3 pt-2.5">
+                <div className="w-full max-w-3xl px-4 pb-2 animate-fade-in-up">
                     {replyContextText && (
-                        <div className="mx-1 mb-2 border-b border-default pb-2">
+                        <div className="mx-1 mb-2 pl-3 border-l-2 border-primary/50 py-1">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-2.5 text-muted-foreground shrink min-w-0">
-                                    <ReplyIcon className="size-4 flex-shrink-0 mt-0.5" />
-                                    <p className="text-sm text-foreground/80 line-clamp-2" title={replyContextText}>{replyContextText}</p>
+                                    <p className="text-sm font-medium text-foreground/80 line-clamp-2" title={replyContextText}>{replyContextText}</p>
                                 </div>
                                 <button type="button" onClick={onClearReplyContext} className="p-1 rounded-full text-muted-foreground hover:bg-token-surface-secondary" aria-label={t('chat.input.clearReply')}><XIcon className="size-3.5" /></button>
                             </div>
@@ -169,20 +168,20 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     )}
                     
                     {attachmentPreviews.length > 0 && (
-                        <div className="w-full flex flex-row gap-2 mb-2 px-1 pt-1 whitespace-nowrap overflow-x-auto">
+                        <div className="w-full flex flex-row gap-2 mb-2 whitespace-nowrap overflow-x-auto py-1">
                             {attachmentPreviews.map((attachment, index) => (
-                                <div key={index} className="relative group/chip flex-shrink-0">
-                                    <div className="flex flex-row items-center text-sm gap-2 relative h-10 p-0.5 rounded-lg border border-default bg-gray-50 dark:bg-gray-800">
-                                        <figure className="relative flex-shrink-0 aspect-square overflow-hidden w-9 h-9 rounded-md"><img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} /></figure>
+                                <div key={index} className="relative group/chip flex-shrink-0 animate-fade-in-up">
+                                    <div className="flex flex-row items-center text-sm gap-2 relative h-12 w-12 p-0.5 rounded-xl border border-default bg-background shadow-sm overflow-hidden">
+                                        <img alt={attachment.file.name} className="h-full w-full object-cover rounded-lg" src={attachment.previewUrl} />
                                     </div>
-                                    <button type="button" onClick={() => handleRemoveFile(index)} className="inline-flex items-center justify-center h-5 w-5 absolute -top-1.5 -right-1.5 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-gray-800 text-white border-2 border-white dark:border-gray-700" aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}><XIcon className="size-3.5" /></button>
+                                    <button type="button" onClick={() => handleRemoveFile(index)} className="inline-flex items-center justify-center h-5 w-5 absolute -top-1.5 -right-1.5 transition-all scale-75 opacity-0 group-hover/chip:opacity-100 group-hover/chip:scale-100 rounded-full bg-foreground text-background border border-background shadow-sm" aria-label={t('chat.input.removeFile', { filename: attachment.file.name })}><XIcon className="size-3" /></button>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
             )}
-            <div className="flex w-full max-w-4xl items-end gap-2">
+            <div className="flex w-full max-w-3xl items-end gap-2">
                 <input ref={fileInputRef} className="hidden" multiple type="file" name="files" onChange={handleFileChange} accept="image/*,video/*,audio/*,text/*,.pdf,.md,.csv,.json" />
                 
                 {/* Mobile-only '+' button */}
@@ -190,47 +189,58 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     type="button"
                     aria-label={t('chat.input.attach')}
                     onClick={handleAttachClick}
-                    className="inline-flex sm:hidden items-center justify-center h-10 w-10 rounded-full bg-user-message text-foreground flex-shrink-0 transition-transform hover:scale-110 disabled:opacity-50"
+                    className="inline-flex sm:hidden items-center justify-center h-10 w-10 rounded-full bg-user-message text-foreground flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50"
                     disabled={isLoading}
                 >
                     <PlusIcon className="w-5 h-5" />
                 </button>
 
                 <form onSubmit={handleSubmit} className="relative w-full">
-                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg transition-all duration-300 rounded-2xl sm:rounded-full py-1.5 sm:py-1 pl-3 sm:pl-2 pr-1.5">
+                    <div className="relative flex items-end w-full bg-card border border-default shadow-lg rounded-3xl p-2 transition-shadow duration-200 focus-within:shadow-xl focus-within:border-foreground/20">
                         
                         {/* Desktop-only '+' button */}
                         <button
                             type="button"
                             aria-label={t('chat.input.attach')}
                             onClick={handleAttachClick}
-                            className="hidden sm:inline-flex items-center justify-center h-9 w-9 rounded-full hover:bg-token-surface-secondary text-muted disabled:opacity-60 transition-colors mr-1"
+                            className="hidden sm:inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors mr-1 self-end mb-0.5"
                             disabled={isLoading}
                         >
                             <PlusIcon className="w-5 h-5" />
                         </button>
                         
-                        <textarea ref={internalTextareaRef} dir="auto" aria-label={placeholder} className="flex-1 bg-transparent focus:outline-none text-foreground placeholder-muted py-2 sm:py-1.5" style={{ resize: 'none' }} placeholder={placeholder} rows={1} value={text} onChange={handleInputChange} onKeyDown={handleKeyDown} />
+                        <textarea 
+                            ref={internalTextareaRef} 
+                            dir="auto" 
+                            aria-label={placeholder} 
+                            className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-3 px-2 max-h-[200px]" 
+                            style={{ resize: 'none' }} 
+                            placeholder={placeholder} 
+                            rows={1} 
+                            value={text} 
+                            onChange={handleInputChange} 
+                            onKeyDown={handleKeyDown} 
+                        />
                         
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <div className="flex items-center gap-1 self-end mb-0.5 ml-1">
                             {isLoading ? (
-                                <button type="button" onClick={onAbortGeneration} aria-label={t('chat.input.stop')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground transition-colors">
+                                <button type="button" onClick={onAbortGeneration} aria-label={t('chat.input.stop')} className="inline-flex items-center justify-center rounded-full h-10 w-10 bg-foreground text-background transition-transform active:scale-95">
                                     <StopCircleIcon className="w-5 h-5" />
                                 </button>
                             ) : hasContent ? (
-                                <button type="submit" aria-label={t('chat.input.submit')} className="inline-flex items-center justify-center rounded-full h-9 w-9 bg-foreground text-background dark:bg-background dark:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!hasContent}>
+                                <button type="submit" aria-label={t('chat.input.submit')} className="inline-flex items-center justify-center rounded-full h-10 w-10 bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-95" disabled={!hasContent}>
                                     <ArrowUpIcon className="w-5 h-5"/>
                                 </button>
                             ) : (
-                                <button type="button" onClick={handleMicClick} aria-label={isRecording ? t('chat.input.stopRecord') : t('chat.input.record')} className="relative inline-flex items-center justify-center h-9 w-9 rounded-full hover:bg-token-surface-secondary border-default text-muted disabled:opacity-60 transition-colors">
-                                    {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse" /> : <MicIcon className="text-muted" />}
+                                <button type="button" onClick={handleMicClick} aria-label={isRecording ? t('chat.input.stopRecord') : t('chat.input.record')} className="inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-token-surface-secondary text-muted-foreground disabled:opacity-60 transition-colors">
+                                    {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse size-5" /> : <MicIcon className="size-5" />}
                                 </button>
                             )}
                         </div>
                     </div>
                 </form>
             </div>
-             <p className="text-xs text-center text-muted mt-2 hidden sm:block">{t('chat.input.disclaimer')}</p>
+             <p className="text-[10px] text-center text-muted-foreground/60 mt-2 hidden sm:block font-medium tracking-wide">{t('chat.input.disclaimer')}</p>
         </div>
     );
 });

@@ -92,7 +92,7 @@ interface ChatMessageProps {
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; 'aria-label': string }> = ({ children, onClick, 'aria-label': ariaLabel }) => (
-    <button onClick={onClick} className="p-1.5 text-muted-foreground md:hover:bg-background rounded-md md:hover:text-foreground transition-colors" aria-label={ariaLabel}>
+    <button onClick={onClick} className="p-1.5 text-muted-foreground md:hover:bg-token-surface-secondary rounded-md md:hover:text-foreground transition-colors" aria-label={ariaLabel}>
         {children}
     </button>
 );
@@ -265,34 +265,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     if (!isUser && !isLoading && !hasContent && !hasThinking && !hasSources) return null;
 
     return (
-        <div className={`flex w-full my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className="group flex flex-col w-full max-w-3xl">
+        <div className={`flex w-full my-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`group flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
                 {hasThinking && (
-                    <div className="w-full mb-2">
-                        <button type="button" onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground" aria-expanded={isThinkingOpen}>
+                    <div className="w-full mb-3">
+                        <button type="button" onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex w-full items-center gap-2 text-muted-foreground text-sm hover:text-foreground transition-colors p-2 rounded-lg hover:bg-token-surface-secondary/50" aria-expanded={isThinkingOpen}>
                             <BrainIcon className="size-4" /><span className="flex-1 text-left font-medium hidden sm:inline">{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
-                            <div className="pt-2 mt-2 border-t border-default">
-                                <div className="mt-2 space-y-3 pl-6 border-l border-default ml-2"><div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} /></div>
-                            </div>
+                            <div className="mt-2 pl-4 border-l-2 border-default ml-3"><div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: thinkingHtml }} /></div>
                         )}
                     </div>
                 )}
-                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                
+                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
                         isAudioOnlyMessage ? <AudioPlayer src={message.files![0].dataUrl} t={t} /> : (
                             <>
-                                {messageText && <div className={`w-fit max-w-full ${isShortUserMessage ? 'rounded-full px-5 py-2.5' : 'rounded-xl px-4 py-3'} bg-user-message text-foreground`}><p className="whitespace-pre-wrap">{messageText}</p></div>}
+                                {messageText && (
+                                    <div className={`w-fit max-w-full rounded-2xl px-5 py-3 bg-user-message text-foreground shadow-sm`}>
+                                        <p className="whitespace-pre-wrap">{messageText}</p>
+                                    </div>
+                                )}
                                 {hasAttachments && (
                                     <div className={`flex flex-wrap justify-end gap-2 max-w-full ${messageText ? 'mt-2' : ''}`}>
                                         {message.files?.map((file, index) => (
                                             <div key={index} className={`${isAudioFile(file.type) ? 'w-auto' : 'w-48'} flex-shrink-0`}>
-                                                {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-lg border border-default" />
-                                                    : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-lg border border-default bg-black" />
+                                                {isImageFile(file.type) ? <img src={file.dataUrl} alt={file.name} className="w-full h-auto object-cover rounded-xl border border-default" />
+                                                    : isVideoFile(file.type) ? <video src={file.dataUrl} controls className="w-full h-auto rounded-xl border border-default bg-black" />
                                                     : isAudioFile(file.type) ? <AudioPlayer src={file.dataUrl} t={t} />
-                                                    : <div className="w-full h-24 flex flex-col items-center justify-center text-center p-2 bg-gray-100 dark:bg-gray-800 border border-default rounded-lg" title={file.name}><FileTextIcon className="size-8 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
+                                                    : <div className="w-full h-20 flex flex-col items-center justify-center text-center p-2 bg-token-surface-secondary border border-default rounded-xl" title={file.name}><FileTextIcon className="size-6 text-muted-foreground mb-1" /><span className="text-xs text-muted-foreground break-all truncate w-full">{file.name}</span></div>}
                                             </div>
                                         ))}
                                     </div>
@@ -302,7 +305,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     ) : (
                         <>
                             <div ref={contentRef} className="w-full">
-                                <div className="prose prose-sm max-w-none">
+                                <div className="prose prose-base max-w-none leading-relaxed">
                                     {renderableContent.map((part, index) => {
                                         if (part.type === 'gallery') {
                                             const startIndex = allImages.findIndex(img => img.url === part.images[0]?.url);
@@ -341,14 +344,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 </div>
                             </div>
                             {hasSources && (
-                                <div className="w-full mt-3">
+                                <div className="w-full mt-4">
                                     <GroundingSources chunks={message.groundingChunks!} t={t} />
                                 </div>
                             )}
                         </>
                     )}
-                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-4 mt-2 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (showAiActions ? 'opacity-100' : 'opacity-0 pointer-events-none')}`}>
-                         <div className="flex items-center gap-1">
+                    <div className={`flex items-center ${isUser ? 'justify-end' : 'justify-start w-full'} gap-3 mt-1.5 transition-opacity duration-300 ${isUser ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100' : (showAiActions ? 'opacity-100' : 'opacity-0 pointer-events-none')}`}>
+                         <div className="flex items-center gap-1 bg-background/50 rounded-lg p-0.5">
                             {!isUser && (
                                 <>
                                     <IconButton onClick={handleCopy} aria-label={t('chat.message.copy')}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}</IconButton>

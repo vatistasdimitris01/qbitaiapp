@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-flash-lite-latest';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         

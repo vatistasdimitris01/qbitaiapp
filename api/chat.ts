@@ -158,7 +158,7 @@ Think like an engineer. Write like a professional. Act like a collaborator. Deli
         }
         config.tools = [{ functionDeclarations: finalTools }];
         
-        const model = "gemini-2.5-flash";
+        const model = "gemini-flash-lite-latest";
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
         const firstResponse = await ai.models.generateContent({ model, contents, config });

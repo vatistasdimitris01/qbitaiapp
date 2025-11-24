@@ -450,15 +450,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     return (
         <div className="not-prose my-4 font-sans max-w-full">
             <div className="bg-code-bg border border-default rounded-lg overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between px-3 py-1.5 border-b border-default/50 bg-background/50">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-background/30">
                     <div className="flex items-center gap-2">
-                         {/* Mac-style dots or simple title */}
-                         <div className="flex gap-1.5 mr-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/80"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
-                        </div>
-                        <span className="font-mono text-[11px] text-muted-foreground font-medium">{title || lang}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{title || lang}</span>
                         {isPython && !isPythonReady && status !== 'executing' && (
                             <span className="text-[10px] text-yellow-600 dark:text-yellow-500 opacity-80">{t('code.loading')}</span>
                         )}

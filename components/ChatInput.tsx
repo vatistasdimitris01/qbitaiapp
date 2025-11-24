@@ -37,7 +37,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            textarea.style.height = '24px'; // Base height matching leading-relaxed
+            textarea.style.height = '24px'; // Base height
             const newHeight = Math.min(textarea.scrollHeight, 120);
             textarea.style.height = `${newHeight}px`;
         }
@@ -159,11 +159,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             
             <div className="w-full max-w-3xl relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[26px] pl-2 pr-2 py-2 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
+                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[24px] p-1 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
                     <button
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0 mb-0.5"
+                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0"
                         disabled={isLoading}
                     >
                         <PlusIcon className="size-5" />
@@ -172,7 +172,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-1.5 px-2 max-h-[120px] min-h-[32px] text-[15px] leading-relaxed" 
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-2 px-2 max-h-[120px] min-h-[32px] text-[15px] leading-relaxed" 
                         style={{ resize: 'none' }} 
                         placeholder={placeholder} 
                         rows={1} 
@@ -181,7 +181,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onKeyDown={handleKeyDown} 
                     />
                     
-                    <div className="flex items-center gap-1 shrink-0 mb-0.5">
+                    <div className="flex items-center gap-1 shrink-0">
                         {isLoading ? (
                             <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity">
                                 <StopCircleIcon className="size-3.5" />

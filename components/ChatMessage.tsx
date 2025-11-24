@@ -64,6 +64,44 @@ const textToHtml = (text: string): string => {
     return html;
 };
 
+const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: any[], index: number) => void }> = ({ query, onOpenLightbox }) => {
+    const [images, setImages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchImages = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageSearchQuery: query })
+                });
+                const data = await res.json();
+                if (data.images && Array.isArray(data.images)) {
+                    setImages(data.images.map((url: string) => ({ url, alt: query })));
+                }
+            } catch (e) {
+                console.error("Failed to fetch gallery images", e);
+            } finally {
+                setLoading(false);
+            }
+        }
+        if (query) fetchImages();
+    }, [query]);
+
+    if (loading) return (
+         <div className="grid grid-cols-3 gap-1.5 my-2 max-w-xl">
+             {[1,2,3].map(i => <div key={i} className="aspect-square bg-token-surface-secondary animate-pulse rounded-lg" />)}
+         </div>
+    );
+    
+    if (images.length === 0) return null;
+
+    return <ImageGallery images={images} onImageClick={(i) => onOpenLightbox(images, i)} />;
+}
+
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -118,8 +156,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     }
                 }
             } else if (part.startsWith('!gallery')) {
-                // Ignore gallery search for now to prevent broken rendering or implement custom fetch logic later
-                // finalParts.push({ type: 'gallery-search', query: /!gallery\["(.*?)"\]/.exec(part)?.[1] });
+                const match = /!gallery\["(.*?)"\]/.exec(part);
+                 if (match && match[1]) {
+                    finalParts.push({ type: 'gallery-search', query: match[1] });
+                 }
             } else {
                 let lastTextIndex = 0;
                 let inlineMatch;
@@ -175,7 +215,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-token-surface-secondary dark:bg-zinc-800 px-4 py-2 rounded-[24px] rounded-br-sm text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm border border-default">
+                         <div className="bg-token-surface-secondary dark:bg-zinc-800 px-4 py-2 rounded-[20px] rounded-br-sm text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm border border-default">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
@@ -197,6 +237,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 }
                                 if (part.type === 'gallery') {
                                     return <ImageGallery key={index} images={part.images} onImageClick={(i) => onOpenLightbox(part.images, i)} />;
+                                }
+                                if (part.type === 'gallery-search') {
+                                    return <GallerySearchLoader key={index} query={part.query} onOpenLightbox={onOpenLightbox} />;
                                 }
                                 if (part.type === 'inline-image') {
                                     return <InlineImage key={index} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox([{url: part.url, alt: part.alt}], 0)} />;

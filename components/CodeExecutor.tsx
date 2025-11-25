@@ -129,7 +129,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     break;
                 case 'download':
                     const fileInfo = { filename: update.filename!, mimetype: update.mimetype!, data: update.data! };
-                    downloadFile(fileInfo.filename, fileInfo.mimetype, fileInfo.data);
+                    // Do not auto download. Let user click.
                     setDownloadableFile(fileInfo);
                     currentRunDownloadableFile = fileInfo;
                     setIsCollapsed(true); // Auto-collapse code on file generation
@@ -442,6 +442,23 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             return null;
         }
         
+        // Special minimalist download link
+        if (!isFatalError && downloadableFile) {
+             return (
+                 <div className="flex items-center gap-2">
+                     <button 
+                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)}
+                        className="flex items-center gap-2 text-foreground/90 hover:text-foreground group"
+                     >
+                        <DownloadIcon className="size-4" />
+                        <span className="font-medium border-b-2 border-dotted border-foreground/30 group-hover:border-foreground/80 transition-colors pb-0.5">
+                            Download {downloadableFile.filename}
+                        </span>
+                     </button>
+                 </div>
+             )
+        }
+
         return (
             <div className="flex flex-col gap-2">
                 {error && (
@@ -469,28 +486,8 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     </>
                 )}
 
-                {!isFatalError && (downloadableFile || htmlBlobUrl) && (
+                {!isFatalError && htmlBlobUrl && (
                      <div className="text-sm output-block success flex flex-col gap-2 p-0 border-none bg-transparent">
-                            {downloadableFile && (
-                                <div className="mt-1 p-3 bg-token-surface border border-default rounded-lg flex items-center justify-between gap-3 shadow-sm group hover:border-foreground/20 transition-colors">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="p-2 bg-token-surface-secondary rounded-md">
-                                            <FileTextIcon className="size-5 text-token-primary" />
-                                        </div>
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className="text-sm font-medium truncate text-token-primary">{downloadableFile.filename}</span>
-                                            <span className="text-[10px] text-token-secondary uppercase tracking-wider">{downloadableFile.mimetype.split('/')[1] || 'FILE'}</span>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)} 
-                                        className="px-3 py-1.5 bg-foreground text-background text-xs font-medium rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 shrink-0"
-                                    >
-                                        <DownloadIcon className="size-3.5" />
-                                        Download
-                                    </button>
-                                </div>
-                            )}
                             {htmlBlobUrl && (
                                 <div className="mt-1">
                                     <button onClick={() => window.open(htmlBlobUrl, '_blank')} className="flex items-center text-xs font-medium px-3 py-2 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><EyeIcon className="size-3.5 mr-2" />{t('code.openInNewTab')}</button>
@@ -505,54 +502,59 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const isPython = lang.toLowerCase() === 'python';
     const isRunButtonDisabled = (isPython && !isPythonReady) || status === 'executing';
 
+    // Logic to hide the code block entirely if a file was successfully generated
+    const showCodeBlock = !downloadableFile || status === 'error';
+
     return (
         <div className="not-prose my-4 font-sans max-w-full">
-            <div className="bg-code-bg border border-default rounded-lg overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-background/30">
-                    <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{title || lang}</span>
-                        {isPython && !isPythonReady && status !== 'executing' && (
-                            <span className="text-[10px] text-yellow-600 dark:text-yellow-500 opacity-80">{t('code.loading')}</span>
-                        )}
-                    </div>
-                     <div className="flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
-                        <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
-                            {isCollapsed ? <ChevronsUpDownIcon className="size-3.5" /> : <ChevronsDownUpIcon className="size-3.5" />}
-                        </ActionButton>
-                        
-                        {isExecutable ? (
-                             status === 'executing' ? (
-                                <ActionButton onClick={handleStopCode} title={t('code.stop')}>
-                                    <div className="w-2.5 h-2.5 bg-foreground rounded-sm animate-pulse"></div>
-                                </ActionButton>
-                            ) : (
-                                <>
-                                    <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
-                                        {hasRunOnce ? <RefreshCwIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
+            {showCodeBlock && (
+                <div className="bg-code-bg border border-default rounded-lg overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-background/30">
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{title || lang}</span>
+                            {isPython && !isPythonReady && status !== 'executing' && (
+                                <span className="text-[10px] text-yellow-600 dark:text-yellow-500 opacity-80">{t('code.loading')}</span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
+                            <ActionButton onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? t('code.expand') : t('code.collapse')}>
+                                {isCollapsed ? <ChevronsUpDownIcon className="size-3.5" /> : <ChevronsDownUpIcon className="size-3.5" />}
+                            </ActionButton>
+                            
+                            {isExecutable ? (
+                                status === 'executing' ? (
+                                    <ActionButton onClick={handleStopCode} title={t('code.stop')}>
+                                        <div className="w-2.5 h-2.5 bg-foreground rounded-sm animate-pulse"></div>
                                     </ActionButton>
-                                    {hasRunOnce && (
-                                        <ActionButton onClick={handleClear} title={t('code.clear')}>
-                                            <XIcon className="size-3.5" />
+                                ) : (
+                                    <>
+                                        <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
+                                            {hasRunOnce ? <RefreshCwIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
                                         </ActionButton>
-                                    )}
-                                </>
-                            )
-                        ) : null}
-                        
-                        <ActionButton onClick={handleCopy} title={isCopied ? t('code.copied') : t('code.copy')}>
-                            {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
-                        </ActionButton>
+                                        {hasRunOnce && (
+                                            <ActionButton onClick={handleClear} title={t('code.clear')}>
+                                                <XIcon className="size-3.5" />
+                                            </ActionButton>
+                                        )}
+                                    </>
+                                )
+                            ) : null}
+                            
+                            <ActionButton onClick={handleCopy} title={isCopied ? t('code.copied') : t('code.copy')}>
+                                {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
+                            </ActionButton>
+                        </div>
                     </div>
-                </div>
 
-                <div className={`transition-all duration-300 ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'} overflow-y-auto`}>
-                    <div className="p-0 bg-code-bg">
-                        <pre className="!m-0 !p-3 overflow-x-auto code-block-area rounded-none bg-transparent">
-                            <code className={`language-${lang} hljs !text-[13px] !leading-relaxed`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
-                        </pre>
+                    <div className={`transition-all duration-300 ${isCollapsed ? 'max-h-0' : 'max-h-[500px]'} overflow-y-auto`}>
+                        <div className="p-0 bg-code-bg">
+                            <pre className="!m-0 !p-3 overflow-x-auto code-block-area rounded-none bg-transparent">
+                                <code className={`language-${lang} hljs !text-[13px] !leading-relaxed`} dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                            </pre>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
             
             <div className="mt-2 space-y-2">
                 {isExecutable && status === 'executing' && (

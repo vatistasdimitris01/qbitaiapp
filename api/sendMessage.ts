@@ -111,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
     *   **Libraries:** \`numpy\`, \`pandas\`, \`matplotlib\`, \`scipy\`, \`sklearn\`, \`networkx\`, \`sympy\`, \`fpdf\`, \`openpyxl\`.
     *   **Output:** Print results to stdout. Generated plots are automatically shown. 
-    *   **File Creation:** When you use libraries to save files (e.g., \`workbook.save("data.xlsx")\`), the system automatically detecting it. **The code block will be hidden**, and a download button will be displayed to the user.
+    *   **File Creation:** When you use libraries to save files (e.g., \`workbook.save("data.xlsx")\`), the system automatically detecting it. **The code block will be hidden**, and a download link will be shown to the user.
 
 3.  **Google Search (Grounding)**
     *   **What you can do:** Search the live web for real-time information.

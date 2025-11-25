@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, Wand2Icon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, Wand2Icon, XIcon } from './icons';
 import { runPythonCode, stopPythonExecution, PythonExecutorUpdate } from '../services/pythonExecutorService';
 
 
@@ -317,6 +318,19 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
     }, [lang, runPython, runJavaScript, runHtml, runReact, onExecutionComplete, t]);
+
+    const handleClear = useCallback(() => {
+        setOutput('');
+        setError('');
+        setStatus('idle');
+        setDownloadableFile(null);
+        setHasRunOnce(false);
+        if (htmlBlobUrl) {
+            URL.revokeObjectURL(htmlBlobUrl);
+            setHtmlBlobUrl(null);
+        }
+        onExecutionComplete({ output: null, error: '', type: 'string' });
+    }, [htmlBlobUrl, onExecutionComplete]);
     
     useEffect(() => {
         if (persistedResult) {
@@ -489,9 +503,16 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                                     <div className="w-2.5 h-2.5 bg-foreground rounded-sm animate-pulse"></div>
                                 </ActionButton>
                             ) : (
-                                <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
-                                    {hasRunOnce ? <RefreshCwIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
-                                </ActionButton>
+                                <>
+                                    <ActionButton onClick={handleRunCode} title={hasRunOnce ? t('code.runAgain') : t('code.run')} disabled={isRunButtonDisabled}>
+                                        {hasRunOnce ? <RefreshCwIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
+                                    </ActionButton>
+                                    {hasRunOnce && (
+                                        <ActionButton onClick={handleClear} title={t('code.clear')}>
+                                            <XIcon className="size-3.5" />
+                                        </ActionButton>
+                                    )}
+                                </>
                             )
                         ) : null}
                         

@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     // App-level
@@ -77,6 +78,7 @@ export const translations = {
       runAgain: 'Run Again',
       run: 'Run code',
       stop: 'Stop execution',
+      clear: 'Clear output',
       notExecutable: 'Not executable',
       copied: 'Copied!',
       copy: 'Copy code',

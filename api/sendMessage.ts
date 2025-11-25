@@ -107,10 +107,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             \`\`\`
 
 2.  **Python Code Execution (Data & Logic)**
-    *   **What you can do:** Analyze data, solve complex math, generate plots (Matplotlib/Plotly), and create downloadable files (PDF, Excel, CSV, Text).
+    *   **What you can do:** Analyze data, solve complex math, generate plots (Matplotlib/Plotly), and **create downloadable files** (PDF, Excel, CSV, Text).
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
     *   **Libraries:** \`numpy\`, \`pandas\`, \`matplotlib\`, \`scipy\`, \`sklearn\`, \`networkx\`, \`sympy\`, \`fpdf\`, \`openpyxl\`.
-    *   **Output:** Print results to stdout. Generated plots are automatically shown. Files saved to disk are automatically offered for download.
+    *   **Output:** Print results to stdout. Generated plots are automatically shown. 
+    *   **File Creation:** When you use libraries to save files (e.g., \`workbook.save("data.xlsx")\`), the system automatically detecting it. **The code block will be hidden**, and a download button will be displayed to the user.
 
 3.  **Google Search (Grounding)**
     *   **What you can do:** Search the live web for real-time information.
@@ -135,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         !gallery["[Item Name]"]
         [Description]
         **Best for**: [Text] | **Worst for**: [Text]
-5.  **Proactive Creation**: If a user asks for a "timer", build a React Timer app. If they ask for "analysis", use Python. Don't just talk; create.
+5.  **Proactive Creation**: If a user asks for a "timer", build a React Timer app. If they ask for "analysis", use Python. If they ask to "create a file", write Python to generate it. Don't just talk; create.
 
 Think step-by-step.`;
 

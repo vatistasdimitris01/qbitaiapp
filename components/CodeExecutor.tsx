@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, Wand2Icon, XIcon } from './icons';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, Wand2Icon, XIcon, FileTextIcon } from './icons';
 import { runPythonCode, stopPythonExecution, PythonExecutorUpdate } from '../services/pythonExecutorService';
 
 
@@ -132,6 +132,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     downloadFile(fileInfo.filename, fileInfo.mimetype, fileInfo.data);
                     setDownloadableFile(fileInfo);
                     currentRunDownloadableFile = fileInfo;
+                    setIsCollapsed(true); // Auto-collapse code on file generation
                     break;
                 case 'success':
                     setStatus('success');
@@ -359,6 +360,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             }
             if (savedFile) {
                 setDownloadableFile(savedFile);
+                setIsCollapsed(true); // Collapse on mount if result is a file
             }
             if (savedError || savedOutput !== null || savedFile) {
                 setHasRunOnce(true);
@@ -367,16 +369,18 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     }, [persistedResult, lang, runReact]);
 
     useEffect(() => {
+        // Auto-expand on first run, but NOT if it resulted in a downloadable file (which auto-collapses)
+        if (autorun && hasRunOnce && lang !== 'react' && lang !== 'jsx' && !downloadableFile) {
+            setIsCollapsed(false);
+        }
+    }, [autorun, hasRunOnce, lang, downloadableFile]);
+
+    useEffect(() => {
         if (autorun && isPythonReady && prevIsLoading && !isLoading && !persistedResult) {
             handleRunCode();
         }
     }, [isLoading, prevIsLoading, autorun, isPythonReady, persistedResult, handleRunCode]);
 
-    useEffect(() => {
-        if (autorun && hasRunOnce && lang !== 'react' && lang !== 'jsx') {
-            setIsCollapsed(false);
-        }
-    }, [autorun, hasRunOnce, lang]);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -466,12 +470,31 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 )}
 
                 {!isFatalError && (downloadableFile || htmlBlobUrl) && (
-                     <div className="text-sm output-block success flex gap-2">
+                     <div className="text-sm output-block success flex flex-col gap-2 p-0 border-none bg-transparent">
                             {downloadableFile && (
-                                <button onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)} className="flex items-center text-xs font-medium px-2 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><DownloadIcon className="size-3.5 mr-1.5" />{t('code.downloadAgain')}</button>
+                                <div className="mt-1 p-3 bg-token-surface border border-default rounded-lg flex items-center justify-between gap-3 shadow-sm group hover:border-foreground/20 transition-colors">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <div className="p-2 bg-token-surface-secondary rounded-md">
+                                            <FileTextIcon className="size-5 text-token-primary" />
+                                        </div>
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="text-sm font-medium truncate text-token-primary">{downloadableFile.filename}</span>
+                                            <span className="text-[10px] text-token-secondary uppercase tracking-wider">{downloadableFile.mimetype.split('/')[1] || 'FILE'}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => downloadFile(downloadableFile.filename, downloadableFile.mimetype, downloadableFile.data)} 
+                                        className="px-3 py-1.5 bg-foreground text-background text-xs font-medium rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 shrink-0"
+                                    >
+                                        <DownloadIcon className="size-3.5" />
+                                        Download
+                                    </button>
+                                </div>
                             )}
                             {htmlBlobUrl && (
-                                <button onClick={() => window.open(htmlBlobUrl, '_blank')} className="flex items-center text-xs font-medium px-2 py-1.5 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><EyeIcon className="size-3.5 mr-1.5" />{t('code.openInNewTab')}</button>
+                                <div className="mt-1">
+                                    <button onClick={() => window.open(htmlBlobUrl, '_blank')} className="flex items-center text-xs font-medium px-3 py-2 rounded-md bg-background border border-default hover:bg-token-surface-secondary text-foreground"><EyeIcon className="size-3.5 mr-2" />{t('code.openInNewTab')}</button>
+                                </div>
                             )}
                     </div>
                 )}

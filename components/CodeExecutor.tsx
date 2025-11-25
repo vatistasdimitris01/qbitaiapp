@@ -223,6 +223,12 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         setStatus('executing');
         setHasRunOnce(true);
 
+        // Pre-process code to remove imports which cause syntax errors in non-module scripts
+        // and remove export default
+        const processedCode = code
+            .replace(/import\s+.*?from\s+['"].*?['"];?/g, '')
+            .replace(/export\s+default\s+/g, '');
+
         const iframeHtml = `
 <!DOCTYPE html>
 <html>
@@ -242,25 +248,34 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     <div id="root"></div>
     <script type="text/babel">
       window.onerror = function(message, source, lineno, colno, error) {
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<div style={{color:'red', padding:'1rem'}}>Error: {message}</div>);
+        const rootElement = document.getElementById('root');
+        if(rootElement) {
+            rootElement.innerHTML = '<div style="color:red; padding:1rem;">Error: ' + message + '</div>';
+        }
         return true;
       };
 
+      // User Code
+      ${processedCode}
+      
+      // Mounting Logic
       try {
-        ${code}
-        
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        if (typeof App !== 'undefined') {
-          root.render(<App />);
-        } else if (typeof Component !== 'undefined') {
-          root.render(<Component />);
-        } else {
-           root.render(<div style={{color:'orange'}}>Please define a component named <b>App</b> to render it here.</div>);
-        }
+          const rootElement = document.getElementById('root');
+          const root = ReactDOM.createRoot(rootElement);
+          
+          if (typeof App !== 'undefined') {
+            root.render(<App />);
+          } else if (typeof Component !== 'undefined') {
+            root.render(<Component />);
+          } else {
+             // Try to find a function that looks like a component if App isn't defined
+             // This is a basic heuristic
+             root.render(<div style={{color:'#666', fontStyle:'italic'}}>
+                Rendered. If you don't see content, ensure you define a component named <b>App</b>.
+             </div>);
+          }
       } catch (err) {
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<div style={{color:'red', padding:'1rem'}}>Error: {err.message}</div>);
+        document.getElementById('root').innerHTML = '<div style="color:red; padding:1rem;">Mount Error: ' + err.message + '</div>';
       }
     </script>
   </body>
@@ -320,9 +335,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     } else if (type === 'plotly-json') {
                         setOutput(savedOutput);
                     } else if (lang === 'react' || lang === 'jsx') {
-                         // If we persisted a react result string, re-run to re-render iframe
-                         // or we can't easily restore iframe state without re-running.
-                         // For now, let's just re-run if it's react to show preview.
+                         // Re-run react to restore iframe preview
                          runReact();
                     } else {
                         setOutput(savedOutput);

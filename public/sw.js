@@ -46,6 +46,11 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only handle http and https requests
+  if (!event.request.url.startsWith('http')) {
+      return;
+  }
+
   // For all requests, use a network-first, falling-back-to-cache strategy.
   event.respondWith(
     fetch(event.request)

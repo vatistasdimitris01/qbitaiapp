@@ -84,6 +84,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => onTextChange(e.target.value);
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        if (e.clipboardData && e.clipboardData.files.length > 0) {
+            e.preventDefault();
+            addFiles(e.clipboardData.files);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const hasContent = text.trim() || attachmentPreviews.length > 0 || replyContextText;
@@ -179,6 +186,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         value={text} 
                         onChange={handleInputChange} 
                         onKeyDown={handleKeyDown} 
+                        onPaste={handlePaste}
                     />
                     
                     <div className="flex items-center gap-1 shrink-0">

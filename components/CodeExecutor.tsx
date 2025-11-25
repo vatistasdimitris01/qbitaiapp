@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import ReactDOM from 'react-dom/client';
-import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, XIcon, Wand2Icon } from './icons';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { CheckIcon, CopyIcon, DownloadIcon, PlayIcon, RefreshCwIcon, ChevronsUpDownIcon, ChevronsDownUpIcon, EyeIcon, Wand2Icon } from './icons';
 import { runPythonCode, stopPythonExecution, PythonExecutorUpdate } from '../services/pythonExecutorService';
 
 
 declare global {
     interface Window {
-        Babel: any;
         Plotly: any;
     }
 }
@@ -87,8 +85,6 @@ const ActionButton: React.FC<{ onClick: () => void; title: string; children: Rea
 
 export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, isExecutable, autorun, initialCollapsed = false, persistedResult, onExecutionComplete, onFixRequest, onStopExecution, isPythonReady, isLoading = false, t }) => {
     const plotlyRef = useRef<HTMLDivElement>(null);
-    const reactMountRef = useRef<HTMLDivElement>(null);
-    const reactRootRef = useRef<any>(null);
     
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [output, setOutput] = useState<OutputContent>('');
@@ -101,7 +97,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
     const [hasRunOnce, setHasRunOnce] = useState(!!persistedResult);
     const prevIsLoading = usePrevious(isLoading);
-    const [reactExecTrigger, setReactExecTrigger] = useState(0);
 
     const runPython = useCallback(async () => {
         setStatus('executing');
@@ -224,50 +219,67 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         }
     }, [code, onExecutionComplete, t]);
     
-    useEffect(() => {
-        if (reactExecTrigger > 0 && reactMountRef.current) {
-            try {
-                if (!reactRootRef.current) {
-                    reactRootRef.current = ReactDOM.createRoot(reactMountRef.current);
-                }
-                
-                const wrappedCode = `let Component; ${code}; return Component;`;
-                const transpiledCode = window.Babel.transform(wrappedCode, { presets: ['react'] }).code;
-                const getComponent = new Function('React', transpiledCode);
-                const ComponentToRender = getComponent(React);
-
-                if (typeof ComponentToRender === 'function') {
-                    const Component = ComponentToRender as React.ComponentType;
-                    reactRootRef.current.render(React.createElement(Component));
-                    setOutput(null);
-                    setStatus('success');
-                    onExecutionComplete({ output: t('code.reactSuccess'), error: '', type: 'string' });
-                } else {
-                    throw new Error("No 'Component' variable was exported from the code.");
-                }
-            } catch (err: any) {
-                const errorMsg = err.toString();
-                setError(errorMsg);
-                setStatus('error');
-                onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
-            }
-        }
-    }, [reactExecTrigger, code, onExecutionComplete, t]);
-    
-    useEffect(() => {
-        return () => {
-            if (reactRootRef.current) {
-                reactRootRef.current.unmount();
-                reactRootRef.current = null;
-            }
-        }
-    }, []);
-
     const runReact = useCallback(() => {
         setStatus('executing');
         setHasRunOnce(true);
-        setReactExecTrigger(c => c + 1);
-    }, []);
+
+        const iframeHtml = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { background-color: white; margin: 0; padding: 1rem; font-family: sans-serif; }
+      ::-webkit-scrollbar { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      window.onerror = function(message, source, lineno, colno, error) {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<div style={{color:'red', padding:'1rem'}}>Error: {message}</div>);
+        return true;
+      };
+
+      try {
+        ${code}
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        if (typeof App !== 'undefined') {
+          root.render(<App />);
+        } else if (typeof Component !== 'undefined') {
+          root.render(<Component />);
+        } else {
+           root.render(<div style={{color:'orange'}}>Please define a component named <b>App</b> to render it here.</div>);
+        }
+      } catch (err) {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<div style={{color:'red', padding:'1rem'}}>Error: {err.message}</div>);
+      }
+    </script>
+  </body>
+</html>`;
+
+        setOutput(
+            <iframe 
+                srcDoc={iframeHtml} 
+                className="w-full h-[500px] border-none bg-white rounded-lg shadow-sm"
+                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+                title="React Preview"
+            />
+        );
+        
+        // Auto collapse code for better UX when preview is active
+        setIsCollapsed(true);
+        setStatus('success');
+        onExecutionComplete({ output: 'React component rendered in sandbox.', error: '', type: 'string' });
+    }, [code, onExecutionComplete]);
 
     const handleRunCode = useCallback(async () => {
         setOutput('');
@@ -307,6 +319,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
                     } else if (type === 'plotly-json') {
                         setOutput(savedOutput);
+                    } else if (lang === 'react' || lang === 'jsx') {
+                         // If we persisted a react result string, re-run to re-render iframe
+                         // or we can't easily restore iframe state without re-running.
+                         // For now, let's just re-run if it's react to show preview.
+                         runReact();
                     } else {
                         setOutput(savedOutput);
                     }
@@ -320,7 +337,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 setHasRunOnce(true);
             }
         }
-    }, [persistedResult]);
+    }, [persistedResult, lang, runReact]);
 
     useEffect(() => {
         if (autorun && isPythonReady && prevIsLoading && !isLoading && !persistedResult) {
@@ -329,10 +346,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     }, [isLoading, prevIsLoading, autorun, isPythonReady, persistedResult, handleRunCode]);
 
     useEffect(() => {
-        if (autorun && hasRunOnce) {
+        if (autorun && hasRunOnce && lang !== 'react' && lang !== 'jsx') {
             setIsCollapsed(false);
         }
-    }, [autorun, hasRunOnce]);
+    }, [autorun, hasRunOnce, lang]);
 
     useEffect(() => {
         if ((window as any).hljs) {
@@ -388,13 +405,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         const isFatalError = status === 'error';
         const hasVisibleOutput = (output && typeof output !== 'string') || 
                                  (typeof output === 'string' && output.trim() !== '') ||
-                                 (lang === 'python' && typeof output === 'string' && output.startsWith('{')) ||
-                                 ((lang === 'react' || lang === 'jsx') && status === 'success');
-
-        const showRegularOutputBlock = hasVisibleOutput && 
-                                       !((lang === 'react' || lang === 'jsx') && status === 'success') &&
-                                       !(output && typeof output !== 'string') &&
-                                       !(lang === 'python' && typeof output === 'string' && output.startsWith('{'));
+                                 (lang === 'python' && typeof output === 'string' && output.startsWith('{'));
 
         if (!error && !hasVisibleOutput && !downloadableFile && !htmlBlobUrl) {
             return null;
@@ -419,12 +430,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         {output && lang === 'python' && typeof output === 'string' && output.startsWith('{') && (
                             <div ref={plotlyRef} className="w-full min-h-[450px] rounded-xl bg-white p-2 border border-default"></div>
                         )}
-                        {(lang === 'react' || lang === 'jsx') && (
-                            <div className="p-3 border border-default rounded-xl bg-background" ref={reactMountRef}></div>
-                        )}
-                        {showRegularOutputBlock && (
-                            <div className="text-sm output-block success">
-                                <pre>{typeof output === 'string' ? output.trim() : ''}</pre>
+                        {hasVisibleOutput && typeof output === 'string' && !output.startsWith('{') && (
+                             <div className="text-sm output-block success">
+                                <pre>{output.trim()}</pre>
                             </div>
                         )}
                     </>

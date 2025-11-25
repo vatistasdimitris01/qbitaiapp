@@ -87,8 +87,21 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => 
       </div>
     );
   }
+
+  // Specific layout for 5 images (2 on top, 3 on bottom)
+  if (len === 5) {
+    return (
+      <div className="not-prose my-2 grid grid-cols-6 gap-1.5 max-w-xl">
+        <GalleryImage image={images[0]} className="col-span-3 aspect-video" onClick={() => onImageClick(0)} />
+        <GalleryImage image={images[1]} className="col-span-3 aspect-video" onClick={() => onImageClick(1)} />
+        <GalleryImage image={images[2]} className="col-span-2 aspect-square" onClick={() => onImageClick(2)} />
+        <GalleryImage image={images[3]} className="col-span-2 aspect-square" onClick={() => onImageClick(3)} />
+        <GalleryImage image={images[4]} className="col-span-2 aspect-square" onClick={() => onImageClick(4)} />
+      </div>
+    );
+  }
   
-  // Gallery for 4+ images (responsive 2x2 grid)
+  // Default gallery for 4+ images (responsive 2x2 grid with overlay)
   if (len >= 4) {
     const visibleImages = images.slice(0, 4);
     const hiddenCount = images.length - 4;

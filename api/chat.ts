@@ -37,7 +37,8 @@ export default async function handler(req: Request) {
             const cseId = process.env.GOOGLE_CSE_ID;
             if (!apiKey || !cseId) return new Response(JSON.stringify({ error: 'Search config missing' }), { status: 500, headers });
             
-            const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(imageSearchQuery)}&searchType=image&num=3`);
+            // Increased num from 3 to 5
+            const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(imageSearchQuery)}&searchType=image&num=5`);
             const data = await res.json();
             return new Response(JSON.stringify({ images: data.items ? data.items.map((i: any) => i.link) : [] }), { status: 200, headers });
         }
@@ -74,7 +75,7 @@ export default async function handler(req: Request) {
                  const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                  const cseId = process.env.GOOGLE_CSE_ID;
                  const q = fc.args.query as string;
-                 const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=3`);
+                 const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=5`);
                  const sData = await sRes.json();
                  const snippets = sData.items?.map((i:any) => i.snippet).join('\n') || 'No results';
                  

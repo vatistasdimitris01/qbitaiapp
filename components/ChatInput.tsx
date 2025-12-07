@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, RocketIcon, ChevronDownIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, RocketIcon, ChevronDownIcon, VisualizerIcon, UserIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -100,9 +100,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-            recognition.lang = language; // Use current app language
+            recognition.lang = language; 
 
-            // Append space if text exists and doesn't end with whitespace
             let initialText = text;
             if (initialText.length > 0 && !/\s$/.test(initialText)) {
                 initialText += ' ';
@@ -117,7 +116,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 for (let i = 0; i < event.results.length; ++i) {
                    transcript += event.results[i][0].transcript;
                 }
-                // Update input directly
                 onTextChange(initialText + transcript);
             };
 
@@ -140,81 +138,87 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     return (
         <div className="flex flex-col justify-center w-full relative items-center gap-4">
-             {(replyContextText || attachmentPreviews.length > 0) && (
-                <div className="w-full max-w-[720px] animate-fade-in-up px-4">
-                    {replyContextText && (
-                        <div className="flex items-center justify-between gap-2 bg-[#181818] border border-white/10 p-3 rounded-2xl mb-2 shadow-sm">
-                            <div className="text-xs text-gray-400 line-clamp-1 border-l-2 border-white pl-2">{replyContextText}</div>
-                            <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"><XIcon className="size-3" /></button>
-                        </div>
-                    )}
-                    
-                    {attachmentPreviews.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
-                            {attachmentPreviews.map((attachment, index) => (
-                                <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-white/10 bg-black">
-                                    <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
-                                    <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <XIcon className="size-3 text-white" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-            
-            <div className="w-full max-w-[720px] relative px-4">
-                <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                
-                <form onSubmit={handleSubmit} className="relative flex items-center w-full bg-[#181818] border border-white/5 hover:border-white/10 rounded-[32px] pl-2 pr-2 py-1 shadow-sm transition-all h-[56px]">
-                    {/* Attachment Icon */}
-                    <button
-                        type="button"
-                        onClick={handleAttachClick}
-                        className="flex items-center justify-center p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-white transition-colors shrink-0"
-                        disabled={isLoading}
-                    >
-                        <PaperclipIcon className="size-5 transform rotate-45" />
-                    </button>
-                    
-                    {/* Main Input */}
-                    <input 
-                        ref={internalTextareaRef} 
-                        type="text"
-                        className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-500 ml-2 h-full text-[15px] font-normal"
-                        placeholder={placeholder} 
-                        value={text} 
-                        onChange={handleInputChange} 
-                        readOnly={isRecording}
-                    />
-                    
-                    {/* Right Controls */}
-                    <div className="flex items-center gap-3 pl-2">
-                         {/* Auto/Model Selector Placeholder */}
-                        <button type="button" className="hidden sm:flex items-center gap-1.5 text-gray-400 text-xs font-medium hover:bg-white/5 px-2.5 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/5">
-                            <RocketIcon className="size-3.5" />
-                            <span>Auto</span>
-                            <ChevronDownIcon className="size-2.5 ml-0.5 opacity-70" />
-                        </button>
+            <div className="w-full max-w-[700px] relative px-4">
+                 <form onSubmit={handleSubmit} className="bg-[#1e1e1e] rounded-[32px] border border-[#2a2a2a] shadow-2xl p-3 flex flex-col relative focus-within:border-gray-600 transition-colors duration-300 w-full">
+                    <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
 
+                    {/* Context/Files Area */}
+                    {(replyContextText || attachmentPreviews.length > 0) && (
+                        <div className="w-full px-2 pt-2 mb-2 animate-fade-in-up">
+                            {replyContextText && (
+                                <div className="flex items-center justify-between gap-2 bg-[#181818] border border-white/10 p-3 rounded-2xl mb-2 shadow-sm">
+                                    <div className="text-xs text-gray-400 line-clamp-1 border-l-2 border-white pl-2">{replyContextText}</div>
+                                    <button onClick={onClearReplyContext} type="button" className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"><XIcon className="size-3" /></button>
+                                </div>
+                            )}
+                            {attachmentPreviews.length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
+                                    {attachmentPreviews.map((attachment, index) => (
+                                        <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-white/10 bg-black">
+                                            <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
+                                            <button onClick={() => handleRemoveFile(index)} type="button" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <XIcon className="size-3 text-white" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Text Area */}
+                    <div className="px-2 pt-1 pb-10">
+                         <input 
+                            ref={internalTextareaRef} 
+                            type="text"
+                            className="w-full bg-transparent text-gray-200 text-lg placeholder-gray-500 outline-none font-light selection:bg-gray-600"
+                            placeholder={placeholder} 
+                            value={text} 
+                            onChange={handleInputChange} 
+                            readOnly={isRecording}
+                        />
+                    </div>
+
+                    {/* Bottom Tools */}
+                    <div className="flex items-center justify-between pl-1 pr-1 pb-1">
+                        <div className="flex items-center gap-1">
+                             {/* Attachment / Plus Icon */}
+                            <button 
+                                type="button"
+                                onClick={handleAttachClick}
+                                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200 transition-colors"
+                            >
+                                <PaperclipIcon className="size-5" />
+                            </button>
+
+                            {/* Mic Icon / Visualizer */}
+                            <button 
+                                type="button" 
+                                onClick={handleMicClick} 
+                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'text-white bg-red-500/20' : 'text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200'}`}
+                            >
+                                {isRecording ? <VisualizerIcon className="text-red-500" /> : <MicIcon className="size-4" />}
+                            </button>
+
+                             {/* Speaker Icon (Placeholder for now) */}
+                            <button type="button" className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200 transition-colors">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0-.29.27L6 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3.71 3.73.29.27V3.23z"/></svg>
+                            </button>
+                        </div>
+
+                        {/* Send / Stop Button */}
                         {isLoading ? (
-                            <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-black hover:opacity-90 transition-opacity">
+                            <button type="button" onClick={onAbortGeneration} className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm text-black">
                                 <StopCircleIcon className="size-4" />
                             </button>
-                        ) : hasContent ? (
-                            <button type="submit" className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-black hover:opacity-90 transition-opacity" disabled={!hasContent}>
-                                <ArrowUpIcon className="size-4"/>
-                            </button>
                         ) : (
-                            <button type="button" onClick={handleMicClick} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-black hover:bg-gray-200'}`}>
-                                <MicIcon className="size-4" />
+                             <button type="submit" disabled={!hasContent} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${hasContent ? 'bg-white hover:bg-gray-200 text-black' : 'bg-[#333] text-gray-500 cursor-not-allowed'}`}>
+                                <ArrowUpIcon className="size-4"/>
                             </button>
                         )}
                     </div>
-                </form>
+                 </form>
             </div>
-             <p className="text-[10px] text-center text-gray-600 font-medium tracking-wide">Qbit can make mistakes.</p>
         </div>
     );
 });

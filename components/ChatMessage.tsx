@@ -4,7 +4,7 @@ import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CheckIcon, GitForkIcon
+    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CheckIcon, GitForkIcon, ThumbsUpIcon, ThumbsDownIcon, MoreHorizontalIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
@@ -35,8 +35,8 @@ interface ChatMessageProps {
     onOpenLightbox: (images: any[], startIndex: number) => void;
 }
 
-const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button onClick={onClick} className="p-1.5 text-gray-500 hover:text-white transition-colors rounded-md" title={title}>
+const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title?: string }> = ({ children, onClick, title }) => (
+    <button onClick={onClick} className="text-gray-500 hover:text-gray-300 transition-colors" title={title}>
         {children}
     </button>
 );
@@ -195,7 +195,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     return (
         <div className={`flex w-full mb-8 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className={`flex flex-col w-full max-w-[760px] ${isUser ? 'items-end' : 'items-start'}`}>
                 
                 {/* Thinking Block */}
                 {hasThinking && (
@@ -216,7 +216,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-[#222222] text-[#f0f0f0] px-5 py-2.5 rounded-[20px] text-[15px] leading-relaxed max-w-full">
+                        // User Bubble: Dark background, light text, rounded corners
+                         <div className="bg-[#1F1F1F] text-gray-100 px-5 py-2.5 rounded-[20px] text-[15px] leading-relaxed max-w-full">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
@@ -228,7 +229,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                              )}
                          </div>
                     ) : (
-                        <div ref={contentRef} className="w-full text-[#e8e8e8] text-[16px] leading-relaxed space-y-4">
+                        // AI Response: Text only, no bubble
+                        <div ref={contentRef} className="w-full text-gray-200 text-[16px] leading-relaxed space-y-4">
                             {renderableContent.map((part, index) => {
                                 if (part.type === 'code') {
                                     return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
@@ -258,17 +260,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                          </div>
                     )}
 
-                    {/* Message Actions */}
+                    {/* Message Actions - AI Only */}
                     {!isLoading && !isUser && (
-                        <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-4 mt-2 pl-0.5">
                             <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
                                 {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
                             </IconButton>
                             <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
                                 <RefreshCwIcon className="size-3.5" />
                             </IconButton>
-                             <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
-                                <GitForkIcon className="size-3.5" />
+                            <IconButton title="Like">
+                                <ThumbsUpIcon className="size-3.5" />
+                            </IconButton>
+                            <IconButton title="Dislike">
+                                <ThumbsDownIcon className="size-3.5" />
+                            </IconButton>
+                            <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
+                                <MoreHorizontalIcon className="size-3.5" />
                             </IconButton>
                         </div>
                     )}

@@ -63,7 +63,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Used for mobile drawer mostly now
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -544,7 +544,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
+    <div style={{ height: appHeight }} className="flex bg-[#090909] text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
         
         {/* Mobile Header Sidebar Toggle */}
@@ -562,7 +562,7 @@ const App: React.FC = () => {
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-[800px] mx-auto px-4 pt-16 pb-4 min-h-full flex flex-col">
+              <div className="max-w-[760px] mx-auto px-4 pt-16 pb-4 min-h-full flex flex-col">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -578,7 +578,7 @@ const App: React.FC = () => {
               </div>
             </main>
             
-            <div className="mt-auto pt-2 pb-6 w-full flex flex-col items-center bg-gradient-to-t from-black via-black to-transparent z-10">
+            <div className="mt-auto pt-2 pb-6 w-full flex flex-col items-center bg-gradient-to-t from-[#090909] via-[#090909] to-transparent z-10">
                 {showScrollToBottom && !isLoading && (
                     <button onClick={handleScrollToBottomClick} className="mb-4 p-2 bg-[#181818] rounded-full text-gray-400 hover:text-white border border-white/10 shadow-lg transition-all" aria-label={t('chat.scrollToBottom')}>
                         <ChevronDownIcon className="size-5" />

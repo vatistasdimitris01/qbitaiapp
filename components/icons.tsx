@@ -7,9 +7,20 @@ interface IconProps {
 
 export const GrokLogoIcon: React.FC<IconProps> = ({ className }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"></path>
-        <path d="M4.93 19.07 19.07 4.93"></path>
+         <path d="M2 2L22 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
+         <path d="M16 8L8 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
+);
+
+export const VisualizerIcon: React.FC<IconProps> = ({ className }) => (
+    <div className={`flex items-center justify-center gap-[3px] ${className}`}>
+        <div className="w-[3px] h-3 bg-current rounded-full"></div>
+        <div className="w-[3px] h-5 bg-current rounded-full"></div>
+        <div className="w-[3px] h-3 bg-current rounded-full"></div>
+        <div className="w-[3px] h-4 bg-current rounded-full"></div>
+        <div className="w-[3px] h-2 bg-current rounded-full"></div>
+    </div>
 );
 
 export const HistoryIcon: React.FC<IconProps> = ({ className }) => (
@@ -30,7 +41,8 @@ export const RocketIcon: React.FC<IconProps> = ({ className }) => (
 
 export const PaperclipIcon: React.FC<IconProps> = ({ className }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2"/>
+        <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
 );
 
@@ -104,8 +116,7 @@ export const StopCircleIcon: React.FC<IconProps> = ({ className }) => (
     strokeLinejoin="round"
     className={className}
   >
-    <circle cx="12" cy="12" r="10" />
-    <rect x="9" y="9" width="6" height="6" />
+    <path d="M18 6L6 18M6 6l12 12" />
   </svg>
 );
 

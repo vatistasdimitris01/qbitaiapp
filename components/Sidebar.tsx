@@ -3,11 +3,7 @@ import React from 'react';
 import {
   SquarePenIcon,
   SearchIcon,
-  SettingsIcon,
   GrokLogoIcon,
-  HistoryIcon,
-  ImageIcon,
-  FileTextIcon
 } from './icons';
 import { Conversation } from '../types';
 
@@ -29,21 +25,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeConversationId,
   onNewChat,
   onSelectConversation,
-  onOpenSettings,
   t
  }) => {
   const [showHistory, setShowHistory] = React.useState(false);
 
-  // Wave Icon SVG component for the sidebar
-  const WaveIcon = ({ className }: { className?: string }) => (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          <path d="M12 3v18M8 8v8M16 7v10M4 11v2M20 10v4"/>
-      </svg>
-  );
-
   return (
     <div className="flex h-full z-50">
-      {/* Thin Rail - 68px width as requested */}
+      {/* Thin Rail - 68px width */}
       <aside className="w-[68px] flex flex-col items-center py-5 bg-sidebar h-full shrink-0 z-50">
          <div className="flex flex-col items-center gap-8 w-full">
             {/* Logo */}
@@ -68,30 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 >
                     <SquarePenIcon className="size-5" />
                 </button>
-                
-                 <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-200">
-                    <WaveIcon className="size-5" />
-                </button>
-
-                 <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-200">
-                    <ImageIcon className="size-5" />
-                </button>
-
-                <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-200">
-                    <FileTextIcon className="size-5" />
-                </button>
-
-                 <button onClick={() => setShowHistory(!showHistory)} className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-200">
-                    <HistoryIcon className="size-5" />
-                </button>
             </nav>
-         </div>
-
-         {/* Bottom User Section */}
-         <div className="mt-auto flex flex-col items-center gap-5 mb-2">
-            <button onClick={onOpenSettings} className="w-8 h-8 rounded-full bg-black border border-gray-700 flex items-center justify-center text-[10px] font-bold text-gray-300 hover:border-gray-500 transition-colors">
-                JD
-            </button>
          </div>
       </aside>
 

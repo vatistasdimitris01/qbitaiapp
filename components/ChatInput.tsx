@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, RocketIcon, ChevronDownIcon, VisualizerIcon, UserIcon } from './icons';
+import { PaperclipIcon, XIcon, VoiceLinesIcon, ArrowUpLineIcon, StopCircleIcon, VisualizerIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -133,90 +133,97 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
-    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
-    const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
+    const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0 || replyContextText;
+    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : "How can I help?";
+
+    // Decide which icon to show on the main action button
+    const ActionIcon = (() => {
+        if (isLoading) return <StopCircleIcon className="size-6 text-black" />;
+        if (isRecording) return <VisualizerIcon className="text-red-500 scale-125" />;
+        if (hasContent) return <ArrowUpLineIcon className="text-black" />;
+        return <VoiceLinesIcon className="text-black" />;
+    })();
+
+    const handleActionClick = () => {
+        if (isLoading) {
+            onAbortGeneration();
+        } else if (hasContent) {
+            // Send
+             const hasData = text.trim() || attachmentPreviews.length > 0 || replyContextText;
+             if (hasData) {
+                 onSendMessage(text.trim(), attachmentPreviews.map(p => p.file));
+                 onTextChange('');
+                 setAttachmentPreviews([]);
+             }
+        } else {
+            // Trigger Mic
+            handleMicClick();
+        }
+    };
 
     return (
         <div className="flex flex-col justify-center w-full relative items-center gap-4">
-            <div className="w-full max-w-[700px] relative px-4">
-                 <form onSubmit={handleSubmit} className="bg-[#1e1e1e] rounded-[32px] border border-[#2a2a2a] shadow-2xl p-3 flex flex-col relative focus-within:border-gray-600 transition-colors duration-300 w-full">
-                    <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-
-                    {/* Context/Files Area */}
-                    {(replyContextText || attachmentPreviews.length > 0) && (
-                        <div className="w-full px-2 pt-2 mb-2 animate-fade-in-up">
-                            {replyContextText && (
-                                <div className="flex items-center justify-between gap-2 bg-[#181818] border border-white/10 p-3 rounded-2xl mb-2 shadow-sm">
-                                    <div className="text-xs text-gray-400 line-clamp-1 border-l-2 border-white pl-2">{replyContextText}</div>
-                                    <button onClick={onClearReplyContext} type="button" className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"><XIcon className="size-3" /></button>
-                                </div>
-                            )}
-                            {attachmentPreviews.length > 0 && (
-                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
-                                    {attachmentPreviews.map((attachment, index) => (
-                                        <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-white/10 bg-black">
-                                            <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
-                                            <button onClick={() => handleRemoveFile(index)} type="button" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <XIcon className="size-3 text-white" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+             {/* Context/Files Area (Floating above) */}
+             {(replyContextText || attachmentPreviews.length > 0) && (
+                <div className="w-full max-w-[820px] px-8 mb-2 animate-fade-in-up">
+                    {replyContextText && (
+                        <div className="flex items-center justify-between gap-2 bg-[#181818] border border-white/10 p-3 rounded-2xl mb-2 shadow-sm">
+                            <div className="text-xs text-gray-400 line-clamp-1 border-l-2 border-white pl-2">{replyContextText}</div>
+                            <button onClick={onClearReplyContext} type="button" className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"><XIcon className="size-3" /></button>
                         </div>
                     )}
-                    
-                    {/* Text Area */}
-                    <div className="px-2 pt-1 pb-10">
-                         <input 
-                            ref={internalTextareaRef} 
+                    {attachmentPreviews.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
+                            {attachmentPreviews.map((attachment, index) => (
+                                <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-white/10 bg-black">
+                                    <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
+                                    <button onClick={() => handleRemoveFile(index)} type="button" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <XIcon className="size-3 text-white" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="w-full max-w-[820px] px-2">
+                 <form onSubmit={handleSubmit} className="bg-[#1a1a1a] border border-white/5 rounded-full flex items-center justify-between px-6 h-[72px] shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300">
+                    <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
+
+                    {/* Left Side */}
+                    <div className="flex items-center gap-4 flex-1 h-full">
+                        {/* Rotated Paperclip */}
+                        <button 
+                            type="button" 
+                            onClick={handleAttachClick}
+                            className="text-gray-300 opacity-80 hover:opacity-100 transition-all focus:outline-none"
+                            aria-label="Attach file"
+                        >
+                            <PaperclipIcon className="size-[22px] transform rotate-90" />
+                        </button>
+
+                        {/* Input */}
+                        <input
+                            ref={internalTextareaRef}
                             type="text"
-                            className="w-full bg-transparent text-gray-200 text-lg placeholder-gray-500 outline-none font-light selection:bg-gray-600"
-                            placeholder={placeholder} 
-                            value={text} 
-                            onChange={handleInputChange} 
+                            placeholder={placeholder}
+                            value={text}
+                            onChange={handleInputChange}
                             readOnly={isRecording}
+                            className="flex-1 bg-transparent text-white text-[19px] placeholder-gray-400 outline-none focus:outline-none transition-all h-full"
                         />
                     </div>
 
-                    {/* Bottom Tools */}
-                    <div className="flex items-center justify-between pl-1 pr-1 pb-1">
-                        <div className="flex items-center gap-1">
-                             {/* Attachment / Plus Icon */}
-                            <button 
-                                type="button"
-                                onClick={handleAttachClick}
-                                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200 transition-colors"
-                            >
-                                <PaperclipIcon className="size-5" />
-                            </button>
-
-                            {/* Mic Icon / Visualizer */}
-                            <button 
-                                type="button" 
-                                onClick={handleMicClick} 
-                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'text-white bg-red-500/20' : 'text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200'}`}
-                            >
-                                {isRecording ? <VisualizerIcon className="text-red-500" /> : <MicIcon className="size-4" />}
-                            </button>
-
-                             {/* Speaker Icon (Placeholder for now) */}
-                            <button type="button" className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:bg-[#2c2c2c] hover:text-gray-200 transition-colors">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0-.29.27L6 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3.71 3.73.29.27V3.23z"/></svg>
-                            </button>
-                        </div>
-
-                        {/* Send / Stop Button */}
-                        {isLoading ? (
-                            <button type="button" onClick={onAbortGeneration} className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm text-black">
-                                <StopCircleIcon className="size-4" />
-                            </button>
-                        ) : (
-                             <button type="submit" disabled={!hasContent} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${hasContent ? 'bg-white hover:bg-gray-200 text-black' : 'bg-[#333] text-gray-500 cursor-not-allowed'}`}>
-                                <ArrowUpIcon className="size-4"/>
-                            </button>
-                        )}
-                    </div>
+                    {/* Right Side Button (Dynamic Voice / Send) */}
+                    <button 
+                        id="actionButton"
+                        type="button"
+                        onClick={handleActionClick}
+                        className="bg-white w-[52px] h-[52px] rounded-full flex items-center justify-center hover:bg-gray-100 transition-all shadow-md active:scale-95 ml-3 shrink-0"
+                    >
+                        {ActionIcon}
+                    </button>
                  </form>
             </div>
         </div>

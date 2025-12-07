@@ -13,13 +13,30 @@ export const GrokLogoIcon: React.FC<IconProps> = ({ className }) => (
     </svg>
 );
 
+export const VoiceLinesIcon: React.FC<IconProps> = ({ className }) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M5 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M9 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M13 4V20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M17 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M21 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    </svg>
+);
+
+export const ArrowUpLineIcon: React.FC<IconProps> = ({ className }) => (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M12 4L12 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M5 10L12 3L19 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+
 export const VisualizerIcon: React.FC<IconProps> = ({ className }) => (
     <div className={`flex items-center justify-center gap-[3px] ${className}`}>
-        <div className="w-[3px] h-3 bg-current rounded-full"></div>
-        <div className="w-[3px] h-5 bg-current rounded-full"></div>
-        <div className="w-[3px] h-3 bg-current rounded-full"></div>
-        <div className="w-[3px] h-4 bg-current rounded-full"></div>
-        <div className="w-[3px] h-2 bg-current rounded-full"></div>
+        <div className="w-[3px] h-3 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite]"></div>
+        <div className="w-[3px] h-5 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.1s]"></div>
+        <div className="w-[3px] h-3 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.2s]"></div>
+        <div className="w-[3px] h-4 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.3s]"></div>
+        <div className="w-[3px] h-2 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.4s]"></div>
     </div>
 );
 

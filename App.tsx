@@ -63,7 +63,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -273,11 +273,11 @@ const App: React.FC = () => {
 
   const handleNewChat = () => {
     if (activeConversationId === null) {
-      setIsSidebarOpen(false);
+      // setIsSidebarOpen(false); // Removed auto-close on desktop
       return;
     }
     setActiveConversationId(null);
-    setIsSidebarOpen(false);
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -535,27 +535,33 @@ const App: React.FC = () => {
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
-    setIsSidebarOpen(false);
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
   
   const handleSelectConversation = (id: string) => {
       setActiveConversationId(id);
-      setIsSidebarOpen(false);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   return (
     <div style={{ height: appHeight }} className="flex bg-[#090909] text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
         
-        {/* Mobile Header Sidebar Toggle */}
-        <button onClick={() => setIsSidebarOpen(true)} className={`md:hidden fixed top-4 left-4 z-40 p-2 bg-black/50 backdrop-blur-md rounded-full text-white border border-white/10 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.open')}>
+        {/* Toggle Sidebar Button (Visible on Mobile OR Desktop when sidebar closed) */}
+        <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+            className={`fixed top-4 left-4 z-[60] p-2 bg-black/50 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-white/10 transition-all ${isSidebarOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`} 
+            aria-label={t('sidebar.open')}
+        >
             <LayoutGridIcon className="size-5" />
         </button>
 
-        {/* Sidebar (Desktop Rail + Mobile Drawer handled inside component) */}
-        <div className={`fixed inset-0 z-50 md:static md:z-auto transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Sidebar Container */}
+        <div className={`fixed inset-0 z-50 md:static md:z-auto transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[68px]' : '-translate-x-full w-0 md:w-0 overflow-hidden'}`}>
            <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} conversations={conversations} activeConversationId={activeConversationId} onNewChat={handleNewChat} onSelectConversation={handleSelectConversation} onDeleteConversation={handleDeleteConversation} onOpenSettings={() => setIsSettingsOpen(true)} t={t} />
         </div>
+
+        {/* Mobile Overlay for Sidebar */}
         {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-black/60 z-40" aria-hidden="true"></div>}
         
         <div className="flex-1 flex flex-col h-full relative min-w-0">

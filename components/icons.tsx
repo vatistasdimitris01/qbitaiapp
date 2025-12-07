@@ -45,39 +45,37 @@ export const PlusIcon: React.FC<IconProps> = ({ className }) => (
 
 export const PaperclipIcon: React.FC<IconProps> = ({ className }) => (
   <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
     fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
-    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    <path 
+      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 export const VoiceWaveIcon: React.FC<IconProps> = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
+  <svg 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
     fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
-    <path d="M5 10v4" />
-    <path d="M9 7v10" />
-    <path d="M13 4v16" />
-    <path d="M17 7v10" />
-    <path d="M21 10v4" />
+    <path d="M5 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M9 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M13 4V20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M17 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M21 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
   </svg>
 );
 

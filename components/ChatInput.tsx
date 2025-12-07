@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, VoiceWaveIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, VoiceWaveIcon, StopCircleIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -38,8 +38,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            textarea.style.height = '28px'; // Base height roughly matching the text size
-            const newHeight = Math.min(textarea.scrollHeight, 150);
+            textarea.style.height = '24px'; // Min height
+            const newHeight = Math.min(textarea.scrollHeight, 120);
             textarea.style.height = `${newHeight}px`;
         }
     }, []);
@@ -192,7 +192,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             
             <div className="w-full max-w-[820px] relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                <form onSubmit={handleSubmit} className="relative flex items-center w-full bg-token-surface border border-default rounded-full px-4 min-h-[72px] shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
+                <form 
+                    onSubmit={handleSubmit} 
+                    className="relative flex items-center w-full bg-token-surface border border-default rounded-full px-4 min-h-[54px] shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.005] hover:border-foreground/20 focus-within:border-foreground/40 ring-0 py-2"
+                >
                     {/* Left Side: Attach */}
                     <button
                         type="button"
@@ -201,14 +204,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         disabled={isLoading}
                         aria-label={t('chat.input.attach')}
                     >
-                        <PaperclipIcon className="size-6 transform rotate-90" />
+                        <PaperclipIcon className="size-5 transform rotate-90" />
                     </button>
                     
                     {/* Middle: Input */}
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-4 max-h-[150px] min-h-[28px] text-[19px] leading-relaxed resize-none scrollbar-none"
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-2 max-h-[120px] min-h-[24px] text-[17px] leading-relaxed resize-none scrollbar-none"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -223,17 +226,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         <button 
                             type={isLoading ? "button" : (hasContent ? "submit" : "button")}
                             onClick={isLoading ? onAbortGeneration : (hasContent ? undefined : handleMicClick)}
-                            className="flex items-center justify-center w-[52px] h-[52px] rounded-full bg-foreground text-background hover:opacity-90 transition-all shadow-md active:scale-95"
+                            className={`flex items-center justify-center size-[42px] rounded-full transition-all shadow-md active:scale-95 ${
+                                isRecording ? 'bg-foreground text-background' : 'bg-foreground text-background hover:opacity-90'
+                            }`}
                             disabled={false}
                         >
                             {isLoading ? (
-                                <div className="size-4 bg-background rounded-[2px]" />
+                                <div className="size-3 bg-background rounded-[1px]" />
                             ) : hasContent ? (
-                                <ArrowUpIcon className="size-6" />
+                                <ArrowUpIcon className="size-5" />
                             ) : isRecording ? (
-                                <XIcon className="size-6" />
+                                <XIcon className="size-5" />
                             ) : (
-                                <VoiceWaveIcon className="size-6" />
+                                <VoiceWaveIcon className="size-5" />
                             )}
                         </button>
                     </div>

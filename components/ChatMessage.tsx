@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -35,7 +36,7 @@ interface ChatMessageProps {
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button onClick={onClick} className="p-1 text-muted-foreground/40 hover:text-foreground transition-colors rounded-md" title={title}>
+    <button onClick={onClick} className="p-1.5 text-gray-500 hover:text-white transition-colors rounded-md" title={title}>
         {children}
     </button>
 );
@@ -92,7 +93,7 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
 
     if (loading) return (
          <div className="grid grid-cols-3 gap-1.5 my-2 max-w-xl">
-             {[1,2,3].map(i => <div key={i} className="aspect-square bg-token-surface-secondary animate-pulse rounded-lg" />)}
+             {[1,2,3].map(i => <div key={i} className="aspect-square bg-white/5 animate-pulse rounded-lg" />)}
          </div>
     );
     
@@ -193,19 +194,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
 
     return (
-        <div className={`flex w-full mb-6 group/message ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex w-full mb-8 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
                 
                 {/* Thinking Block */}
                 {hasThinking && (
                     <div className="w-full mb-3">
-                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors p-1.5 rounded-lg w-fit">
-                            <BrainIcon className="size-3" />
+                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 bg-[#2f2f2f] text-gray-300 hover:text-white text-xs font-medium px-4 py-1.5 rounded-full border border-white/5 transition-colors">
+                            <BrainIcon className="size-3.5" />
                             <span>{t('chat.message.thinking')}</span>
                             <ChevronDownIcon className={`size-3 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isThinkingOpen && (
-                            <div className="mt-2 pl-3 border-l-2 border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
+                            <div className="mt-2 pl-3 border-l-2 border-white/20 text-sm text-gray-400 leading-relaxed prose-sm max-w-none">
                                 <div dangerouslySetInnerHTML={{ __html: marked.parse(parsedThinkingText || '') }} />
                             </div>
                         )}
@@ -215,25 +216,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-token-surface-secondary dark:bg-zinc-800 px-4 py-2 rounded-[20px] rounded-br-sm text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm border border-default">
+                         <div className="bg-[#222222] text-[#f0f0f0] px-5 py-2.5 rounded-[20px] text-[15px] leading-relaxed max-w-full">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
                                      {message.files.map((f, i) => (
-                                         isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-black/5 dark:border-white/5" alt="" /> :
-                                         <div key={i} className="px-2 py-1 bg-background/50 rounded text-xs border border-black/5 dark:border-white/5">{f.name}</div>
+                                         isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-white/10" alt="" /> :
+                                         <div key={i} className="px-2 py-1 bg-white/5 rounded text-xs border border-white/10">{f.name}</div>
                                      ))}
                                  </div>
                              )}
                          </div>
                     ) : (
-                        <div ref={contentRef} className="w-full text-[0.95rem] leading-7 space-y-4">
+                        <div ref={contentRef} className="w-full text-[#e8e8e8] text-[16px] leading-relaxed space-y-4">
                             {renderableContent.map((part, index) => {
                                 if (part.type === 'code') {
                                     return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
                                 }
                                 if (part.type === 'text') {
-                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
+                                    return <div key={index} className="prose max-w-none prose-invert" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
                                 }
                                 if (part.type === 'gallery') {
                                     return <ImageGallery key={index} images={part.images} onImageClick={(i) => onOpenLightbox(part.images, i)} />;
@@ -258,21 +259,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     )}
 
                     {/* Message Actions */}
-                    {!isLoading && (
-                        <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
+                    {!isLoading && !isUser && (
+                        <div className="flex items-center gap-3 mt-2">
                             <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                {isCopied ? <CheckIcon className="size-3 text-green-500" /> : <CopyIcon className="size-3" />}
+                                {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <CopyIcon className="size-3.5" />}
                             </IconButton>
-                            {!isUser && (
-                                <>
-                                    <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
-                                        <RefreshCwIcon className="size-3" />
-                                    </IconButton>
-                                    <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
-                                        <GitForkIcon className="size-3" />
-                                    </IconButton>
-                                </>
-                            )}
+                            <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
+                                <RefreshCwIcon className="size-3.5" />
+                            </IconButton>
+                             <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
+                                <GitForkIcon className="size-3.5" />
+                            </IconButton>
                         </div>
                     )}
                 </div>

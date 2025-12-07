@@ -54,8 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         aria-hidden="true" 
       />
       <div className={`
-        flex flex-col h-full bg-sidebar z-50 fixed inset-y-0 left-0
-        w-[300px] transform transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1)
+        flex flex-col h-full bg-sidebar/95 backdrop-blur-xl z-50 fixed inset-y-0 left-0
+        w-[280px] sm:w-[300px] transform transition-transform duration-500 cubic-bezier(0.19, 1, 0.22, 1) will-change-transform
         ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
         border-r border-sidebar
       `}>

@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, GlobeIcon, ImageIcon, PlusIcon } from './icons';
+import { ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, GlobeIcon, ImageIcon, ChevronDownIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -41,7 +41,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; // Reset height
             const newHeight = Math.min(textarea.scrollHeight, 140);
-            textarea.style.height = `${Math.max(24, newHeight)}px`;
+            textarea.style.height = `${Math.max(44, newHeight)}px`;
         }
     }, []);
 
@@ -140,25 +140,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
-    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     return (
-        <div className="flex flex-col w-full relative gap-3 pb-2">
+        <div className="flex flex-col w-full relative gap-3 pb-2 max-w-3xl mx-auto">
             {/* Top Action Bar - Horizontal Scroll */}
-            <div className="flex items-center gap-2 overflow-x-auto px-1 no-scrollbar w-full">
-                 <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-blue-700 transition-colors shrink-0">
-                    <span>Qbit Pro</span>
+            <div className="flex items-center gap-2 overflow-x-auto px-1 no-scrollbar w-full pb-1">
+                 <button className="flex items-center gap-2 bg-[#2563EB] text-white px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap shadow-sm hover:bg-blue-700 transition-colors shrink-0">
+                    <span className="tracking-wide">Qbit Pro</span>
                 </button>
                 
-                <button onClick={handleMicClick} className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm transition-colors border border-default shrink-0 ${isRecording ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-token-surface-secondary text-foreground hover:bg-token-surface'}`}>
+                <button onClick={handleMicClick} className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap shadow-sm transition-colors border border-default shrink-0 ${isRecording ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-token-surface-secondary text-foreground hover:bg-token-surface'}`}>
                      {isRecording ? <StopCircleIcon className="size-3.5 animate-pulse" /> : <MicIcon className="size-3.5" />}
-                     <span>{isRecording ? t('chat.input.stopRecord') : t('chat.input.record')}</span>
+                     <span>{isRecording ? t('chat.input.stopRecord') : "Voice Mode"}</span>
                 </button>
 
-                 <button onClick={handleAttachClick} className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm bg-token-surface-secondary text-foreground border border-default hover:bg-token-surface transition-colors shrink-0">
-                     <ImageIcon className="size-3.5" />
-                     <span>Image</span>
+                 <button onClick={handleAttachClick} className="flex items-center justify-center size-9 rounded-full bg-token-surface-secondary text-foreground border border-default hover:bg-token-surface transition-colors shrink-0 shadow-sm">
+                     <ImageIcon className="size-4" />
                 </button>
             </div>
 
@@ -192,17 +190,18 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[26px] p-1.5 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 focus-within:ring-1 focus-within:ring-foreground/10">
                     
                     {/* Left Icon: Globe/Auto */}
-                    <div className="flex items-center justify-center h-10 w-10 text-muted-foreground shrink-0 mb-0.5 ml-0.5">
-                        <div className="flex items-center gap-1 bg-transparent px-2 rounded-full">
-                           <GlobeIcon className="size-5" /> 
-                           <span className="text-[10px] font-medium leading-none mt-0.5 opacity-70">Auto</span>
+                    <div className="flex items-center justify-center h-[44px] pl-2 shrink-0 mb-0.5">
+                        <div className="flex items-center gap-1.5 bg-transparent px-2 py-1 rounded-full cursor-pointer hover:bg-token-surface-secondary transition-colors group">
+                           <GlobeIcon className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" /> 
+                           <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground leading-none mt-0.5 transition-colors">Auto</span>
+                           <ChevronDownIcon className="size-3 text-muted-foreground/50 group-hover:text-foreground/70 transition-colors" />
                         </div>
                     </div>
                     
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-3 px-2 max-h-[140px] min-h-[44px] text-[16px] leading-relaxed" 
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-3 px-3 max-h-[140px] min-h-[44px] text-[16px] leading-relaxed" 
                         style={{ resize: 'none' }} 
                         placeholder={t('chat.input.placeholder')}
                         rows={1} 
@@ -212,7 +211,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onPaste={handlePaste}
                     />
                     
-                    <div className="flex items-center justify-center h-10 w-10 mb-0.5 mr-0.5 shrink-0">
+                    <div className="flex items-center justify-center h-[44px] w-10 mb-0.5 mr-0.5 shrink-0">
                         {isLoading ? (
                             <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-9 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity shadow-sm">
                                 <StopCircleIcon className="size-4" />

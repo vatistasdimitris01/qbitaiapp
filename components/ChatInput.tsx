@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PlusIcon, ArrowUpIcon, XIcon, MicIcon, StopCircleIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, VoiceWaveIcon, StopCircleIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -191,21 +192,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             
             <div className="w-full max-w-3xl relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[24px] p-1 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
+                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[26px] p-2 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
                     <button
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0"
+                        className="flex items-center justify-center size-10 rounded-full hover:bg-token-surface-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0 mb-0.5"
                         disabled={isLoading}
+                        aria-label={t('chat.input.attach')}
                     >
-                        <PlusIcon className="size-5" />
+                        <PaperclipIcon className="size-5 transform rotate-90" />
                     </button>
                     
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-2 px-2 max-h-[120px] min-h-[32px] text-[15px] leading-relaxed" 
-                        style={{ resize: 'none' }} 
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-3 px-3 max-h-[120px] min-h-[24px] text-[15px] leading-relaxed resize-none"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -215,20 +216,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         readOnly={isRecording}
                     />
                     
-                    <div className="flex items-center gap-1 shrink-0">
-                        {isLoading ? (
-                            <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity">
-                                <StopCircleIcon className="size-3.5" />
-                            </button>
-                        ) : hasContent ? (
-                            <button type="submit" className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity" disabled={!hasContent}>
-                                <ArrowUpIcon className="size-4"/>
-                            </button>
-                        ) : (
-                            <button type="button" onClick={handleMicClick} className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors">
-                                {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse size-4" /> : <MicIcon className="size-4" />}
-                            </button>
-                        )}
+                    <div className="flex items-center gap-1 shrink-0 mb-0.5">
+                        <button 
+                            type={isLoading ? "button" : (hasContent ? "submit" : "button")}
+                            onClick={isLoading ? onAbortGeneration : (hasContent ? undefined : handleMicClick)}
+                            className="flex items-center justify-center size-10 rounded-full bg-foreground text-background hover:opacity-90 transition-all shadow-sm active:scale-95"
+                            disabled={false}
+                        >
+                            {isLoading ? (
+                                <StopCircleIcon className="size-4" />
+                            ) : hasContent ? (
+                                <ArrowUpIcon className="size-5" />
+                            ) : (
+                                isRecording ? <StopCircleIcon className="size-4 animate-pulse text-red-500" /> : <VoiceWaveIcon className="size-5" />
+                            )}
+                        </button>
                     </div>
                 </form>
             </div>

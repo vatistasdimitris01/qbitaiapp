@@ -1,7 +1,5 @@
-
-
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUpIcon, XIcon, MicIcon, StopCircleIcon, GlobeIcon, ImageIcon, ChevronDownIcon } from './icons';
+import { PlusIcon, ArrowUpIcon, XIcon, MicIcon, StopCircleIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -39,9 +37,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
-            textarea.style.height = 'auto'; // Reset height
-            const newHeight = Math.min(textarea.scrollHeight, 140);
-            textarea.style.height = `${Math.max(44, newHeight)}px`;
+            textarea.style.height = '24px'; // Base height
+            const newHeight = Math.min(textarea.scrollHeight, 120);
+            textarea.style.height = `${newHeight}px`;
         }
     }, []);
 
@@ -100,9 +98,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             onSendMessage(text.trim(), attachmentPreviews.map(p => p.file));
             onTextChange('');
             setAttachmentPreviews([]);
-            if (internalTextareaRef.current) {
-                internalTextareaRef.current.style.height = 'auto';
-            }
         }
     };
     
@@ -140,29 +135,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
+    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     return (
-        <div className="flex flex-col w-full relative gap-3 pb-2 max-w-3xl mx-auto">
-            {/* Top Action Bar - Horizontal Scroll */}
-            <div className="flex items-center gap-2 overflow-x-auto px-1 no-scrollbar w-full pb-1">
-                 <button className="flex items-center gap-2 bg-[#2563EB] text-white px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap shadow-sm hover:bg-blue-700 transition-colors shrink-0">
-                    <span className="tracking-wide">Qbit Pro</span>
-                </button>
-                
-                <button onClick={handleMicClick} className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap shadow-sm transition-colors border border-default shrink-0 ${isRecording ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-token-surface-secondary text-foreground hover:bg-token-surface'}`}>
-                     {isRecording ? <StopCircleIcon className="size-3.5 animate-pulse" /> : <MicIcon className="size-3.5" />}
-                     <span>{isRecording ? t('chat.input.stopRecord') : "Voice Mode"}</span>
-                </button>
-
-                 <button onClick={handleAttachClick} className="flex items-center justify-center size-9 rounded-full bg-token-surface-secondary text-foreground border border-default hover:bg-token-surface transition-colors shrink-0 shadow-sm">
-                     <ImageIcon className="size-4" />
-                </button>
-            </div>
-
-            {/* Context / Reply / File Previews area */}
+        <div className="flex flex-col justify-center w-full relative items-center gap-2">
              {(replyContextText || attachmentPreviews.length > 0) && (
-                <div className="w-full px-1 animate-fade-in-up">
+                <div className="w-full max-w-3xl animate-fade-in-up">
                     {replyContextText && (
                         <div className="flex items-center justify-between gap-2 bg-token-surface border border-default p-2 rounded-xl mb-2 shadow-sm">
                             <div className="text-xs text-muted-foreground line-clamp-1 border-l-2 border-foreground pl-2">{replyContextText}</div>
@@ -173,7 +152,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     {attachmentPreviews.length > 0 && (
                         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mb-1">
                             {attachmentPreviews.map((attachment, index) => (
-                                <div key={index} className="relative group shrink-0 size-12 rounded-lg overflow-hidden border border-default bg-background">
+                                <div key={index} className="relative group shrink-0 size-10 rounded-lg overflow-hidden border border-default bg-background">
                                     <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                     <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <XIcon className="size-3 text-white" />
@@ -185,25 +164,24 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 </div>
             )}
             
-            <div className="w-full relative px-1">
+            <div className="w-full max-w-3xl relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
-                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[26px] p-1.5 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 focus-within:ring-1 focus-within:ring-foreground/10">
-                    
-                    {/* Left Icon: Globe/Auto */}
-                    <div className="flex items-center justify-center h-[44px] pl-2 shrink-0 mb-0.5">
-                        <div className="flex items-center gap-1.5 bg-transparent px-2 py-1 rounded-full cursor-pointer hover:bg-token-surface-secondary transition-colors group">
-                           <GlobeIcon className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" /> 
-                           <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground leading-none mt-0.5 transition-colors">Auto</span>
-                           <ChevronDownIcon className="size-3 text-muted-foreground/50 group-hover:text-foreground/70 transition-colors" />
-                        </div>
-                    </div>
+                <form onSubmit={handleSubmit} className="relative flex items-end w-full bg-token-surface border border-default rounded-[24px] p-1 shadow-sm transition-all hover:border-foreground/20 focus-within:border-foreground/40 ring-0">
+                    <button
+                        type="button"
+                        onClick={handleAttachClick}
+                        className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors shrink-0"
+                        disabled={isLoading}
+                    >
+                        <PlusIcon className="size-5" />
+                    </button>
                     
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-3 px-3 max-h-[140px] min-h-[44px] text-[16px] leading-relaxed" 
+                        className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground/50 py-2 px-2 max-h-[120px] min-h-[32px] text-[15px] leading-relaxed" 
                         style={{ resize: 'none' }} 
-                        placeholder={t('chat.input.placeholder')}
+                        placeholder={placeholder} 
                         rows={1} 
                         value={text} 
                         onChange={handleInputChange} 
@@ -211,20 +189,24 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onPaste={handlePaste}
                     />
                     
-                    <div className="flex items-center justify-center h-[44px] w-10 mb-0.5 mr-0.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                         {isLoading ? (
-                            <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-9 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity shadow-sm">
-                                <StopCircleIcon className="size-4" />
+                            <button type="button" onClick={onAbortGeneration} className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity">
+                                <StopCircleIcon className="size-3.5" />
+                            </button>
+                        ) : hasContent ? (
+                            <button type="submit" className="flex items-center justify-center size-8 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity" disabled={!hasContent}>
+                                <ArrowUpIcon className="size-4"/>
                             </button>
                         ) : (
-                            <button type="submit" className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 shadow-sm ${hasContent ? 'bg-foreground text-background hover:opacity-90' : 'bg-token-surface-secondary text-muted-foreground hover:bg-token-surface-secondary/80'}`} disabled={!hasContent}>
-                                <ArrowUpIcon className="size-5"/>
+                            <button type="button" onClick={handleMicClick} className="flex items-center justify-center size-8 rounded-full hover:bg-token-surface-secondary text-muted-foreground transition-colors">
+                                {isRecording ? <StopCircleIcon className="text-red-500 animate-pulse size-4" /> : <MicIcon className="size-4" />}
                             </button>
                         )}
                     </div>
                 </form>
             </div>
-             <p className="text-[10px] text-center text-muted-foreground/30 font-medium tracking-wide mt-1">{t('chat.input.disclaimer')}</p>
+             <p className="text-[10px] text-center text-muted-foreground/30 font-medium tracking-wide">{t('chat.input.disclaimer')}</p>
         </div>
     );
 });

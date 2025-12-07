@@ -10,6 +10,7 @@ interface ChatInputProps {
     onAbortGeneration: () => void;
     replyContextText: string | null;
     onClearReplyContext: () => void;
+    language: string;
 }
 
 export interface ChatInputHandle {
@@ -26,13 +27,12 @@ const MAX_FILES = 5;
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext }, ref) => {
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext, language }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
     const [isRecording, setIsRecording] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
+    const recognitionRef = useRef<any>(null);
 
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
@@ -110,28 +110,53 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     
     const handleAttachClick = () => fileInputRef.current?.click();
 
-    const handleMicClick = async () => {
+    const handleMicClick = () => {
         if (isRecording) {
-            mediaRecorderRef.current?.stop();
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
             setIsRecording(false);
         } else {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorderRef.current = new MediaRecorder(stream);
-                audioChunksRef.current = [];
-                mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
-                mediaRecorderRef.current.onstop = () => {
-                    const mimeType = 'audio/webm;codecs=opus';
-                    const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-                    const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: mimeType });
-                    onSendMessage(t('chat.input.audioMessage'), [audioFile]);
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                mediaRecorderRef.current.start();
-                setIsRecording(true);
-            } catch (err) {
-                console.error("Microphone access failed:", err);
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Speech recognition is not supported in this browser.");
+                return;
             }
+
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = language;
+
+            // Append space if text exists and doesn't end with whitespace
+            let initialText = text;
+            if (initialText.length > 0 && !/\s$/.test(initialText)) {
+                initialText += ' ';
+            }
+
+            recognition.onstart = () => {
+                setIsRecording(true);
+            };
+
+            recognition.onresult = (event: any) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; ++i) {
+                   transcript += event.results[i][0].transcript;
+                }
+                onTextChange(initialText + transcript);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+                setIsRecording(false);
+            };
+
+            recognition.onend = () => {
+                setIsRecording(false);
+            };
+
+            recognitionRef.current = recognition;
+            recognition.start();
         }
     };
 
@@ -187,6 +212,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onChange={handleInputChange} 
                         onKeyDown={handleKeyDown} 
                         onPaste={handlePaste}
+                        readOnly={isRecording}
                     />
                     
                     <div className="flex items-center gap-1 shrink-0">

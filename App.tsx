@@ -605,7 +605,7 @@ const App: React.FC = () => {
                     </button>
                 )}
                 <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
-                    <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} />
+                    <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
                 </footer>
             </div>
         </div>

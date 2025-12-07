@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -12,12 +11,12 @@ import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
-import { StopCircleIcon, GrokLogoIcon } from './components/icons';
+import { StopCircleIcon } from './components/icons';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { LayoutGridIcon, ChevronDownIcon } from './components/icons';
+import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -55,6 +54,20 @@ const fileToDataURL = (file: File): Promise<string> => {
     });
 };
 
+const GREETINGS = [
+    "What are you working on?",
+    "Where should we begin?",
+    "Hey, Ready to dive in?",
+    "What’s on your mind today?",
+    "Ready when you are.",
+    "What’s on the agenda today?",
+    "Good to see you!",
+    "How can I help?",
+];
+
+const getRandomGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+
+
 const App: React.FC = () => {
   const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -63,7 +76,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -88,6 +101,7 @@ const App: React.FC = () => {
     images: { url: string; alt: string; source?: string }[];
     startIndex: number;
   } | null>(null);
+  const [greeting, setGreeting] = useState(getRandomGreeting());
 
 
   const mainContentRef = useRef<HTMLElement>(null);
@@ -208,6 +222,7 @@ const App: React.FC = () => {
     if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
     if (savedResults) setExecutionResults(JSON.parse(savedResults));
     
+    // If there's a valid saved ID, use it. Otherwise, default to the "new chat" state (null).
     if (savedActiveId && loadedConvos.some((c: Conversation) => c.id === savedActiveId)) {
         setActiveConversationId(savedActiveId);
     } else {
@@ -227,7 +242,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
-    document.documentElement.classList.toggle('dark', true); // Force Dark for Grok theme
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      const isDark = theme === 'dark' || (theme === 'system' && mediaQuery.matches);
+      document.documentElement.classList.toggle('dark', isDark);
+    };
+    applyTheme();
+    const handleSystemThemeChange = () => { if (theme === 'system') applyTheme(); };
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, [theme]);
   
   useEffect(() => {
@@ -273,11 +296,12 @@ const App: React.FC = () => {
 
   const handleNewChat = () => {
     if (activeConversationId === null) {
-      // setIsSidebarOpen(false); // Removed auto-close on desktop
+      setIsSidebarOpen(false);
       return;
     }
     setActiveConversationId(null);
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
+    setGreeting(getRandomGreeting());
+    setIsSidebarOpen(false);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -535,40 +559,31 @@ const App: React.FC = () => {
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
+    setIsSidebarOpen(false);
   };
   
   const handleSelectConversation = (id: string) => {
       setActiveConversationId(id);
-      if (window.innerWidth < 768) setIsSidebarOpen(false);
+      setIsSidebarOpen(false);
   };
 
   return (
-    <div style={{ height: appHeight }} className="flex bg-[#090909] text-foreground font-sans overflow-hidden">
+    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
-        
-        {/* Toggle Sidebar Button (Visible on Mobile OR Desktop when sidebar closed) */}
-        <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-            className={`fixed top-4 left-4 z-[60] p-2 bg-black/50 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-white/10 transition-all ${isSidebarOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`} 
-            aria-label={t('sidebar.open')}
-        >
+        <button onClick={() => setIsSidebarOpen(true)} className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.open')}>
             <LayoutGridIcon className="size-5" />
         </button>
-
-        {/* Sidebar Container */}
-        <div className={`fixed inset-0 z-50 md:static md:z-auto transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[68px]' : '-translate-x-full w-0 md:w-0 overflow-hidden'}`}>
-           <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} conversations={conversations} activeConversationId={activeConversationId} onNewChat={handleNewChat} onSelectConversation={handleSelectConversation} onDeleteConversation={handleDeleteConversation} onOpenSettings={() => setIsSettingsOpen(true)} t={t} />
-        </div>
-
-        {/* Mobile Overlay for Sidebar */}
-        {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-black/60 z-40" aria-hidden="true"></div>}
+        <button onClick={handleNewChat} className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.newChat')}>
+            <SquarePenIcon className="size-5" />
+        </button>
+        <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} conversations={conversations} activeConversationId={activeConversationId} onNewChat={handleNewChat} onSelectConversation={handleSelectConversation} onDeleteConversation={handleDeleteConversation} onOpenSettings={() => setIsSettingsOpen(true)} t={t} />
+        {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300" aria-hidden="true"></div>}
         
-        <div className="flex-1 flex flex-col h-full relative min-w-0">
+        <div className="flex-1 flex flex-col h-full relative">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-[760px] mx-auto px-4 pt-16 pb-4 min-h-full flex flex-col">
+              <div className="max-w-4xl mx-auto px-2 sm:px-6 pt-8 pb-4 h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -576,26 +591,24 @@ const App: React.FC = () => {
                           return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} />;
                       })
                   ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center gap-6 animate-fade-in-up">
-                          <GrokLogoIcon className="w-20 h-20 text-white" />
-                          <h1 className="text-4xl font-bold text-white tracking-tight">Grok</h1>
+                      <div className="w-full h-full flex items-center justify-center">
+                          <GreetingMessage text={greeting} />
                       </div>
                   )}
               </div>
             </main>
             
-            <div className="mt-auto pt-2 pb-6 w-full flex flex-col items-center bg-gradient-to-t from-[#090909] via-[#090909] to-transparent z-10">
+            <div className="mt-auto pt-4">
                 {showScrollToBottom && !isLoading && (
-                    <button onClick={handleScrollToBottomClick} className="mb-4 p-2 bg-[#181818] rounded-full text-gray-400 hover:text-white border border-white/10 shadow-lg transition-all" aria-label={t('chat.scrollToBottom')}>
-                        <ChevronDownIcon className="size-5" />
+                    <button onClick={handleScrollToBottomClick} className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
+                        <ChevronDownIcon className="size-6" />
                     </button>
                 )}
-                <footer className="w-full">
+                <footer className="max-w-4xl mx-auto px-4 sm:px-6 pb-2 sm:pb-4">
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
                 </footer>
             </div>
         </div>
-        
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
         {analysisModalContent &&
           <CodeAnalysisModal

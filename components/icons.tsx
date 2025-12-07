@@ -5,64 +5,6 @@ interface IconProps {
   className?: string;
 }
 
-export const GrokLogoIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-         <path d="M2 2L22 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
-         <path d="M16 8L8 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-);
-
-export const VoiceLinesIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-        <path d="M5 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        <path d="M9 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        <path d="M13 4V20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        <path d="M17 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        <path d="M21 10V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-    </svg>
-);
-
-export const ArrowUpLineIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-        <path d="M12 4L12 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        <path d="M5 10L12 3L19 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-);
-
-export const VisualizerIcon: React.FC<IconProps> = ({ className }) => (
-    <div className={`flex items-center justify-center gap-[3px] ${className}`}>
-        <div className="w-[3px] h-3 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite]"></div>
-        <div className="w-[3px] h-5 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.1s]"></div>
-        <div className="w-[3px] h-3 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.2s]"></div>
-        <div className="w-[3px] h-4 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.3s]"></div>
-        <div className="w-[3px] h-2 bg-current rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.4s]"></div>
-    </div>
-);
-
-export const HistoryIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <circle cx="12" cy="12" r="10"></circle>
-        <polyline points="12 6 12 12 16 14"></polyline>
-    </svg>
-);
-
-export const RocketIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
-        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
-        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
-        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
-    </svg>
-);
-
-export const PaperclipIcon: React.FC<IconProps> = ({ className }) => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2"/>
-        <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-);
-
 export const RefreshCwIcon: React.FC<IconProps> = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -133,7 +75,8 @@ export const StopCircleIcon: React.FC<IconProps> = ({ className }) => (
     strokeLinejoin="round"
     className={className}
   >
-    <path d="M18 6L6 18M6 6l12 12" />
+    <circle cx="12" cy="12" r="10" />
+    <rect x="9" y="9" width="6" height="6" />
   </svg>
 );
 
@@ -261,8 +204,8 @@ export const LayoutGridIcon: React.FC<IconProps> = ({ className }) => (
 
 export const SquarePenIcon: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>
     </svg>
 );
 

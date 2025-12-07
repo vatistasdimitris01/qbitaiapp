@@ -1,9 +1,10 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  LayoutGridIcon,
   SquarePenIcon,
   SearchIcon,
-  GrokLogoIcon,
+  Trash2Icon,
+  SettingsIcon
 } from './icons';
 import { Conversation } from '../types';
 
@@ -21,65 +22,88 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, 
+  toggleSidebar,
   conversations,
   activeConversationId,
   onNewChat,
   onSelectConversation,
+  onDeleteConversation,
+  onOpenSettings,
   t
  }) => {
-  const [showHistory, setShowHistory] = React.useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm(t('sidebar.confirmDelete'))) {
+      onDeleteConversation(id);
+    }
+  };
+
+  const filteredConversations = conversations.filter(convo => 
+    convo.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="flex h-full z-50">
-      {/* Thin Rail - 68px width */}
-      <aside className="w-[68px] flex flex-col items-center py-5 bg-sidebar h-full shrink-0 z-50">
-         <div className="flex flex-col items-center gap-8 w-full">
-            {/* Logo */}
-            <div className="w-10 h-10 flex items-center justify-center text-white mb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={onNewChat}>
-                <GrokLogoIcon className="size-8" />
-            </div>
+    <div className={`
+      flex flex-col h-full bg-sidebar z-50 fixed inset-y-0 left-0
+      w-[280px] transform transition-transform duration-300 ease-in-out
+      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      border-r border-sidebar
+    `}>
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center gap-2">
+             <div className="size-6 bg-foreground rounded-lg flex items-center justify-center">
+                <div className="size-2 bg-background rounded-full"></div>
+             </div>
+            <h2 className="text-sm font-semibold text-sidebar-active-fg tracking-tight">Qbit</h2>
+        </div>
+        <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg transition-colors">
+          <LayoutGridIcon className="rotate-180 size-4" />
+        </button>
+      </div>
+      
+      <div className="px-4 mb-2">
+          <button onClick={onNewChat} className="w-full flex items-center justify-start gap-3 px-3 py-2.5 bg-sidebar-active hover:bg-sidebar-active/80 text-sidebar-active-fg rounded-xl transition-colors border border-sidebar-border">
+            <SquarePenIcon className="size-4" />
+            <span className="font-medium text-sm">{t('sidebar.newChat')}</span>
+          </button>
+      </div>
 
-            {/* Nav Icons - Centered */}
-            <nav className="flex flex-col gap-6 items-center w-full">
-                <button 
-                    onClick={() => setShowHistory(!showHistory)} 
-                    className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-200 ${showHistory ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`} 
-                    title={t('sidebar.recent')}
-                >
-                    <SearchIcon className="size-5" />
+      <div className="px-4 mb-2">
+          <div className="relative group">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-sidebar-muted-fg" />
+            <input 
+              placeholder={t('sidebar.search')} 
+              className="w-full pl-9 pr-3 py-2 bg-transparent text-sm text-sidebar-fg placeholder-sidebar-muted-fg outline-none rounded-lg focus:bg-sidebar-active transition-colors" 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        {filteredConversations.length > 0 && <h3 className="px-4 py-2 text-[10px] font-medium text-sidebar-muted-fg uppercase tracking-wider opacity-70">{t('sidebar.recent')}</h3>}
+        <div className="space-y-0.5">
+            {filteredConversations.map(convo => (
+              <div key={convo.id} className="relative group px-2">
+                <button onClick={() => onSelectConversation(convo.id)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 ${activeConversationId === convo.id ? 'bg-sidebar-active text-sidebar-active-fg shadow-sm' : 'text-sidebar-fg hover:bg-sidebar-active/40'}`}>
+                  <span className="text-sm truncate leading-relaxed opacity-90">{convo.title}</span>
                 </button>
-
-                <button 
-                    onClick={onNewChat} 
-                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-200" 
-                    title={t('sidebar.newChat')}
-                >
-                    <SquarePenIcon className="size-5" />
+                <button onClick={(e) => handleDelete(e, convo.id)} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-sidebar-active rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Trash2Icon className="size-3 text-sidebar-muted-fg hover:text-red-500" />
                 </button>
-            </nav>
-         </div>
-      </aside>
-
-      {/* History Drawer */}
-      <div className={`flex flex-col h-full bg-[#090909] border-r border-[#1f1f1f] w-64 transform transition-all duration-300 ease-in-out ${showHistory ? 'translate-x-0 w-64 opacity-100' : '-translate-x-full w-0 opacity-0 overflow-hidden'}`}>
-         <div className="p-4 border-b border-[#1f1f1f]">
-             <h2 className="text-white font-medium">{t('sidebar.recent')}</h2>
-         </div>
-         <div className="flex-1 overflow-y-auto p-2">
-            {conversations.map(convo => (
-                <button 
-                    key={convo.id} 
-                    onClick={() => { onSelectConversation(convo.id); if(window.innerWidth < 768) setShowHistory(false); }}
-                    className={`w-full text-left px-3 py-3 rounded-lg text-sm mb-1 transition-colors ${activeConversationId === convo.id ? 'bg-[#1f1f1f] text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
-                >
-                    <div className="truncate">{convo.title}</div>
-                    <div className="text-[10px] opacity-50 mt-1">{new Date(convo.createdAt).toLocaleDateString()}</div>
-                </button>
+              </div>
             ))}
-            {conversations.length === 0 && (
-                <div className="text-center text-gray-500 text-sm mt-10">No recent chats</div>
-            )}
-         </div>
+        </div>
+      </div>
+      
+      <div className="p-4 border-t border-sidebar">
+        <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 text-sidebar-fg hover:bg-sidebar-active hover:text-sidebar-active-fg rounded-lg transition-colors">
+          <SettingsIcon className="size-4" />
+          <span className="text-sm font-medium">{t('sidebar.settings')}</span>
+        </button>
       </div>
     </div>
   );

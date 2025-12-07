@@ -26,7 +26,7 @@
 
 <!-- PWA Meta Tags -->
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#090909">
+<meta name="theme-color" content="#111111">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Qbit AI">
@@ -90,57 +90,67 @@ window.mermaid = mermaid;
 * { scrollbar-width: none; -ms-overflow-style: none; }
 
 :root {
-  --background: #090909;
-  --foreground: #e5e7eb; /* gray-200 */
-  --muted-foreground: #9ca3af; /* gray-400 */
-  --sidebar-bg: #090909;
-  --sidebar-foreground: #9ca3af;
-  --sidebar-muted-foreground: #6b7280;
-  --sidebar-active-bg: #1f1f1f;
-  --sidebar-active-foreground: #ffffff;
-  --sidebar-border: #1f1f1f; /* slightly lighter than bg */
-  --card: #090909;
-  --border: #2a2a2a; /* Dark border */
-  --user-message-bg: #1f1f1f;
-  --token-surface: #1e1e1e;
-  --token-surface-secondary: #2a2a2a;
-  --token-text-primary: #f3f4f6;
-  --token-text-secondary: #9ca3af;
-  --token-border: #374151;
+  --background: #ffffff;
+  --foreground: #18181b; /* zinc-900 */
+  --muted-foreground: #71717a; /* zinc-500 */
+  --sidebar-bg: #fafafa; /* zinc-50 */
+  --sidebar-foreground: #52525b;
+  --sidebar-muted-foreground: #a1a1aa;
+  --sidebar-active-bg: #f4f4f5; /* zinc-100 */
+  --sidebar-active-foreground: #18181b;
+  --sidebar-border: transparent;
+  --card: #ffffff;
+  --border: #f4f4f5; 
+  --user-message-bg: #f4f4f5;
+  --token-surface: #ffffff;
+  --token-surface-secondary: #f8f9fa;
+  --token-text-primary: #18181b;
+  --token-text-secondary: #71717a;
+  --token-border: #e4e4e7;
+  /* Accents */
+  --accent-blue: #2563EB;
+  /* Code Block Theme */
+  --code-bg: #f9fafb;
+  --code-text-default: #374151;
+  --code-text-comment: #6B7280;
+  --code-text-keyword: #7C3AED;
+  --code-text-string: #2563EB;
+  --code-text-number: #DB2777;
+  --code-text-function: #C026D3;
+  --code-text-tag: #4338CA;
+  --input-bg: #ffffff;
+}
+
+.dark {
+  --background: #09090b; /* zinc-950 */
+  --foreground: #fafafa; /* zinc-50 */
+  --muted-foreground: #a1a1aa; /* zinc-400 */
+  --sidebar-bg: #000000; 
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-muted-foreground: #71717a;
+  --sidebar-active-bg: #18181b; /* zinc-900 */
+  --sidebar-active-foreground: #fafafa;
+  --sidebar-border: #18181b;
+  --card: #18181b; /* zinc-900 */
+  --border: #27272a;
+  --user-message-bg: #27272a;
+  --token-surface: #18181b;
+  --token-surface-secondary: #27272a;
+  --token-text-primary: #fafafa;
+  --token-text-secondary: #a1a1aa;
+  --token-border: #3f3f46;
   /* Accents */
   --accent-blue: #60a5fa;
   /* Code Block Theme */
-  --code-bg: #121212;
-  --code-text-default: #e5e7eb;
-  --code-text-comment: #6b7280;
-  --code-text-keyword: #c084fc;
-  --code-text-string: #818cf8;
-  --code-text-number: #f472b6;
-  --code-text-function: #e879f9;
-  --code-text-tag: #60a5fa;
-  --input-bg: #1e1e1e;
-}
-
-/* Force dark mode styles everywhere since Grok UI is dark */
-.dark {
-  --background: #090909;
-  --foreground: #e5e7eb;
-  --muted-foreground: #9ca3af;
-  --sidebar-bg: #090909;
-  --sidebar-foreground: #9ca3af;
-  --sidebar-muted-foreground: #6b7280;
-  --sidebar-active-bg: #1f1f1f;
-  --sidebar-active-foreground: #ffffff;
-  --sidebar-border: #1f1f1f;
-  --card: #090909;
-  --border: #2a2a2a;
-  --user-message-bg: #1f1f1f;
-  --token-surface: #1e1e1e;
-  --token-surface-secondary: #2a2a2a;
-  --token-text-primary: #f3f4f6;
-  --token-text-secondary: #9ca3af;
-  --token-border: #374151;
-  --input-bg: #1e1e1e;
+  --code-bg: #18181b;
+  --code-text-default: #e2e8f0;
+  --code-text-comment: #94a3b8;
+  --code-text-keyword: #c4b5fd;
+  --code-text-string: #a5b4fc;
+  --code-text-number: #f9a8d4;
+  --code-text-function: #f0abfc;
+  --code-text-tag: #93c5fd;
+  --input-bg: #18181b;
 }
 
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
@@ -172,28 +182,28 @@ body {
   --tw-prose-headings: var(--foreground);
   --tw-prose-links: var(--accent-blue);
   --tw-prose-bold: var(--foreground);
-  --tw-prose-bullets: #9ca3af;
+  --tw-prose-bullets: #a1a1aa;
   --tw-prose-hr: var(--border);
   --tw-prose-quotes: var(--foreground);
   --tw-prose-quote-borders: var(--border);
   --tw-prose-code: var(--foreground);
   --tw-prose-pre-code: var(--code-text-default);
   --tw-prose-pre-bg: var(--code-bg);
-  --tw-prose-th-borders: #374151;
-  --tw-prose-td-borders: #374151;
+  --tw-prose-th-borders: #d4d4d8;
+  --tw-prose-td-borders: #e4e4e7;
   overflow-wrap: break-word; word-break: break-word;
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.7;
 }
 .dark .prose {
-  --tw-prose-bullets: #9ca3af;
-  --tw-prose-th-borders: #374151;
-  --tw-prose-td-borders: #374151;
+  --tw-prose-bullets: #52525b;
+  --tw-prose-th-borders: #3f3f46;
+  --tw-prose-td-borders: #27272a;
 }
 .prose h1, .prose h2, .prose h3 { margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; line-height: 1.25; }
-.prose h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
-.prose h2 { font-size: 1.25rem; letter-spacing: -0.015em; }
-.prose h3 { font-size: 1.1rem; }
+.prose h1 { font-size: 1.35rem; letter-spacing: -0.02em; }
+.prose h2 { font-size: 1.15rem; letter-spacing: -0.015em; }
+.prose h3 { font-size: 1.05rem; }
 .prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
 .prose ul, .prose ol { margin-top: 0.5em; margin-bottom: 0.5em; padding-left: 1.25em; }
 .prose a { color: var(--tw-prose-links); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
@@ -201,12 +211,12 @@ body {
 .prose pre {
   color: var(--tw-prose-pre-code);
   background-color: var(--tw-prose-pre-bg);
-  overflow-x: auto; font-size: 0.9em; line-height: 1.6;
+  overflow-x: auto; font-size: 0.85em; line-height: 1.6;
   margin-top: 1em; margin-bottom: 1em; border-radius: 0.5rem; padding: 1em;
   border: 1px solid var(--border);
 }
 .prose code:not(pre > code) {
-  font-size: 0.9rem; padding: 0.1rem 0.3rem; margin: 0 0.1rem; border-radius: 0.25rem;
+  font-size: 0.85rem; padding: 0.1rem 0.3rem; margin: 0 0.1rem; border-radius: 0.25rem;
   background-color: var(--token-surface-secondary); color: var(--foreground); border: 1px solid var(--border);
   font-weight: 500;
 }

@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -137,6 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         [Description]
         **Best for**: [Text] | **Worst for**: [Text]
 5.  **Proactive Creation**: If a user asks for a "timer", build a React Timer app. If they ask for "analysis", use Python. If they ask to "create a file", write Python to generate it. Don't just talk; create.
+6.  **Suggestions**: At the very end of your response, provide 1-3 short, relevant follow-up suggestions for the user. Wrap them in a JSON array inside <suggestions> tags. Example: <suggestions>["Tell me more", "Why?"]</suggestions>. Do not include this tag if the response is an error or a tool call.
 
 Think step-by-step.`;
 

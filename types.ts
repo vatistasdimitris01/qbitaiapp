@@ -1,3 +1,4 @@
+
 export enum MessageType {
   USER = 'USER',
   AI_RESPONSE = 'AI_RESPONSE',
@@ -72,6 +73,7 @@ export interface Message {
     totalTokenCount: number;
   };
   groundingChunks?: GroundingChunk[];
+  generationDuration?: number;
 }
 
 export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';

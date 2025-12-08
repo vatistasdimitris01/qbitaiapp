@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { GroundingChunk, MapsPlaceReviewSnippet } from '../types';
 import { MapPinIcon, XIcon, SearchIcon } from './icons';
@@ -43,7 +44,6 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
     }
 
     const visibleChunks = chunks.slice(0, 3);
-    const hiddenCount = chunks.length - visibleChunks.length;
 
     const SourceList = () => (
         <ul className="divide-y divide-default/50">
@@ -64,7 +64,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                     <img
                                         src={faviconUrl}
                                         alt=""
-                                        className="size-4 rounded-sm mt-0.5 opacity-80"
+                                        className="size-4 rounded-sm mt-0.5"
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             if (target.src.endsWith('/favicon.ico')) {
@@ -128,7 +128,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
         <>
             <button
                 type="button"
-                className="flex items-center gap-2 group px-2 py-1 rounded-full bg-token-surface-secondary border border-transparent hover:border-default transition-all"
+                className="flex items-center gap-2 group px-2 py-1 rounded-full hover:bg-[#333333] transition-colors"
                 onClick={() => setIsModalOpen(true)}
                 aria-label={t('chat.message.grounding')}
             >
@@ -144,7 +144,7 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                                    src={faviconUrl}
                                    alt={getDomain(chunk.web.uri)}
                                    title={chunk.web.title}
-                                   className="size-4 rounded-full bg-token-surface ring-2 ring-background grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
+                                   className="size-4 rounded-full bg-token-surface ring-2 ring-background transition-all"
                                    onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         if (target.src.endsWith('/favicon.ico')) {
@@ -168,9 +168,8 @@ const GroundingSources: React.FC<GroundingSourcesProps> = ({ chunks, t }) => {
                        return null;
                     })}
                 </div>
-                <div className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
-                    <span>{chunks.length} Sources</span>
-                    <SearchIcon className="size-2.5 opacity-50" />
+                <div className="text-[12px] font-medium text-gray-500 group-hover:text-gray-200 transition-colors flex items-center gap-1">
+                    <span>{chunks.length} sources</span>
                 </div>
             </button>
 

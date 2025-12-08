@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   LayoutGridIcon,
@@ -48,8 +49,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className={`
       flex flex-col h-full bg-sidebar z-50 fixed inset-y-0 left-0
       w-[280px] transform transition-transform duration-300 ease-in-out
-      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       border-r border-sidebar
+      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      lg:static lg:inset-auto
     `}>
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex items-center gap-2">
@@ -58,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({
              </div>
             <h2 className="text-sm font-semibold text-sidebar-active-fg tracking-tight">Qbit</h2>
         </div>
-        <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg transition-colors">
+        <button onClick={toggleSidebar} className="p-2 hover:bg-sidebar-active rounded-lg text-sidebar-muted-fg hover:text-sidebar-fg transition-colors lg:hidden">
           <LayoutGridIcon className="rotate-180 size-4" />
         </button>
       </div>

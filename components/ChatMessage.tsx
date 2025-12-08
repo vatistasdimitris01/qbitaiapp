@@ -33,6 +33,8 @@ interface ChatMessageProps {
     isPythonReady: boolean;
     t: (key: string) => string;
     onOpenLightbox: (images: any[], startIndex: number) => void;
+    isLast: boolean;
+    onSendSuggestion: (text: string) => void;
 }
 
 const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-gray-400 hover:text-gray-200 hover:bg-[#333333]";
@@ -112,7 +114,7 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
 }
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox, isLast, onSendSuggestion }) => {
     const isUser = message.type === MessageType.USER;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -124,18 +126,41 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
 
-    const { parsedThinkingText, parsedResponseText, hasThinkingTag } = useMemo(() => {
-        if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false };
-        const text = messageText || '';
-        const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
-        if (thinkingMatch) {
-            return {
-                parsedThinkingText: thinkingMatch[1].trim(),
-                parsedResponseText: text.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim(),
-                hasThinkingTag: true
-            };
+    const { parsedThinkingText, parsedResponseText, hasThinkingTag, suggestions } = useMemo(() => {
+        if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false, suggestions: [] };
+        
+        let text = messageText || '';
+        let extractedSuggestions: string[] = [];
+
+        // Parse Suggestions <suggestions>...</suggestions>
+        const suggestionsMatch = text.match(/<suggestions>(.*?)<\/suggestions>/s);
+        if (suggestionsMatch) {
+            try {
+                extractedSuggestions = JSON.parse(suggestionsMatch[1]);
+            } catch (e) {
+                console.warn("Failed to parse suggestions JSON", e);
+            }
+            text = text.replace(/<suggestions>.*?<\/suggestions>/s, '').trim();
         }
-        return { parsedThinkingText: null, parsedResponseText: text, hasThinkingTag: false };
+
+        // Parse Thinking <thinking>...</thinking>
+        const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        let thinking = null;
+        let response = text;
+        let hasTag = false;
+
+        if (thinkingMatch) {
+            thinking = thinkingMatch[1].trim();
+            response = text.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+            hasTag = true;
+        }
+
+        return {
+            parsedThinkingText: thinking,
+            parsedResponseText: response,
+            hasThinkingTag: hasTag,
+            suggestions: extractedSuggestions
+        };
     }, [messageText, isUser]);
 
     const renderableContent = useMemo(() => {
@@ -199,6 +224,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     };
 
     const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
+    const durationText = message.generationDuration ? `${(message.generationDuration / 1000).toFixed(1)}s` : '';
     
     if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
 
@@ -269,13 +295,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             {isLoading && renderableContent.length === 0 && <AITextLoading />}
                         </div>
 
-                        {/* Grounding Sources */}
-                        {message.groundingChunks && message.groundingChunks.length > 0 && (
-                            <div className="mt-1 mb-1">
-                                <GroundingSources chunks={message.groundingChunks} t={t} />
-                            </div>
-                        )}
-
                         {/* AI Actions Row */}
                         {!isLoading && (
                             <div className="flex items-center space-x-0 text-gray-400 text-sm">
@@ -285,14 +304,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
                                     {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
                                 </IconButton>
-                                <span className="ml-2 text-gray-500 select-none">Fast</span>
+                                <span className="ml-2 text-gray-500 select-none text-[13px]">{durationText ? `Fast (${durationText})` : 'Fast'}</span>
+                                {message.groundingChunks && message.groundingChunks.length > 0 && (
+                                     <div className="ml-3 flex items-center">
+                                         <GroundingSources chunks={message.groundingChunks} t={t} />
+                                     </div>
+                                )}
                             </div>
                         )}
 
                         {/* Suggestions */}
-                        {!isLoading && (
+                        {!isLoading && isLast && suggestions.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-1">
-                                <SuggestionButton>
+                                {suggestions.map((suggestion, idx) => (
+                                    <SuggestionButton key={idx} onClick={() => onSendSuggestion(suggestion)}>
+                                        <CornerDownRightIcon className="size-4" />
+                                        {suggestion}
+                                    </SuggestionButton>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {/* Fallback Static Suggestion if none parsed but is last */}
+                        {!isLoading && isLast && suggestions.length === 0 && (
+                             <div className="flex flex-wrap gap-2 mt-1">
+                                <SuggestionButton onClick={() => onSendSuggestion("Share a fun fact")}>
                                     <CornerDownRightIcon className="size-4" />
                                     Share a fun fact
                                 </SuggestionButton>

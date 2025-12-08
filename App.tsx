@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -193,19 +194,6 @@ const App: React.FC = () => {
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) chatInputRef.current?.handleFiles(files);
   }, []);
-
-  useEffect(() => {
-    window.addEventListener('dragenter', handleDragEnter);
-    window.addEventListener('dragleave', handleDragLeave);
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('drop', handleDrop);
-    return () => {
-        window.removeEventListener('dragenter', handleDragEnter);
-        window.removeEventListener('dragleave', handleDragLeave);
-        window.removeEventListener('dragover', handleDragOver);
-        window.removeEventListener('drop', handleDrop);
-    };
-  }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
 
   useEffect(() => {
     const savedConvos = localStorage.getItem('conversations');
@@ -451,6 +439,10 @@ const App: React.FC = () => {
             }));
         },
         (duration) => { // onFinish
+            setConversations(prev => prev.map(c => {
+                 if (c.id !== currentConvoId) return c;
+                 return { ...c, messages: c.messages.map(msg => msg.id === aiMessageId ? { ...msg, generationDuration: duration } : msg) };
+            }));
             setIsLoading(false); abortControllerRef.current = null; setAiStatus('complete');
             setTimeout(() => setAiStatus('idle'), 500);
         },
@@ -512,6 +504,10 @@ const App: React.FC = () => {
             }));
         },
         (duration) => {
+            setConversations(prev => prev.map(c => {
+                 if (c.id !== activeConversationId) return c;
+                 return { ...c, messages: c.messages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, generationDuration: duration } : msg) };
+            }));
             setIsLoading(false); abortControllerRef.current = null; setAiStatus('complete');
             setTimeout(() => setAiStatus('idle'), 500);
         },
@@ -567,19 +563,36 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
   };
 
+  const handleSendSuggestion = (text: string) => {
+      handleSendMessage(text);
+  };
+
   return (
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
-        <button onClick={() => setIsSidebarOpen(true)} className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.open')}>
+        
+        <button onClick={() => setIsSidebarOpen(true)} className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 lg:hidden ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.open')}>
             <LayoutGridIcon className="size-5" />
         </button>
-        <button onClick={handleNewChat} className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.newChat')}>
+        <button onClick={handleNewChat} className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block lg:hidden ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.newChat')}>
             <SquarePenIcon className="size-5" />
         </button>
-        <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} conversations={conversations} activeConversationId={activeConversationId} onNewChat={handleNewChat} onSelectConversation={handleSelectConversation} onDeleteConversation={handleDeleteConversation} onOpenSettings={() => setIsSettingsOpen(true)} t={t} />
-        {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300" aria-hidden="true"></div>}
+
+        <Sidebar 
+            isOpen={isSidebarOpen} 
+            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+            conversations={conversations} 
+            activeConversationId={activeConversationId} 
+            onNewChat={handleNewChat} 
+            onSelectConversation={handleSelectConversation} 
+            onDeleteConversation={handleDeleteConversation} 
+            onOpenSettings={() => setIsSettingsOpen(true)} 
+            t={t} 
+        />
         
-        <div className="flex-1 flex flex-col h-full relative">
+        {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden" aria-hidden="true"></div>}
+        
+        <div className="flex-1 flex flex-col h-full relative lg:ml-0">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
@@ -588,7 +601,7 @@ const App: React.FC = () => {
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
                           const isCurrentlyLoading = isLoading && isLastMessage;
-                          return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} />;
+                          return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} isLast={isLastMessage} onSendSuggestion={handleSendSuggestion} />;
                       })
                   ) : (
                       <div className="w-full h-full flex items-center justify-center">

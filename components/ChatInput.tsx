@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { PaperclipIcon, ArrowUpIcon, XIcon, VoiceWaveIcon } from './icons';
 
@@ -38,7 +39,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         const textarea = internalTextareaRef.current;
         if (textarea) {
             textarea.style.height = 'auto'; 
-            // Min height ~24px (one line) + padding
+            // Min height for one line + padding
             // Max height handled by max-h CSS
             const newHeight = Math.min(textarea.scrollHeight, 400); 
             textarea.style.height = `${newHeight}px`;
@@ -170,7 +171,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             {/* Context & Preview Container - matches input width */}
              <div className="w-full xl:w-4/5 max-w-[1200px] animate-fade-in-up px-2">
                 {(replyContextText || attachmentPreviews.length > 0) && (
-                    <div className="w-full mb-3 pl-8">
+                    <div className="w-full mb-2 pl-8">
                         {replyContextText && (
                             <div className="flex items-center justify-between gap-2 bg-card border border-default p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
                                 <div className="text-sm text-muted-foreground line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
@@ -198,18 +199,18 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex items-end w-full bg-[#212121] border border-[#333333] rounded-[2.5rem] shadow-[0_2px_8px_rgba(0,0,0,0.2)] transition-colors duration-300 focus-within:ring-1 focus-within:ring-[#444] min-h-[72px]"
+                    className="relative flex items-end w-full bg-[#212121]/90 backdrop-blur-md rounded-[2.5rem] transition-colors duration-300 min-h-[52px]"
                 >
                     {/* Left Side: Attach - Absolute positioned */}
-                    <div className="absolute left-4 bottom-3.5 z-10">
+                    <div className="absolute left-3 bottom-2.5 z-10">
                         <button
                             type="button"
                             onClick={handleAttachClick}
-                            className="flex items-center justify-center size-10 rounded-full hover:bg-[#333333] text-gray-400 hover:text-white transition-colors"
+                            className="flex items-center justify-center size-8 rounded-full hover:bg-[#333333] text-gray-400 hover:text-white transition-colors"
                             disabled={isLoading}
                             aria-label={t('chat.input.attach')}
                         >
-                            <PaperclipIcon className="size-5 transform rotate-90" />
+                            <PaperclipIcon className="size-4 transform rotate-90" />
                         </button>
                     </div>
                     
@@ -217,7 +218,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-[#e4e4e7] placeholder:text-gray-500 py-[22px] pl-[70px] pr-[100px] max-h-[400px] min-h-[28px] text-[16px] leading-relaxed resize-none scrollbar-none rounded-[2.5rem]"
+                        className="flex-1 bg-transparent focus:outline-none text-[#e4e4e7] placeholder:text-gray-500 py-3.5 pl-[52px] pr-[60px] max-h-[400px] min-h-[24px] text-[15px] leading-relaxed resize-none scrollbar-none rounded-[2.5rem]"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -228,34 +229,33 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     />
                     
                     {/* Right Side: Absolute Buttons */}
-                    <div className="absolute right-3 bottom-3 flex items-center gap-2 z-10">
+                    <div className="absolute right-2 bottom-2 flex items-center gap-2 z-10">
                          {/* Show Send button only when typing, otherwise Voice */}
                         {hasContent ? (
                              <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`flex items-center justify-center size-10 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 bg-[#1d9bf0] text-white`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 bg-white text-black`}
                                 disabled={false}
                             >
                                 {isLoading ? (
-                                    <div className="size-3 bg-white rounded-[1px]" />
+                                    <div className="size-2.5 bg-black rounded-[1px]" />
                                 ) : (
-                                    <ArrowUpIcon className="size-5 font-bold" />
+                                    <ArrowUpIcon className="size-4 font-bold" />
                                 )}
                             </button>
                         ) : (
                              <button 
                                 type="button"
                                 onClick={handleMicClick}
-                                className={`flex items-center justify-center size-10 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-[#1d9bf0] text-white'}`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-black'}`}
                             >
-                                {isRecording ? <XIcon className="size-5" /> : <VoiceWaveIcon className="size-5" />}
+                                {isRecording ? <XIcon className="size-4" /> : <VoiceWaveIcon className="size-4" />}
                             </button>
                         )}
                     </div>
                 </form>
             </div>
-             <p className="text-[11px] text-center text-gray-600 font-medium tracking-wide mt-2 select-none">{t('chat.input.disclaimer')}</p>
         </div>
     );
 });

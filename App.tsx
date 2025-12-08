@@ -77,7 +77,9 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Default sidebar to open on desktop, closed on mobile (handled by media queries/logic below)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -284,12 +286,12 @@ const App: React.FC = () => {
 
   const handleNewChat = () => {
     if (activeConversationId === null) {
-      setIsSidebarOpen(false);
+      if (window.innerWidth < 1024) setIsSidebarOpen(false);
       return;
     }
     setActiveConversationId(null);
     setGreeting(getRandomGreeting());
-    setIsSidebarOpen(false);
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -555,12 +557,12 @@ const App: React.FC = () => {
     };
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
-    setIsSidebarOpen(false);
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
   
   const handleSelectConversation = (id: string) => {
       setActiveConversationId(id);
-      setIsSidebarOpen(false);
+      if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const handleSendSuggestion = (text: string) => {
@@ -571,11 +573,13 @@ const App: React.FC = () => {
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
         
-        <button onClick={() => setIsSidebarOpen(true)} className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 lg:hidden ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.open')}>
+        {/* Toggle Button - Visible on all devices when sidebar is closed */}
+        <button 
+          onClick={() => setIsSidebarOpen(true)} 
+          className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-all duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none -translate-x-full' : 'opacity-100 translate-x-0'}`} 
+          aria-label={t('sidebar.open')}
+        >
             <LayoutGridIcon className="size-5" />
-        </button>
-        <button onClick={handleNewChat} className={`fixed top-16 left-4 z-30 hidden p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-opacity duration-300 md:block lg:hidden ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-label={t('sidebar.newChat')}>
-            <SquarePenIcon className="size-5" />
         </button>
 
         <Sidebar 
@@ -590,9 +594,10 @@ const App: React.FC = () => {
             t={t} 
         />
         
+        {/* Mobile Overlay */}
         {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden" aria-hidden="true"></div>}
         
-        <div className="flex-1 flex flex-col h-full relative lg:ml-0 min-w-0">
+        <div className="flex-1 flex flex-col h-full relative min-w-0 transition-all duration-300">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto">
@@ -613,7 +618,11 @@ const App: React.FC = () => {
             
             <div className="mt-auto pt-4 w-full">
                 {showScrollToBottom && !isLoading && (
-                    <button onClick={handleScrollToBottomClick} className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" aria-label={t('chat.scrollToBottom')}>
+                    <button 
+                        onClick={handleScrollToBottomClick} 
+                        className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" 
+                        aria-label={t('chat.scrollToBottom')}
+                    >
                         <ChevronDownIcon className="size-6" />
                     </button>
                 )}

@@ -35,21 +35,17 @@ interface ChatMessageProps {
     onOpenLightbox: (images: any[], startIndex: number) => void;
 }
 
+const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-gray-400 hover:text-gray-200 hover:bg-[#333333]";
+const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-10 rounded-xl px-3.5 py-1.5 text-[0.9375rem] text-gray-400 hover:bg-[#333333] -ml-2";
+
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button 
-        onClick={onClick} 
-        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-foreground h-8 w-8 rounded-full text-muted-foreground/60" 
-        title={title}
-    >
+    <button onClick={onClick} className={iconBtnClass} title={title}>
         {children}
     </button>
 );
 
 const SuggestionButton: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => (
-    <button 
-        onClick={onClick}
-        className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-foreground h-10 rounded-xl px-3.5 py-1.5 text-[0.9375rem] text-muted-foreground/60 -ml-2"
-    >
+    <button onClick={onClick} className={shareFactBtnClass}>
         {children}
     </button>
 );
@@ -227,27 +223,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 )}
                 
                 {/* Message Content */}
-                <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
-                    {isUser ? (
-                         <div className="bg-zinc-100 dark:bg-[#333333] text-foreground dark:text-gray-200 px-5 py-2.5 rounded-[20px] rounded-br-sm mb-1 shadow-sm border border-transparent dark:border-white/5 max-w-full text-[0.95rem] leading-relaxed">
-                             {messageText}
-                             {message.files && message.files.length > 0 && (
-                                 <div className="mt-2 flex flex-wrap gap-2">
-                                     {message.files.map((f, i) => (
-                                         isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-black/5 dark:border-white/5" alt="" /> :
-                                         <div key={i} className="px-2 py-1 bg-background/50 rounded text-xs border border-black/5 dark:border-white/5">{f.name}</div>
-                                     ))}
-                                 </div>
-                             )}
-                         </div>
-                    ) : (
-                        <div ref={contentRef} className="w-full text-[0.95rem] leading-7 space-y-4">
-                            {renderableContent.map((part, index) => {
+                {isUser ? (
+                    <div className="flex flex-col items-end">
+                        {/* User Bubble - Dark grey background with light text */}
+                        <div className="bg-[#333333] text-gray-200 px-4 py-2 rounded-[20px] mb-2 max-w-full text-base font-normal leading-relaxed">
+                            {messageText}
+                            {message.files && message.files.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {message.files.map((f, i) => (
+                                        isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-white/10" alt="" /> :
+                                        <div key={i} className="px-2 py-1 bg-white/10 rounded text-xs border border-white/10">{f.name}</div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {/* User Actions - Copy only as per instructions */}
+                        <div className="flex space-x-2 text-gray-400 text-sm mr-1">
+                            <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
+                                {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
+                            </IconButton>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col w-full space-y-3">
+                        {/* AI Content - Larger font */}
+                        <div ref={contentRef} className="w-full text-lg font-medium leading-relaxed text-gray-800 dark:text-gray-200">
+                             {renderableContent.map((part, index) => {
                                 if (part.type === 'code') {
                                     return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
                                 }
                                 if (part.type === 'text') {
-                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
+                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert text-lg font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
                                 }
                                 if (part.type === 'gallery') {
                                     return <ImageGallery key={index} images={part.images} onImageClick={(i) => onOpenLightbox(part.images, i)} />;
@@ -262,54 +268,38 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             })}
                             {isLoading && renderableContent.length === 0 && <AITextLoading />}
                         </div>
-                    )}
 
-                    {/* Grounding Sources */}
-                    {message.groundingChunks && message.groundingChunks.length > 0 && (
-                         <div className="mt-2 mb-1">
-                             <GroundingSources chunks={message.groundingChunks} t={t} />
-                         </div>
-                    )}
+                        {/* Grounding Sources */}
+                        {message.groundingChunks && message.groundingChunks.length > 0 && (
+                            <div className="mt-1 mb-1">
+                                <GroundingSources chunks={message.groundingChunks} t={t} />
+                            </div>
+                        )}
 
-                    {/* Message Actions Row */}
-                    {!isLoading && (
-                        <div className={`flex items-center gap-2 mt-1 ${isUser ? 'mr-1' : 'ml-0'}`}>
-                            
-                            {/* AI Actions: Regenerate, Copy, Fast Label */}
-                            {!isUser && (
-                                <>
-                                    <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
-                                        <MessageRefreshIcon className="size-4" />
-                                    </IconButton>
-                                    <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
-                                    </IconButton>
-                                    <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
-                                        <GitForkIcon className="size-4" />
-                                    </IconButton>
-                                    <span className="text-xs font-medium text-muted-foreground/60 ml-2">Fast</span>
-                                </>
-                            )}
-
-                            {/* User Actions: Copy Only */}
-                            {isUser && (
+                        {/* AI Actions Row */}
+                        {!isLoading && (
+                            <div className="flex items-center space-x-0 text-gray-400 text-sm">
+                                <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
+                                    <MessageRefreshIcon className="size-4" />
+                                </IconButton>
                                 <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
                                     {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
                                 </IconButton>
-                            )}
-                        </div>
-                    )}
+                                <span className="ml-2 text-gray-500 select-none">Fast</span>
+                            </div>
+                        )}
 
-                    {/* Suggestion Buttons (AI Only) */}
-                    {!isUser && !isLoading && (
-                        <div className="flex flex-wrap gap-2 mt-3">
-                            <SuggestionButton>
-                                <CornerDownRightIcon className="size-4" />
-                                Share a fun fact
-                            </SuggestionButton>
-                        </div>
-                    )}
-                </div>
+                        {/* Suggestions */}
+                        {!isLoading && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                                <SuggestionButton>
+                                    <CornerDownRightIcon className="size-4" />
+                                    Share a fun fact
+                                </SuggestionButton>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

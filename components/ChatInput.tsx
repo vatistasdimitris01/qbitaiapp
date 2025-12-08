@@ -171,16 +171,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 {(replyContextText || attachmentPreviews.length > 0) && (
                     <div className="w-full mb-2 pl-4">
                         {replyContextText && (
-                            <div className="flex items-center justify-between gap-2 bg-[#212121] border border-[#333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
-                                <div className="text-sm text-gray-300 line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
-                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10"><XIcon className="size-4" /></button>
+                            <div className="flex items-center justify-between gap-2 bg-[#f4f4f5] dark:bg-[#212121] border border-gray-200 dark:border-[#333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
+                                <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
+                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10"><XIcon className="size-4" /></button>
                             </div>
                         )}
                         
                         {attachmentPreviews.length > 0 && (
                             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                                 {attachmentPreviews.map((attachment, index) => (
-                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-[#333] bg-[#212121]">
+                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] bg-[#f4f4f5] dark:bg-[#212121]">
                                         <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <XIcon className="size-4 text-white" />
@@ -197,14 +197,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex items-end w-full bg-[#212121]/80 backdrop-blur-xl rounded-full transition-colors duration-300 min-h-[44px]"
+                    className="relative flex items-end w-full bg-[#f4f4f5]/80 dark:bg-[#212121]/80 backdrop-blur-xl rounded-full transition-colors duration-300 min-h-[44px]"
                 >
                     {/* Left Side: Attach - Absolute positioned */}
                     <div className="absolute left-1.5 bottom-1.5 z-10">
                         <button
                             type="button"
                             onClick={handleAttachClick}
-                            className="flex items-center justify-center size-9 rounded-full hover:bg-[#333]/50 text-gray-400 hover:text-white transition-colors"
+                            className="flex items-center justify-center size-9 rounded-full hover:bg-gray-200 dark:hover:bg-[#333]/50 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors"
                             disabled={isLoading}
                             aria-label={t('chat.input.attach')}
                         >
@@ -216,7 +216,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-[#e4e4e7] placeholder:text-gray-500 py-3 pl-[48px] pr-[56px] max-h-[200px] min-h-[24px] text-[15px] leading-relaxed resize-none scrollbar-none rounded-full"
+                        className="flex-1 bg-transparent focus:outline-none text-gray-900 dark:text-[#e4e4e7] placeholder:text-gray-500 py-3 pl-[48px] pr-[56px] max-h-[200px] min-h-[24px] text-[15px] leading-relaxed resize-none scrollbar-none rounded-full"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -233,11 +233,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                              <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 bg-white text-black hover:bg-gray-200`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200`}
                                 disabled={false}
                             >
                                 {isLoading ? (
-                                    <div className="size-2.5 bg-black rounded-[1px]" />
+                                    <div className="size-2.5 bg-white dark:bg-black rounded-[1px]" />
                                 ) : (
                                     <ArrowUpIcon className="size-5 font-bold" />
                                 )}
@@ -246,7 +246,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                              <button 
                                 type="button"
                                 onClick={handleMicClick}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#333]/50'}`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-gray-500 hover:text-black hover:bg-gray-200 dark:text-gray-400 dark:hover:text-white dark:hover:bg-[#333]/50'}`}
                             >
                                 {isRecording ? <XIcon className="size-5" /> : <VoiceWaveIcon className="size-5" />}
                             </button>

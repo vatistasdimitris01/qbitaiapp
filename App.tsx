@@ -600,8 +600,8 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col h-full relative min-w-0 transition-all duration-300">
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4 h-full">
+            <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-40">
+              <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4 min-h-full">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -616,19 +616,20 @@ const App: React.FC = () => {
               </div>
             </main>
             
-            <div className="mt-auto pt-4 w-full">
+            <div className="absolute bottom-0 left-0 w-full pointer-events-none flex flex-col items-center justify-end pb-6 z-20">
                 {showScrollToBottom && !isLoading && (
                     <button 
                         onClick={handleScrollToBottomClick} 
-                        className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" 
+                        className="pointer-events-auto mb-4 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" 
                         aria-label={t('chat.scrollToBottom')}
                     >
                         <ChevronDownIcon className="size-6" />
                     </button>
                 )}
-                <footer className="w-full mx-auto px-4 sm:px-6 pb-2 sm:pb-4 flex justify-center">
+                
+                <div className="w-full px-4 pointer-events-auto flex justify-center">
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
-                </footer>
+                </div>
             </div>
         </div>
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />

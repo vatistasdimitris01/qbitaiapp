@@ -39,9 +39,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         const textarea = internalTextareaRef.current;
         if (textarea) {
             textarea.style.height = 'auto'; 
-            // Min height for one line + padding
-            // Max height handled by max-h CSS
-            const newHeight = Math.min(textarea.scrollHeight, 400); 
+            const newHeight = Math.min(textarea.scrollHeight, 200); 
             textarea.style.height = `${newHeight}px`;
         }
     }, []);
@@ -167,25 +165,25 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     return (
-        <div className="flex flex-col justify-end w-full relative items-center gap-2 pb-6">
-            {/* Context & Preview Container - matches input width */}
-             <div className="w-full xl:w-4/5 max-w-[1200px] animate-fade-in-up px-2">
+        <div className="flex flex-col justify-end w-full relative items-center gap-2">
+            {/* Context & Preview Container */}
+             <div className="w-full xl:w-4/5 max-w-[800px] animate-fade-in-up px-2">
                 {(replyContextText || attachmentPreviews.length > 0) && (
-                    <div className="w-full mb-2 pl-8">
+                    <div className="w-full mb-2 pl-4">
                         {replyContextText && (
-                            <div className="flex items-center justify-between gap-2 bg-card border border-default p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
-                                <div className="text-sm text-muted-foreground line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
-                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-token-surface-secondary"><XIcon className="size-4" /></button>
+                            <div className="flex items-center justify-between gap-2 bg-[#212121] border border-[#333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
+                                <div className="text-sm text-gray-300 line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
+                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10"><XIcon className="size-4" /></button>
                             </div>
                         )}
                         
                         {attachmentPreviews.length > 0 && (
                             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                                 {attachmentPreviews.map((attachment, index) => (
-                                    <div key={index} className="relative group shrink-0 size-16 rounded-xl overflow-hidden border border-default bg-background">
+                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-[#333] bg-[#212121]">
                                         <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <XIcon className="size-5 text-white" />
+                                            <XIcon className="size-4 text-white" />
                                         </button>
                                     </div>
                                 ))}
@@ -195,30 +193,30 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 )}
             </div>
             
-            <div className="w-full xl:w-4/5 max-w-[1200px] relative px-2">
+            <div className="w-full xl:w-4/5 max-w-[800px] relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex items-end w-full bg-[#212121]/90 backdrop-blur-md rounded-[2.5rem] transition-colors duration-300 min-h-[52px]"
+                    className="relative flex items-end w-full bg-[#212121]/80 backdrop-blur-xl rounded-full transition-colors duration-300 min-h-[44px]"
                 >
                     {/* Left Side: Attach - Absolute positioned */}
-                    <div className="absolute left-3 bottom-2.5 z-10">
+                    <div className="absolute left-1.5 bottom-1.5 z-10">
                         <button
                             type="button"
                             onClick={handleAttachClick}
-                            className="flex items-center justify-center size-8 rounded-full hover:bg-[#333333] text-gray-400 hover:text-white transition-colors"
+                            className="flex items-center justify-center size-9 rounded-full hover:bg-[#333]/50 text-gray-400 hover:text-white transition-colors"
                             disabled={isLoading}
                             aria-label={t('chat.input.attach')}
                         >
-                            <PaperclipIcon className="size-4 transform rotate-90" />
+                            <PaperclipIcon className="size-5 transform rotate-90" />
                         </button>
                     </div>
                     
-                    {/* Middle: Input with heavy left padding */}
+                    {/* Middle: Input with padding */}
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="flex-1 bg-transparent focus:outline-none text-[#e4e4e7] placeholder:text-gray-500 py-3.5 pl-[52px] pr-[60px] max-h-[400px] min-h-[24px] text-[15px] leading-relaxed resize-none scrollbar-none rounded-[2.5rem]"
+                        className="flex-1 bg-transparent focus:outline-none text-[#e4e4e7] placeholder:text-gray-500 py-3 pl-[48px] pr-[56px] max-h-[200px] min-h-[24px] text-[15px] leading-relaxed resize-none scrollbar-none rounded-full"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -229,28 +227,28 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     />
                     
                     {/* Right Side: Absolute Buttons */}
-                    <div className="absolute right-2 bottom-2 flex items-center gap-2 z-10">
+                    <div className="absolute right-1.5 bottom-1.5 flex items-center gap-2 z-10">
                          {/* Show Send button only when typing, otherwise Voice */}
                         {hasContent ? (
                              <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 bg-white text-black`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 bg-white text-black hover:bg-gray-200`}
                                 disabled={false}
                             >
                                 {isLoading ? (
                                     <div className="size-2.5 bg-black rounded-[1px]" />
                                 ) : (
-                                    <ArrowUpIcon className="size-4 font-bold" />
+                                    <ArrowUpIcon className="size-5 font-bold" />
                                 )}
                             </button>
                         ) : (
                              <button 
                                 type="button"
                                 onClick={handleMicClick}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all shadow-sm hover:shadow-md active:scale-95 duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-black'}`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#333]/50'}`}
                             >
-                                {isRecording ? <XIcon className="size-4" /> : <VoiceWaveIcon className="size-4" />}
+                                {isRecording ? <XIcon className="size-5" /> : <VoiceWaveIcon className="size-5" />}
                             </button>
                         )}
                     </div>

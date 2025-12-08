@@ -238,7 +238,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             )}
                         </div>
                         {/* User Actions - Copy only as per instructions */}
-                        <div className="flex space-x-2 text-gray-400 text-sm mr-1">
+                        <div className="flex space-x-4 text-gray-400 text-sm mr-1">
                             <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
                                 {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
                             </IconButton>
@@ -247,7 +247,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 ) : (
                     <div className="flex flex-col w-full space-y-3">
                         {/* AI Content - Larger font */}
-                        <div ref={contentRef} className="w-full text-lg font-medium leading-relaxed text-gray-800 dark:text-gray-200">
+                        <div ref={contentRef} className="w-full text-lg font-medium leading-relaxed text-gray-200">
                              {renderableContent.map((part, index) => {
                                 if (part.type === 'code') {
                                     return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;

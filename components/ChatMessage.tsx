@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -37,8 +36,8 @@ interface ChatMessageProps {
     onSendSuggestion: (text: string) => void;
 }
 
-const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-gray-400 hover:text-gray-200 hover:bg-[#333333]";
-const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-10 rounded-xl px-3.5 py-1.5 text-[0.9375rem] text-gray-400 hover:bg-[#333333] -ml-2";
+const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-[#a1a1aa] hover:text-white hover:bg-[#333333]";
+const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-9 rounded-xl px-3.5 py-1.5 text-sm text-[#a1a1aa] hover:text-white hover:bg-[#333333] border border-transparent hover:border-[#333]";
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
     <button onClick={onClick} className={iconBtnClass} title={title}>
@@ -104,7 +103,7 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
 
     if (loading) return (
          <div className="grid grid-cols-3 gap-1.5 my-2 max-w-xl">
-             {[1,2,3].map(i => <div key={i} className="aspect-square bg-token-surface-secondary animate-pulse rounded-lg" />)}
+             {[1,2,3].map(i => <div key={i} className="aspect-square bg-[#292929] animate-pulse rounded-lg" />)}
          </div>
     );
     
@@ -196,148 +195,160 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     finalParts.push({ type: 'gallery-search', query: match[1] });
                  }
             } else {
-                let lastTextIndex = 0;
-                let inlineMatch;
-                while ((inlineMatch = inlineImageRegex.exec(part)) !== null) {
-                    if (inlineMatch.index > lastTextIndex) {
-                        finalParts.push({ type: 'text', content: part.substring(lastTextIndex, inlineMatch.index) });
-                    }
-                    finalParts.push({ type: 'inline-image', alt: inlineMatch[1], url: inlineMatch[2] });
-                    lastTextIndex = inlineMatch.index + inlineMatch[0].length;
-                }
-                if (lastTextIndex < part.length) {
-                    finalParts.push({ type: 'text', content: part.substring(lastTextIndex) });
-                }
+                 finalParts.push({ type: 'text', content: part });
             }
         });
+
         return finalParts;
     }, [parsedResponseText]);
 
     const handleCopy = () => {
-        const textToCopy = isUser ? messageText : parsedResponseText;
-        if (textToCopy) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 2000);
-            });
-        }
+        navigator.clipboard.writeText(parsedResponseText).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
     };
 
-    const hasThinking = !isUser && (hasThinkingTag || parsedThinkingText);
-    const durationText = message.generationDuration ? `${(message.generationDuration / 1000).toFixed(1)}s` : '';
-    
-    if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
+    if (isUser) {
+        return (
+            <div className="flex justify-end w-full mb-8">
+                <div className="flex flex-col items-end max-w-[85%]">
+                     <div className="bg-[#212121] text-gray-200 px-5 py-3 rounded-[24px] rounded-br-lg border border-[#333333] shadow-sm mb-2">
+                        <div className="whitespace-pre-wrap leading-relaxed text-[16px]">{messageText}</div>
+                    </div>
+                    
+                    {/* Attachments */}
+                    {message.files && message.files.length > 0 && (
+                        <div className="flex flex-wrap justify-end gap-2 mb-2">
+                            {message.files.map((file, i) => (
+                                <div key={i} className="relative group rounded-xl overflow-hidden border border-[#333333]">
+                                    {isImageFile(file.type) ? (
+                                        <img src={file.dataUrl} alt={file.name} className="h-24 w-auto object-cover" />
+                                    ) : (
+                                        <div className="h-24 w-24 bg-[#292929] flex items-center justify-center text-xs text-gray-400 p-2 text-center">
+                                            {file.name}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    <div className="flex space-x-2">
+                        <IconButton title="Copy" onClick={handleCopy}>
+                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
+                        </IconButton>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className={`flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-3xl w-full`}>
-                
-                {/* Thinking Block */}
-                {hasThinking && (
-                    <div className="w-full mb-3">
-                        <button onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors p-1.5 rounded-lg w-fit">
-                            <BrainIcon className="size-3" />
-                            <span>{t('chat.message.thinking')}</span>
-                            <ChevronDownIcon className={`size-3 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isThinkingOpen && (
-                            <div className="mt-2 pl-3 border-l-2 border-border/50 text-sm text-muted-foreground leading-relaxed prose-sm max-w-none">
-                                <div dangerouslySetInnerHTML={{ __html: marked.parse(parsedThinkingText || '') }} />
-                            </div>
-                        )}
+        <div className="flex flex-col w-full mb-8 max-w-[95%]">
+             {/* Thinking Block */}
+             {hasThinkingTag && parsedThinkingText && (
+                <div className="mb-4">
+                     <div onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors w-fit p-1 rounded-lg">
+                        <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' ? 'animate-pulse text-[#1d9bf0]' : ''}`} />
+                        <span className="text-sm font-medium">{t('chat.message.thinking')}</span>
+                        <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                    {isThinkingOpen && (
+                        <div className="mt-2 pl-3 border-l-2 border-[#333] text-gray-400 text-sm italic whitespace-pre-wrap animate-fade-in-up">
+                            {parsedThinkingText}
+                        </div>
+                    )}
+                </div>
+            )}
+            
+            {/* Main AI Message Content */}
+            <div className="text-[#e4e4e7] text-[16px] leading-relaxed w-full">
+                 {/* Empty State / Loading */}
+                 {!parsedResponseText && isLoading && !parsedThinkingText && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                        {aiStatus === 'searching' && <span className="animate-pulse">Searching the web...</span>}
+                        {aiStatus === 'generating' && <AITextLoading />}
+                        {aiStatus === 'thinking' && !hasThinkingTag && <span className="animate-pulse">Thinking...</span>}
                     </div>
                 )}
                 
-                {/* Message Content */}
-                {isUser ? (
-                    <div className="flex flex-col items-end">
-                        {/* User Bubble - Dark grey background with light text */}
-                        <div className="bg-[#333333] text-gray-200 px-4 py-2 rounded-[20px] mb-2 max-w-full text-base font-normal leading-relaxed">
-                            {messageText}
-                            {message.files && message.files.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    {message.files.map((f, i) => (
-                                        isImageFile(f.type) ? <img key={i} src={f.dataUrl} className="size-16 object-cover rounded-lg border border-white/10" alt="" /> :
-                                        <div key={i} className="px-2 py-1 bg-white/10 rounded text-xs border border-white/10">{f.name}</div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        {/* User Actions - Copy only as per instructions */}
-                        <div className="flex space-x-4 text-gray-400 text-sm mr-1">
-                            <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
-                            </IconButton>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex flex-col w-full space-y-3">
-                        {/* AI Content - Larger font */}
-                        <div ref={contentRef} className="w-full text-lg font-medium leading-relaxed text-gray-200">
-                             {renderableContent.map((part, index) => {
-                                if (part.type === 'code') {
-                                    return <CodeExecutor key={`${message.id}-${index}`} code={part.code} lang={part.lang} isExecutable={true} isPythonReady={isPythonReady} t={t} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={() => onFixRequest(part.code, part.lang, '')} onStopExecution={onStopExecution} />;
-                                }
-                                if (part.type === 'text') {
-                                    return <div key={index} className="prose max-w-none prose-neutral dark:prose-invert text-lg font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
-                                }
-                                if (part.type === 'gallery') {
-                                    return <ImageGallery key={index} images={part.images} onImageClick={(i) => onOpenLightbox(part.images, i)} />;
-                                }
-                                if (part.type === 'gallery-search') {
-                                    return <GallerySearchLoader key={index} query={part.query} onOpenLightbox={onOpenLightbox} />;
-                                }
-                                if (part.type === 'inline-image') {
-                                    return <InlineImage key={index} src={part.url} alt={part.alt} onExpand={() => onOpenLightbox([{url: part.url, alt: part.alt}], 0)} />;
-                                }
-                                return null;
-                            })}
-                            {isLoading && renderableContent.length === 0 && <AITextLoading />}
-                        </div>
+                {renderableContent.map((part: any, index: number) => {
+                    if (part.type === 'code') {
+                         const resultKey = `${message.id}_${part.partIndex}`;
+                         const result = executionResults[resultKey];
+                         // Auto-execute if not executed yet and isPythonReady (for Python)
+                         const isPython = part.lang === 'python';
+                         const shouldAutorun = isPython && !result;
 
-                        {/* AI Actions Row */}
-                        {!isLoading && (
-                            <div className="flex items-center space-x-0 text-gray-400 text-sm">
-                                <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
-                                    <MessageRefreshIcon className="size-4" />
-                                </IconButton>
-                                <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
-                                </IconButton>
-                                <span className="ml-2 text-gray-500 select-none text-[13px]">{durationText ? `Fast (${durationText})` : 'Fast'}</span>
-                                {message.groundingChunks && message.groundingChunks.length > 0 && (
-                                     <div className="ml-3 flex items-center">
-                                         <GroundingSources chunks={message.groundingChunks} t={t} />
-                                     </div>
-                                )}
+                         return (
+                            <div key={index} className="w-full my-4">
+                                <CodeExecutor
+                                    code={part.code}
+                                    lang={part.lang}
+                                    isExecutable={['python', 'javascript', 'js', 'html', 'react', 'jsx'].includes(part.lang.toLowerCase())}
+                                    autorun={shouldAutorun}
+                                    onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)}
+                                    onFixRequest={(err) => onFixRequest(part.code, part.lang, err)}
+                                    persistedResult={result}
+                                    onStopExecution={onStopExecution}
+                                    isPythonReady={isPythonReady}
+                                    isLoading={isLoading}
+                                    t={t}
+                                />
                             </div>
-                        )}
+                        );
+                    }
+                    if (part.type === 'gallery-search') {
+                        return <GallerySearchLoader key={index} query={part.query} onOpenLightbox={onOpenLightbox} />;
+                    }
+                     if (part.type === 'gallery') {
+                        const galleryImages = part.images.map((img: string) => ({ url: img, alt: 'Generated Image' }));
+                        return <div key={index} className="my-4"><ImageGallery images={galleryImages} onImageClick={(i) => onOpenLightbox(galleryImages, i)} /></div>;
+                    }
 
-                        {/* Suggestions */}
-                        {!isLoading && isLast && suggestions.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {suggestions.map((suggestion, idx) => (
-                                    <SuggestionButton key={idx} onClick={() => onSendSuggestion(suggestion)}>
-                                        <CornerDownRightIcon className="size-4" />
-                                        {suggestion}
-                                    </SuggestionButton>
-                                ))}
-                            </div>
-                        )}
-                        
-                        {/* Fallback Static Suggestion if none parsed but is last */}
-                        {!isLoading && isLast && suggestions.length === 0 && (
-                             <div className="flex flex-wrap gap-2 mt-1">
-                                <SuggestionButton onClick={() => onSendSuggestion("Share a fun fact")}>
-                                    <CornerDownRightIcon className="size-4" />
-                                    Share a fun fact
-                                </SuggestionButton>
-                            </div>
-                        )}
-                    </div>
+                    return (
+                        <div key={index} className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />
+                    );
+                })}
+            </div>
+
+            {/* Sources */}
+            {message.groundingChunks && message.groundingChunks.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                    <GroundingSources chunks={message.groundingChunks} t={t} />
+                </div>
+            )}
+
+            {/* AI Action Icons Row */}
+            <div className="flex items-center space-x-0 mt-3 text-gray-500 text-sm">
+                <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
+                    <MessageRefreshIcon className="size-4" />
+                </IconButton>
+                <IconButton title={t('chat.message.copy')} onClick={handleCopy}>
+                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
+                </IconButton>
+                <IconButton title={t('chat.message.fork')} onClick={() => onFork(message.id)}>
+                    <GitForkIcon className="size-4" />
+                </IconButton>
+                {message.generationDuration && (
+                     <span className="ml-2 text-gray-600 text-xs select-none">{(message.generationDuration / 1000).toFixed(1)}s</span>
                 )}
             </div>
+            
+            {/* Suggestions */}
+            {isLast && suggestions.length > 0 && !isLoading && (
+                 <div className="mt-4 flex flex-col items-start gap-2 animate-fade-in-up">
+                    {suggestions.map((suggestion, idx) => (
+                        <SuggestionButton key={idx} onClick={() => onSendSuggestion(suggestion)}>
+                             <CornerDownRightIcon className="size-4 text-gray-500" />
+                             <span className="truncate max-w-[300px]">{suggestion}</span>
+                        </SuggestionButton>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
+
 export default ChatMessage;

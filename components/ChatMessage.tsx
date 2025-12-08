@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CopyIcon, RefreshCwIcon, CheckIcon, GitForkIcon
+    BrainIcon, ChevronDownIcon, CheckIcon, GitForkIcon, MessageRefreshIcon, MessageCopyIcon, CornerDownRightIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import AITextLoading from './AITextLoading';
@@ -35,7 +36,20 @@ interface ChatMessageProps {
 }
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button onClick={onClick} className="p-1 text-muted-foreground/40 hover:text-foreground transition-colors rounded-md" title={title}>
+    <button 
+        onClick={onClick} 
+        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-foreground h-8 w-8 rounded-full text-muted-foreground/60" 
+        title={title}
+    >
+        {children}
+    </button>
+);
+
+const SuggestionButton: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => (
+    <button 
+        onClick={onClick}
+        className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-foreground h-10 rounded-xl px-3.5 py-1.5 text-[0.9375rem] text-muted-foreground/60 -ml-2"
+    >
         {children}
     </button>
 );
@@ -193,8 +207,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     if (!isUser && !isLoading && !parsedResponseText && !hasThinking && !message.groundingChunks) return null;
 
     return (
-        <div className={`flex w-full mb-6 group/message ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex flex-col w-full max-w-3xl ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-3xl w-full`}>
                 
                 {/* Thinking Block */}
                 {hasThinking && (
@@ -215,7 +229,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 {/* Message Content */}
                 <div className={`flex flex-col relative ${isUser ? 'items-end' : 'items-start w-full'}`}>
                     {isUser ? (
-                         <div className="bg-token-surface-secondary dark:bg-zinc-800 px-4 py-2 rounded-[20px] rounded-br-sm text-[0.95rem] leading-relaxed text-foreground max-w-full shadow-sm border border-default">
+                         <div className="bg-zinc-100 dark:bg-[#333333] text-foreground dark:text-gray-200 px-5 py-2.5 rounded-[20px] rounded-br-sm mb-1 shadow-sm border border-transparent dark:border-white/5 max-w-full text-[0.95rem] leading-relaxed">
                              {messageText}
                              {message.files && message.files.length > 0 && (
                                  <div className="mt-2 flex flex-wrap gap-2">
@@ -257,22 +271,42 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                          </div>
                     )}
 
-                    {/* Message Actions */}
+                    {/* Message Actions Row */}
                     {!isLoading && (
-                        <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ${isUser ? 'mr-1' : 'ml-0'}`}>
-                            <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
-                                {isCopied ? <CheckIcon className="size-3 text-green-500" /> : <CopyIcon className="size-3" />}
-                            </IconButton>
+                        <div className={`flex items-center gap-2 mt-1 ${isUser ? 'mr-1' : 'ml-0'}`}>
+                            
+                            {/* AI Actions: Regenerate, Copy, Fast Label */}
                             {!isUser && (
                                 <>
                                     <IconButton onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
-                                        <RefreshCwIcon className="size-3" />
+                                        <MessageRefreshIcon className="size-4" />
+                                    </IconButton>
+                                    <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
+                                        {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
                                     </IconButton>
                                     <IconButton onClick={() => onFork(message.id)} title={t('chat.message.fork')}>
-                                        <GitForkIcon className="size-3" />
+                                        <GitForkIcon className="size-4" />
                                     </IconButton>
+                                    <span className="text-xs font-medium text-muted-foreground/60 ml-2">Fast</span>
                                 </>
                             )}
+
+                            {/* User Actions: Copy Only */}
+                            {isUser && (
+                                <IconButton onClick={handleCopy} title={t('chat.message.copy')}>
+                                    {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
+                                </IconButton>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Suggestion Buttons (AI Only) */}
+                    {!isUser && !isLoading && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            <SuggestionButton>
+                                <CornerDownRightIcon className="size-4" />
+                                Share a fun fact
+                            </SuggestionButton>
                         </div>
                     )}
                 </div>

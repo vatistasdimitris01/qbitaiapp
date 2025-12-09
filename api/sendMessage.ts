@@ -24,14 +24,6 @@ const languageMap: { [key: string]: string } = {
     de: 'German',
 };
 
-const searchContextTranslations: { [lang: string]: string } = {
-    en: 'Search results for "{query}":\n{results}',
-    el: 'Αποτελέσματα αναζήτησης για "{query}":\n{results}',
-    es: 'Resultados de búsqueda para "{query}":\n{results}',
-    fr: 'Résultats de recherche pour "{query}":\n{results}',
-    de: 'Suchergebnisse für "{query}":\n{results}',
-};
-
 export const config = {
   api: {
     bodyParser: false,
@@ -69,12 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.files) {
                     msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
                 }
-                // Reconstruct tool calls if present in history to maintain context
                 if (msg.toolCalls && msg.toolCalls.length > 0) {
                      msg.toolCalls.forEach(tc => {
                          parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         // We also implicitly assume a function response followed, but for simplicity in history reconstruction
-                         // we might just let the model see the call. In a perfect world we'd store the response too.
+                         parts.push({ functionResponse: { name: tc.name, response: { content: "UI Rendered" } } }); 
                      });
                 }
                 return {
@@ -96,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-flash-lite-latest';
+        const model = 'gemini-2.5-flash';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
@@ -254,21 +244,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
             const initialStream = await ai.models.generateContentStream({ model, contents, config });
             
-            // We need to handle potential multiple turns if tools are called
             let currentStream = initialStream;
             let keepGoing = true;
 
-            // This loop allows us to handle a tool call, send it to client, feed "success" back to model, and stream the rest.
             while (keepGoing) {
-                keepGoing = false; // Default to stop unless we hit a tool call we want to loop on
+                keepGoing = false;
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
+                    // Safe handling of tool calls
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
-                        // Don't break immediately, let's see if there is mixed content (unlikely with this API but safe)
                     }
-                    if (chunk.text) write({ type: 'chunk', payload: chunk.text });
+                    
+                    // Safe access to text with try-catch as getter might throw on non-text chunks
+                    let text = '';
+                    try {
+                        text = chunk.text || '';
+                    } catch (e) {
+                        // ignore property access error
+                    }
+                    if (text) write({ type: 'chunk', payload: text });
+
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
@@ -276,7 +273,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const fc = functionCallToHandle;
                     
                     if (fc.name === 'google_search') {
-                        // ... Google Search Handling (Server-side execution) ...
                         write({ type: 'searching' });
                         const query = fc.args.query as string;
                         const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
@@ -302,24 +298,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             }
                         }
 
-                        // Feed back to model
-                         const newContents: Content[] = [
-                            ...contents,
-                            { role: 'model', parts: [{ functionCall: fc }] },
-                            { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] },
-                        ];
-                        // Update contents for next loop
-                        // Note: In a stateless Vercel function, we just reconstruct contents for the next API call locally
-                        // But strictly we should append to the 'contents' variable
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
 
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true; // Loop to stream the answer based on search
+                        keepGoing = true;
 
                     } else {
-                        // ... Generative UI Tool Handling (Client-side execution) ...
-                        // 1. Tell Client to render it
+                        // Generative UI Tool Handling
                         write({ 
                             type: 'tool_call', 
                             payload: { 
@@ -329,17 +315,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             } 
                         });
 
-                        // 2. Feed "Success" back to model so it can finish its thought (e.g. "I have rendered the chart.")
-                        const newContents: Content[] = [
-                            ...contents,
-                            { role: 'model', parts: [{ functionCall: fc }] },
-                            { role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Component Rendered Successfully." } } }] },
-                        ];
-                        // Update local contents for potential next loop
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Component Rendered Successfully." } } }] });
 
-                        // Resume stream to get any closing remarks from AI
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }

@@ -246,6 +246,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
 
+    // Check if we have any content to show (text or tools)
+    const hasContent = parsedResponseText || (message.toolCalls && message.toolCalls.length > 0);
+
     return (
         <div className="flex flex-col w-full mb-8 max-w-[95%]">
              {/* Thinking Block */}
@@ -267,7 +270,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             {/* Main AI Message Content */}
             <div className="text-gray-900 dark:text-[#e4e4e7] text-[16px] leading-relaxed w-full">
                  {/* Empty State / Loading */}
-                 {!parsedResponseText && isLoading && !parsedThinkingText && !message.toolCalls && (
+                 {!hasContent && isLoading && !parsedThinkingText && (
                     <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                         {aiStatus === 'searching' && <span className="animate-pulse">Searching the web...</span>}
                         {aiStatus === 'generating' && <AITextLoading />}

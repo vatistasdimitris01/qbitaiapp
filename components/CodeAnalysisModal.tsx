@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { XIcon, CopyIcon } from './icons';
 
@@ -7,6 +8,15 @@ interface CodeAnalysisModalProps {
     onClose: () => void;
     t: (key: string) => string;
 }
+
+const normalizeLanguage = (lang: string) => {
+    if (!lang) return 'plaintext';
+    const lower = lang.toLowerCase();
+    if (lower === 'react' || lower === 'jsx' || lower === 'js') return 'javascript';
+    if (lower === 'ts' || lower === 'tsx') return 'typescript';
+    if (lower === 'vue') return 'xml';
+    return lower;
+};
 
 const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClose, t }) => {
     const [isCopied, setIsCopied] = useState(false);
@@ -23,9 +33,10 @@ const CodeAnalysisModal: React.FC<CodeAnalysisModalProps> = ({ code, lang, onClo
     }, [onClose]);
 
     useEffect(() => {
+        const normalizedLang = normalizeLanguage(lang);
         if ((window as any).hljs) {
             try {
-                const highlighted = (window as any).hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                const highlighted = (window as any).hljs.highlight(code, { language: normalizedLang, ignoreIllegals: true }).value;
                 setHighlightedCode(highlighted);
             } catch (e) {
                 setHighlightedCode(code); // Fallback to plain text

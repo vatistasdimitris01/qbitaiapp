@@ -114,11 +114,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const handleMicClick = () => {
         if (isRecording) {
+            // Stop logic
             if (recognitionRef.current) {
-                recognitionRef.current.stop();
+                // abort() stops immediately and prevents further results, avoiding 'stuck' sensation or trailing text
+                recognitionRef.current.abort(); 
             }
             setIsRecording(false);
         } else {
+            // Start logic
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 alert("Speech recognition is not supported in this browser.");
@@ -130,7 +133,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             recognition.interimResults = true;
             recognition.lang = language;
 
+            // Capture the text at the start of recording
             let initialText = text;
+            // Add space if there is text and no trailing space
             if (initialText.length > 0 && !/\s$/.test(initialText)) {
                 initialText += ' ';
             }
@@ -144,6 +149,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 for (let i = 0; i < event.results.length; ++i) {
                    transcript += event.results[i][0].transcript;
                 }
+                // Update parent text
                 onTextChange(initialText + transcript);
             };
 
@@ -154,6 +160,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
             recognition.onend = () => {
                 setIsRecording(false);
+                recognitionRef.current = null;
             };
 
             recognitionRef.current = recognition;
@@ -223,7 +230,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onChange={handleInputChange} 
                         onKeyDown={handleKeyDown} 
                         onPaste={handlePaste}
-                        readOnly={isRecording}
+                        // Removed readOnly to allow editing during/after recording
                     />
                     
                     {/* Right Side: Absolute Buttons */}

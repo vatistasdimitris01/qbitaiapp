@@ -71,6 +71,16 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
+const normalizeLanguage = (lang: string) => {
+    if (!lang) return 'plaintext';
+    const lower = lang.toLowerCase();
+    // Map common aliases to languages highlight.js likely supports in the standard pack
+    if (lower === 'react' || lower === 'jsx' || lower === 'js') return 'javascript';
+    if (lower === 'ts' || lower === 'tsx') return 'typescript';
+    if (lower === 'vue') return 'xml'; 
+    return lower;
+};
+
 const ActionButton: React.FC<{ onClick: () => void; title: string; children: React.ReactNode; disabled?: boolean; }> = ({ onClick, title, children, disabled = false }) => (
     <button
         onClick={onClick}
@@ -383,9 +393,10 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
 
 
     useEffect(() => {
+        const normalizedLang = normalizeLanguage(lang);
         if ((window as any).hljs) {
             try {
-                const highlighted = (window as any).hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                const highlighted = (window as any).hljs.highlight(code, { language: normalizedLang, ignoreIllegals: true }).value;
                 setHighlightedCode(highlighted);
             } catch (e) {
                 setHighlightedCode(code); 

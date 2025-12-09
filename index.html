@@ -1,3 +1,19 @@
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "marked": "https://aistudiocdn.com/marked@^17.0.1",
+    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.15",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "formidable": "https://aistudiocdn.com/formidable@^3.5.4",
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
+    "vite": "https://aistudiocdn.com/vite@^7.2.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -87,228 +103,4 @@
 <!-- highlight.js for code highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-<!-- Mermaid for diagrams -->
-<script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-window.mermaid = mermaid;
-</script>
-
-<!-- Pyodide for in-browser Python -->
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
-<!-- Plotly for interactive charts -->
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
-<!-- Babel for in-browser JSX/React transpilation -->
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-<!-- Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-/* Hide scrollbars for all elements */
-::-webkit-scrollbar { display: none; }
-* { scrollbar-width: none; -ms-overflow-style: none; }
-
-:root {
-  --background: #ffffff;
-  --foreground: #18181b; /* zinc-900 */
-  --muted-foreground: #71717a; /* zinc-500 */
-  --sidebar-bg: #fafafa; /* zinc-50 */
-  --sidebar-foreground: #52525b;
-  --sidebar-muted-foreground: #a1a1aa;
-  --sidebar-active-bg: #f4f4f5; /* zinc-100 */
-  --sidebar-active-foreground: #18181b;
-  --sidebar-border: transparent;
-  --card: #ffffff;
-  --border: #f4f4f5; 
-  --user-message-bg: #f4f4f5;
-  --token-surface: #ffffff;
-  --token-surface-secondary: #f8f9fa;
-  --token-text-primary: #18181b;
-  --token-text-secondary: #71717a;
-  --token-border: #e4e4e7;
-  /* Accents */
-  --accent-blue: #1d9bf0;
-  /* Code Block Theme */
-  --code-bg: #f9fafb;
-  --code-text-default: #374151;
-  --code-text-comment: #6B7280;
-  --code-text-keyword: #7C3AED;
-  --code-text-string: #2563EB;
-  --code-text-number: #DB2777;
-  --code-text-function: #C026D3;
-  --code-text-tag: #4338CA;
-  --input-bg: #ffffff;
-}
-
-.dark {
-  --background: #121212; /* Base Background - almost black */
-  --foreground: #e4e4e7; /* Primary Text - zinc-200 */
-  --muted-foreground: #a1a1aa; /* Secondary Text - zinc-400 */
-  
-  --sidebar-bg: #121212; 
-  --sidebar-foreground: #a1a1aa;
-  --sidebar-muted-foreground: #71717a;
-  --sidebar-active-bg: #212121; /* Surface 1 */
-  --sidebar-active-foreground: #ffffff;
-  --sidebar-border: #333333;
-  
-  --card: #212121; /* Surface 1 */
-  --border: #333333;
-  
-  --user-message-bg: #212121; /* Surface 1 */
-  
-  --token-surface: #212121;
-  --token-surface-secondary: #292929; /* Surface 2 */
-  --token-text-primary: #e4e4e7;
-  --token-text-secondary: #a1a1aa;
-  --token-border: #333333;
-  
-  /* Accents */
-  --accent-blue: #1d9bf0; /* X Blue */
-  
-  /* Code Block Theme */
-  --code-bg: #18181b;
-  --code-text-default: #e2e8f0;
-  --code-text-comment: #94a3b8;
-  --code-text-keyword: #c4b5fd;
-  --code-text-string: #a5b4fc;
-  --code-text-number: #f9a8d4;
-  --code-text-function: #f0abfc;
-  --code-text-tag: #93c5fd;
-  
-  --input-bg: #212121;
-}
-
-html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--background);
-  color: var(--foreground);
-  letter-spacing: -0.01em;
-}
-.bg-sidebar { background-color: var(--sidebar-bg); }
-.text-sidebar-fg { color: var(--sidebar-foreground); }
-.text-sidebar-muted-fg { color: var(--sidebar-muted-foreground); }
-.bg-sidebar-active { background-color: var(--sidebar-active-bg); }
-.text-sidebar-active-fg { color: var(--sidebar-active-foreground); }
-.border-sidebar { border-color: var(--sidebar-border); }
-.bg-card { background-color: var(--card); }
-.border-default { border-color: var(--border); }
-.text-muted { color: var(--muted-foreground); }
-.placeholder-muted::placeholder { color: var(--muted-foreground); }
-.bg-user-message { background-color: var(--user-message-bg); }
-.bg-token-surface { background-color: var(--token-surface); }
-.bg-token-surface-secondary { background-color: var(--token-surface-secondary); }
-.text-token-primary { color: var(--token-text-primary); }
-.text-token-secondary { color: var(--token-text-secondary); }
-.border-token { border-color: var(--token-border); }
-
-.prose {
-  --tw-prose-body: var(--foreground);
-  --tw-prose-headings: var(--foreground);
-  --tw-prose-links: var(--accent-blue);
-  --tw-prose-bold: var(--foreground);
-  --tw-prose-bullets: #a1a1aa;
-  --tw-prose-hr: var(--border);
-  --tw-prose-quotes: var(--foreground);
-  --tw-prose-quote-borders: var(--border);
-  --tw-prose-code: var(--foreground);
-  --tw-prose-pre-code: var(--code-text-default);
-  --tw-prose-pre-bg: var(--code-bg);
-  --tw-prose-th-borders: #d4d4d8;
-  --tw-prose-td-borders: #e4e4e7;
-  overflow-wrap: break-word; word-break: break-word;
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-.dark .prose {
-  --tw-prose-bullets: #52525b;
-  --tw-prose-th-borders: #3f3f46;
-  --tw-prose-td-borders: #27272a;
-}
-.prose h1, .prose h2, .prose h3 { margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; line-height: 1.25; }
-.prose h1 { font-size: 1.35rem; letter-spacing: -0.02em; }
-.prose h2 { font-size: 1.15rem; letter-spacing: -0.015em; }
-.prose h3 { font-size: 1.05rem; }
-.prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
-.prose ul, .prose ol { margin-top: 0.5em; margin-bottom: 0.5em; padding-left: 1.25em; }
-.prose a { color: var(--tw-prose-links); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
-.prose a:hover { border-bottom-color: var(--tw-prose-links); text-decoration: none; }
-.prose pre {
-  color: var(--tw-prose-pre-code);
-  background-color: var(--tw-prose-pre-bg);
-  overflow-x: auto; font-size: 0.85em; line-height: 1.6;
-  margin-top: 1em; margin-bottom: 1em; border-radius: 0.5rem; padding: 1em;
-  border: 1px solid var(--border);
-}
-.prose code:not(pre > code) {
-  font-size: 0.85rem; padding: 0.1rem 0.3rem; margin: 0 0.1rem; border-radius: 0.25rem;
-  background-color: var(--token-surface-secondary); color: var(--foreground); border: 1px solid var(--border);
-  font-weight: 500;
-}
-.prose code:not(pre > code)::before, .prose code:not(pre > code)::after { content: none; }
-.prose blockquote { border-left: 2px solid var(--border); padding-left: 1em; margin: 1em 0; font-style: italic; color: var(--muted-foreground); }
-
-.typing-indicator.cursor {
-  width: 2px; height: 1.1em; border-radius: 1px;
-  animation: blink 1s infinite; margin-left: 1px;
-  background-color: var(--foreground); display: inline-block;
-}
-.ai-text-loading {
-    background: linear-gradient(to right, var(--foreground) 20%, var(--muted-foreground) 40%, var(--muted-foreground) 60%, var(--foreground) 80%);
-    background-size: 200% auto;
-    color: transparent;
-    background-clip: text;
-    -webkit-background-clip: text;
-    animation: shine 1.5s linear infinite; display: inline-block;
-}
-.output-block {
-    background-color: var(--background); color: var(--foreground);
-    border-radius: 0.5rem; padding: 0.75rem 1rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.85rem; border: 1px solid var(--border);
-    transition: all 0.2s ease-in-out;
-}
-.output-block.success { border-color: var(--border); }
-.output-block.error { border-color: #ef4444; background-color: rgba(239, 68, 68, 0.05); }
-.dark .output-block.error { border-color: #f87171; background-color: rgba(248, 113, 113, 0.05); }
-.output-block pre { white-space: pre-wrap; word-break: break-word; margin: 0; padding: 0; background-color: transparent; color: inherit; font-size: inherit; font-family: inherit; line-height: inherit; }
-.error-text { color: #ef4444; }
-.dark .error-text { color: #f87171; }
-
-.code-block-area { background-color: var(--code-bg); border-radius: 0.5rem; }
-.code-block-area .hljs { background: transparent !important; color: var(--code-text-default); }
-
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-@keyframes shine { from { background-position: -200% center; } to { background-position: 200% center; } }
-@keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
-@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-.animate-skeleton-pulse { animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-</style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@0.14.0",
-    "marked": "https://esm.sh/marked@12.0.2",
-    "formidable": "https://esm.sh/formidable@3.5.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "vite": "https://aistudiocdn.com/vite@^7.2.2",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.7",
-    "fs": "https://aistudiocdn.com/fs@^0.0.1-security"
-  }
-}
-</script>
-</head>
-<body>
-<div id="root"></div>
-<script type="module" src="/index.tsx"></script>
-</body>
-</html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.

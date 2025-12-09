@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import { 
     CheckIcon, 
@@ -18,7 +16,7 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
     const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!window.Plotly || !chartRef.current) return;
+        if (!window.Plotly || !chartRef.current || !data) return;
 
         let plotData: any[] = [];
         let layout: any = { 
@@ -59,13 +57,13 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
                         }];
                     }
                 }
-            } else if (data.x && data.y) {
+            } else if (data && data.x && data.y) {
                  plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { color: defaultColor, width: 2 } }];
             }
         } else if (type === 'pie' || type === 'donut') {
              if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
                  plotData = data.map((trace: any) => ({ ...trace, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }));
-             } else if (data.labels && data.values) {
+             } else if (data && data.labels && data.values) {
                  plotData = [{ ...data, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }];
              }
         }
@@ -90,14 +88,19 @@ const StockWidget: React.FC<{
     chartData: any; 
     stats: any;
     currency?: string;
-}> = ({ symbol, price, change, changePercent, chartData, stats, currency = '$' }) => {
-    const isNegative = change.includes('-') || changePercent.includes('-');
+}> = ({ symbol, price, change = '', changePercent = '', chartData, stats = {}, currency = '$' }) => {
+    // Robust checks for string methods
+    const safeChange = String(change || '');
+    const safeChangePercent = String(changePercent || '');
+    const isNegative = safeChange.includes('-') || safeChangePercent.includes('-');
+    
     const trendColor = isNegative ? 'text-[#ef4444]' : 'text-[#22c55e]'; // tailwind red-500 : green-500
     const chartColor = isNegative ? '#ef4444' : '#22c55e';
     const [activeRange, setActiveRange] = useState('1D');
 
     // Ensure price has currency symbol if missing
-    const displayPrice = price.startsWith(currency) ? price : `${currency}${price}`;
+    const safePrice = String(price || '0.00');
+    const displayPrice = safePrice.startsWith(currency) ? safePrice : `${currency}${safePrice}`;
 
     return (
         <div className="bg-[#121212] border border-[#27272a] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans text-[#e4e4e7]">
@@ -106,8 +109,8 @@ const StockWidget: React.FC<{
                     <div className="text-sm text-[#a1a1aa] font-medium mb-1">{symbol}</div>
                     <div className="text-5xl font-bold tracking-tight mb-2 text-white">{displayPrice}</div>
                     <div className={`text-sm font-medium ${trendColor} flex items-center gap-1.5`}>
-                        <span className="font-bold">{change}</span> 
-                        <span>({changePercent})</span>
+                        <span className="font-bold">{safeChange}</span> 
+                        <span>({safeChangePercent})</span>
                         <span className="text-[#71717a] ml-1 font-normal">Today</span>
                     </div>
                 </div>
@@ -133,14 +136,16 @@ const StockWidget: React.FC<{
                 />
             </div>
 
-            <div className="bg-[#18181b] border-t border-[#27272a] p-5 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-12">
-                {Object.entries(stats).map(([key, value]) => (
-                    <div key={key} className="flex justify-between items-center text-sm">
-                        <span className="text-[#a1a1aa] font-normal">{key}</span>
-                        <span className="text-white font-medium">{String(value)}</span>
-                    </div>
-                ))}
-            </div>
+            {stats && Object.keys(stats).length > 0 && (
+                <div className="bg-[#18181b] border-t border-[#27272a] p-5 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-12">
+                    {Object.entries(stats).map(([key, value]) => (
+                        <div key={key} className="flex justify-between items-center text-sm">
+                            <span className="text-[#a1a1aa] font-normal">{key}</span>
+                            <span className="text-white font-medium">{String(value)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

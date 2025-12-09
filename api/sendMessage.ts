@@ -96,11 +96,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 **Your Capabilities & Tools:**
 
 1.  **Generative UI (Interactive Components)**
-    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, STOCK WIDGETS, and WEATHER WIDGETS.
+    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, and STOCK WIDGETS.
     *   **How to do it:** Use the provided tools.
     *   **When to use:** 
         *   User asks about stock prices -> Call \`get_stock_quote\`.
-        *   User asks about weather -> Call \`get_weather_forecast\`.
         *   User asks for data visualization -> Call \`render_chart\`.
 
 2.  **Web Applications (HTML/CSS/JS)**
@@ -160,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 properties: {
                     symbol: { type: Type.STRING, description: 'Stock symbol e.g. AAPL' },
                     price: { type: Type.STRING },
+                    currency: { type: Type.STRING, description: 'Currency symbol e.g. $' },
                     change: { type: Type.STRING, description: 'Price change e.g. -1.20' },
                     changePercent: { type: Type.STRING, description: 'Percentage change e.g. -0.5%' },
                     chartData: { 
@@ -173,30 +173,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     stats: { type: Type.OBJECT, description: 'Key value pairs of stats like Open, High, Low, Market Cap' }
                 },
                 required: ['symbol', 'price', 'chartData']
-            }
-        };
-
-        const getWeatherForecastTool: FunctionDeclaration = {
-            name: 'get_weather_forecast',
-            description: 'Get current weather and forecast for a location.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    location: { type: Type.STRING },
-                    currentTemp: { type: Type.STRING },
-                    condition: { type: Type.STRING },
-                    high: { type: Type.STRING },
-                    low: { type: Type.STRING },
-                    hourly: { 
-                        type: Type.ARRAY, 
-                        items: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, temp: {type: Type.STRING}, condition: {type: Type.STRING} } } 
-                    },
-                    daily: { 
-                        type: Type.ARRAY, 
-                        items: { type: Type.OBJECT, properties: { day: {type: Type.STRING}, high: {type: Type.STRING}, low: {type: Type.STRING}, condition: {type: Type.STRING} } } 
-                    }
-                },
-                required: ['location', 'currentTemp', 'hourly', 'daily']
             }
         };
 
@@ -284,7 +260,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     googleSearchTool, 
                     renderChartTool,
                     getStockQuoteTool,
-                    getWeatherForecastTool,
                     renderKpiTool, 
                     renderTableTool, 
                     createTodoTool,

@@ -1,13 +1,10 @@
 
 
+
 import React, { useEffect, useRef, useState } from 'react';
 import { 
     CheckIcon, 
     BarChartIcon, 
-    SunIcon, 
-    CloudIcon, 
-    CloudRainIcon, 
-    WindIcon, 
     TrendingUpIcon, 
     TrendingDownIcon 
 } from './icons';
@@ -16,15 +13,6 @@ interface GenerativeUIProps {
     toolName: string;
     args: any;
 }
-
-// --- Helper for Weather Icons ---
-const getWeatherIcon = (condition: string, className: string = "size-6") => {
-    const c = condition.toLowerCase();
-    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return <CloudRainIcon className={className} />;
-    if (c.includes('cloud') || c.includes('overcast')) return <CloudIcon className={className} />;
-    if (c.includes('wind') || c.includes('breez')) return <WindIcon className={className} />;
-    return <SunIcon className={className} />;
-};
 
 const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?: string; colors?: string[] }> = ({ type, data, title, height, colors }) => {
     const chartRef = useRef<HTMLDivElement>(null);
@@ -53,7 +41,8 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
                     plotData = data.map((trace: any, i: number) => ({ 
                         ...trace, 
                         type: type,
-                        marker: { color: colors ? colors[i % colors.length] : defaultColor }
+                        marker: { color: colors ? colors[i % colors.length] : defaultColor },
+                        line: { color: colors ? colors[i % colors.length] : defaultColor, width: 2 }
                     }));
                 } else {
                     const keys = Object.keys(data[0] || {});
@@ -66,12 +55,12 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
                             y: data.map((d: any) => d[yKey]),
                             type: type,
                             marker: { color: defaultColor },
-                            line: { width: 3 }
+                            line: { color: defaultColor, width: 2 }
                         }];
                     }
                 }
             } else if (data.x && data.y) {
-                 plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { width: 3 } }];
+                 plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { color: defaultColor, width: 2 } }];
             }
         } else if (type === 'pie' || type === 'donut') {
              if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
@@ -99,29 +88,35 @@ const StockWidget: React.FC<{
     change: string; 
     changePercent: string; 
     chartData: any; 
-    stats: any 
-}> = ({ symbol, price, change, changePercent, chartData, stats }) => {
+    stats: any;
+    currency?: string;
+}> = ({ symbol, price, change, changePercent, chartData, stats, currency = '$' }) => {
     const isNegative = change.includes('-') || changePercent.includes('-');
-    const changeColor = isNegative ? 'text-[#f14d42]' : 'text-[#4caf50]';
+    const trendColor = isNegative ? 'text-[#ef4444]' : 'text-[#22c55e]'; // tailwind red-500 : green-500
+    const chartColor = isNegative ? '#ef4444' : '#22c55e';
     const [activeRange, setActiveRange] = useState('1D');
 
+    // Ensure price has currency symbol if missing
+    const displayPrice = price.startsWith(currency) ? price : `${currency}${price}`;
+
     return (
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans">
-            <div className="p-5 flex flex-wrap justify-between items-end gap-4">
+        <div className="bg-[#121212] border border-[#27272a] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans text-[#e4e4e7]">
+            <div className="p-5 flex flex-wrap justify-between items-start gap-4">
                 <div>
-                    <div className="text-sm text-[#999] font-medium">{symbol}</div>
-                    <div className="text-5xl font-semibold text-[#e4e4e4] my-2">{price}</div>
-                    <div className={`text-sm font-medium ${changeColor} flex items-center gap-1`}>
-                        {isNegative ? <TrendingDownIcon className="size-4" /> : <TrendingUpIcon className="size-4" />}
-                        {change} ({changePercent}) <span className="text-[#666] ml-1">Today</span>
+                    <div className="text-sm text-[#a1a1aa] font-medium mb-1">{symbol}</div>
+                    <div className="text-5xl font-bold tracking-tight mb-2 text-white">{displayPrice}</div>
+                    <div className={`text-sm font-medium ${trendColor} flex items-center gap-1.5`}>
+                        <span className="font-bold">{change}</span> 
+                        <span>({changePercent})</span>
+                        <span className="text-[#71717a] ml-1 font-normal">Today</span>
                     </div>
                 </div>
-                <div className="flex bg-[#2a2a2a] rounded-lg overflow-hidden p-1">
-                    {['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y'].map(r => (
+                <div className="flex bg-[#27272a] rounded-lg overflow-hidden p-1 self-center">
+                    {['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y', 'MAX'].map(r => (
                         <button 
                             key={r}
                             onClick={() => setActiveRange(r)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeRange === r ? 'bg-[#e4e4e4] text-black' : 'text-[#aaa] hover:text-white'}`}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeRange === r ? 'bg-[#3f3f46] text-white' : 'text-[#a1a1aa] hover:text-white hover:bg-white/5'}`}
                         >
                             {r}
                         </button>
@@ -129,88 +124,22 @@ const StockWidget: React.FC<{
                 </div>
             </div>
 
-            <div className="h-[340px] bg-[#1a1a1a] mx-5 mb-5 rounded-lg border border-[#2a2a2a] overflow-hidden relative">
-                 {/* Simplified Chart Implementation using existing ChartRenderer but customized */}
+            <div className="h-[340px] w-full px-2 relative">
                  <ChartRenderer 
                     type="line" 
                     data={chartData} 
                     height="340px" 
-                    colors={[isNegative ? '#f14d42' : '#4caf50']}
+                    colors={[chartColor]}
                 />
             </div>
 
-            <div className="bg-[#2a2a2a] border-t border-[#333] p-5 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-8">
+            <div className="bg-[#18181b] border-t border-[#27272a] p-5 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-12">
                 {Object.entries(stats).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center text-sm">
-                        <span className="text-[#999]">{key}</span>
-                        <span className="text-[#e4e4e4] font-medium">{String(value)}</span>
+                        <span className="text-[#a1a1aa] font-normal">{key}</span>
+                        <span className="text-white font-medium">{String(value)}</span>
                     </div>
                 ))}
-            </div>
-        </div>
-    );
-};
-
-const WeatherWidget: React.FC<{
-    location: string;
-    currentTemp: string;
-    condition: string;
-    high: string;
-    low: string;
-    hourly: any[];
-    daily: any[];
-}> = ({ location, currentTemp, condition, high, low, hourly, daily }) => {
-    return (
-        <div className="bg-gradient-to-br from-[#1e3a8a] to-[#172554] text-white rounded-2xl p-6 shadow-xl my-4 max-w-sm border border-blue-900/50 relative overflow-hidden">
-             {/* Background Decoration */}
-            <div className="absolute -top-10 -right-10 size-40 bg-blue-500/20 rounded-full blur-3xl"></div>
-            
-            <div className="flex justify-between items-start relative z-10">
-                <div>
-                    <h2 className="text-2xl font-semibold tracking-tight">{location}</h2>
-                    <p className="text-blue-200 text-sm font-medium">{condition}</p>
-                </div>
-                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
-                    {getWeatherIcon(condition, "size-8 text-yellow-300")}
-                </div>
-            </div>
-
-            <div className="mt-6 mb-8 relative z-10">
-                <div className="text-6xl font-light tracking-tighter">{currentTemp}°</div>
-                <div className="text-blue-200 font-medium mt-1">H:{high}° L:{low}°</div>
-            </div>
-
-            {/* Hourly Forecast */}
-            <div className="mb-6 relative z-10">
-                <p className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-3">Hourly Forecast</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
-                    {hourly.map((h: any, i: number) => (
-                        <div key={i} className="flex flex-col items-center gap-2 min-w-[50px]">
-                            <span className="text-xs text-blue-100">{h.time}</span>
-                            {getWeatherIcon(h.condition, "size-5 text-white")}
-                            <span className="text-sm font-semibold">{h.temp}°</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-             {/* Daily Forecast */}
-            <div className="relative z-10 bg-black/20 rounded-xl p-3">
-                 <p className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2">5-Day Forecast</p>
-                 <div className="space-y-3">
-                    {daily.map((d: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between text-sm">
-                            <span className="w-12 font-medium">{d.day}</span>
-                            <div className="flex-1 flex justify-center">
-                                {getWeatherIcon(d.condition, "size-4 text-blue-100")}
-                            </div>
-                            <div className="flex gap-3 w-20 justify-end">
-                                <span className="text-blue-300">{d.low}°</span>
-                                <span className="font-semibold">{d.high}°</span>
-                            </div>
-                        </div>
-                    ))}
-                 </div>
             </div>
         </div>
     );
@@ -330,20 +259,8 @@ const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
             change={args.change} 
             changePercent={args.changePercent} 
             chartData={args.chartData} 
-            stats={args.stats} 
-        />;
-    }
-
-    // --- Weather Widget Handler ---
-    if (toolName === 'get_weather_forecast') {
-        return <WeatherWidget
-            location={args.location}
-            currentTemp={args.currentTemp}
-            condition={args.condition}
-            high={args.high}
-            low={args.low}
-            hourly={args.hourly || []}
-            daily={args.daily || []}
+            stats={args.stats}
+            currency={args.currency}
         />;
     }
 

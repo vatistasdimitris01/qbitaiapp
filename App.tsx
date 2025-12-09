@@ -68,6 +68,30 @@ const GREETINGS = [
 
 const getRandomGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
+// Helper to remove large data (like base64 images) before saving to local storage
+const sanitizeForStorage = (conversations: Conversation[]): Conversation[] => {
+    return conversations.map(convo => ({
+        ...convo,
+        messages: convo.messages.map(msg => ({
+            ...msg,
+            // If files exist, keep metadata but strip huge dataUrl content to save space
+            files: msg.files?.map(f => ({
+                ...f,
+                dataUrl: f.dataUrl.length > 50000 ? '' : f.dataUrl // Truncate large dataUrls
+            }))
+        }))
+    }));
+};
+
+const safeLocalStorageSetItem = (key: string, value: string) => {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.error(`Failed to save ${key} to localStorage:`, e);
+        // If quota exceeded, we could try to clear old items, but for now just logging prevents the app from crashing.
+    }
+};
+
 
 const App: React.FC = () => {
   const [isPythonReady, setIsPythonReady] = useState(false);
@@ -198,40 +222,50 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const savedConvos = localStorage.getItem('conversations');
-    const savedActiveId = localStorage.getItem('activeConversationId');
-    const savedPersonas = localStorage.getItem('personas');
-    const savedTheme = localStorage.getItem('theme');
-    const savedLang = localStorage.getItem('language');
-    const savedResults = localStorage.getItem('executionResults');
+    try {
+        const savedConvos = localStorage.getItem('conversations');
+        const savedActiveId = localStorage.getItem('activeConversationId');
+        const savedPersonas = localStorage.getItem('personas');
+        const savedTheme = localStorage.getItem('theme');
+        const savedLang = localStorage.getItem('language');
+        const savedResults = localStorage.getItem('executionResults');
 
-    const loadedConvos = savedConvos ? JSON.parse(savedConvos) : [];
-    setConversations(loadedConvos);
-    if (savedPersonas) setPersonas(JSON.parse(savedPersonas)); else setPersonas(initialPersonas);
-    if (savedTheme) setTheme(savedTheme); else setTheme('dark');
-    if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
-    if (savedResults) setExecutionResults(JSON.parse(savedResults));
-    
-    // If there's a valid saved ID, use it. Otherwise, default to the "new chat" state (null).
-    if (savedActiveId && loadedConvos.some((c: Conversation) => c.id === savedActiveId)) {
-        setActiveConversationId(savedActiveId);
-    } else {
-        setActiveConversationId(null);
+        const loadedConvos = savedConvos ? JSON.parse(savedConvos) : [];
+        setConversations(loadedConvos);
+        if (savedPersonas) setPersonas(JSON.parse(savedPersonas)); else setPersonas(initialPersonas);
+        if (savedTheme) setTheme(savedTheme); else setTheme('dark');
+        if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
+        if (savedResults) setExecutionResults(JSON.parse(savedResults));
+        
+        // If there's a valid saved ID, use it. Otherwise, default to the "new chat" state (null).
+        if (savedActiveId && loadedConvos.some((c: Conversation) => c.id === savedActiveId)) {
+            setActiveConversationId(savedActiveId);
+        } else {
+            setActiveConversationId(null);
+        }
+    } catch (error) {
+        console.error("Error loading state from localStorage:", error);
     }
   }, []);
 
-  useDebouncedEffect(() => localStorage.setItem('conversations', JSON.stringify(conversations)), [conversations], 500);
-  useDebouncedEffect(() => localStorage.setItem('executionResults', JSON.stringify(executionResults)), [executionResults], 500);
+  useDebouncedEffect(() => {
+      const sanitized = sanitizeForStorage(conversations);
+      safeLocalStorageSetItem('conversations', JSON.stringify(sanitized));
+  }, [conversations], 1000); // Increased debounce to reduce write frequency
+
+  useDebouncedEffect(() => {
+      safeLocalStorageSetItem('executionResults', JSON.stringify(executionResults));
+  }, [executionResults], 1000);
 
   useEffect(() => {
-    if (activeConversationId) localStorage.setItem('activeConversationId', activeConversationId);
+    if (activeConversationId) safeLocalStorageSetItem('activeConversationId', activeConversationId);
     else localStorage.removeItem('activeConversationId');
   }, [activeConversationId]);
 
-  useEffect(() => localStorage.setItem('personas', JSON.stringify(personas)), [personas]);
+  useEffect(() => safeLocalStorageSetItem('personas', JSON.stringify(personas)), [personas]);
 
   useEffect(() => {
-    localStorage.setItem('theme', theme);
+    safeLocalStorageSetItem('theme', theme);
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const applyTheme = () => {
       const isDark = theme === 'dark' || (theme === 'system' && mediaQuery.matches);
@@ -244,7 +278,7 @@ const App: React.FC = () => {
   }, [theme]);
   
   useEffect(() => {
-    localStorage.setItem('language', language);
+    safeLocalStorageSetItem('language', language);
     setLang(language);
   }, [language, setLang]);
 

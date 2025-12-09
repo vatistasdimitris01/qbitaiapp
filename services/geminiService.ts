@@ -63,8 +63,26 @@ export const streamMessageToAI = async (
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Could not parse error response' }));
-            throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
+            let errorMessage = `API request failed with status ${response.status}`;
+            try {
+                // Try to parse JSON error first
+                const errorData = await response.json();
+                if (errorData?.error?.message) {
+                    errorMessage = errorData.error.message;
+                }
+            } catch (jsonError) {
+                // If JSON parsing fails, try reading as text (e.g., HTML 403/500 error pages)
+                try {
+                    const textError = await response.text();
+                    if (textError) {
+                        // Truncate to avoid huge HTML dumps, just hint at the issue
+                        errorMessage = `API Error: ${textError.substring(0, 100)}...`;
+                    }
+                } catch (textError) {
+                    // Fallback to default message
+                }
+            }
+            throw new Error(errorMessage);
         }
 
         if (!response.body) {

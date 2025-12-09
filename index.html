@@ -1,116 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Qbit - AI Chat Assistant</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Qbit - AI Chat Assistant</title>
 
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
-    <meta name="keywords" content="Qbit, AI chat, Gemini, chatbot, artificial intelligence, AI assistant, conversational AI, modern UI, productivity tool, code execution, vatistas dimitris">
-    <link rel="canonical" href="https://aiqbit.vercel.app/" />
-    <meta name="google-site-verification" content="ELSC7G7JPev6crUdbJYYARfM67Svi-CkcaMgez8YuvM" />
+<!-- SEO Meta Tags -->
+<meta name="description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
+<meta name="keywords" content="Qbit, AI chat, Gemini, chatbot, artificial intelligence, AI assistant, conversational AI, modern UI, productivity tool, code execution, vatistas dimitris">
+<link rel="canonical" href="https://aiqbit.vercel.app/" />
+<meta name="google-site-verification" content="ELSC7G7JPev6crUdbJYYARfM67Svi-CkcaMgez8YuvM" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://aiqbit.vercel.app/">
-    <meta property="og:title" content="Qbit - AI Chat Assistant">
-    <meta property="og:description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://aiqbit.vercel.app/">
-    <meta property="twitter:title" content="Qbit - AI Chat Assistant">
-    <meta property="twitter:description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
-    <meta property="twitter:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://aiqbit.vercel.app/">
+<meta property="og:title" content="Qbit - AI Chat Assistant">
+<meta property="og:description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
+<meta property="og:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="https://aiqbit.vercel.app/">
+<meta property="twitter:title" content="Qbit - AI Chat Assistant">
+<meta property="twitter:description" content="Qbit is a powerful, modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, code execution, file analysis, and a beautiful, intuitive interface.">
+<meta property="twitter:image" content="https://raw.githubusercontent.com/sdimjoghj-hue/image/main/share.png">
 
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#121212">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Qbit AI">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="shortcut icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
-    <link rel="icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" sizes="any" type="image/png">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
+<!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#121212">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Qbit AI">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="shortcut icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
+<link rel="icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png" sizes="any" type="image/png">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png">
 
-    <!-- Structured Data for SEO -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Qbit - AI Chat Assistant",
-      "applicationCategory": "ProductivityApplication",
-      "operatingSystem": "Web",
-      "description": "Experience Qbit, a powerful and modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, file attachments, customizable personas, and a beautiful interface. Boost your productivity today.",
-      "author": {
-        "@type": "Person",
-        "name": "Vatistas Dimitris"
-      },
-      "offers": {
-        "@type": "Offer",
-        "price": "0"
-      }
-    }
-    </script>
+<!-- Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Qbit - AI Chat Assistant",
+  "applicationCategory": "ProductivityApplication",
+  "operatingSystem": "Web",
+  "description": "Experience Qbit, a powerful and modern AI chat assistant. Powered by Gemini, Qbit offers intelligent conversations, file attachments, customizable personas, and a beautiful interface. Boost your productivity today.",
+  "author": {
+    "@type": "Person",
+    "name": "Vatistas Dimitris"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0"
+  }
+}
+</script>
 
-    <script type="importmap">
-    {
-      "imports": {
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
-        "react/": "https://aistudiocdn.com/react@^19.2.1/",
-        "react": "https://aistudiocdn.com/react@^19.2.1",
-        "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2",
-        "vite": "https://aistudiocdn.com/vite@^7.2.7",
-        "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
-        "marked": "https://aistudiocdn.com/marked@^17.0.1",
-        "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.15",
-        "formidable": "https://aistudiocdn.com/formidable@^3.5.4"
-      }
-    }
-    </script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-            },
-            screens: {
-              'xl': '1280px',
-            },
-            colors: {
-               background: "var(--background)",
-               foreground: "var(--foreground)",
-               card: "var(--card)",
-               "card-hover": "#292929",
-               border: "var(--border)",
-            }
-          }
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        },
+        screens: {
+          'xl': '1280px',
+        },
+        colors: {
+           background: "var(--background)",
+           foreground: "var(--foreground)",
+           card: "var(--card)",
+           "card-hover": "#292929",
+           border: "var(--border)",
         }
       }
-    </script>
+    }
+  }
+</script>
 
-    <!-- KaTeX for math rendering -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+<!-- KaTeX for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
 
-    <!-- highlight.js for code highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- highlight.js for code highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-    <!-- Plotly.js for Generative UI Charts -->
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<!-- Mermaid for diagrams -->
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+window.mermaid = mermaid;
+</script>
+
+<!-- Pyodide for in-browser Python -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+<!-- Plotly for interactive charts -->
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+<!-- Babel for in-browser JSX/React transpilation -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Hide scrollbars for all elements */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+
+:root {
+  --background: #ffffff;
+  --foreground: #18181b; /* zinc-900 */
+  --muted-foreground: #71717a; /* zinc-500 */
+  --sidebar-bg: #fafafa; /* zinc-50 */
+  --sidebar-foreground: #52525b;
+  --sidebar-muted-foreground: #a1a1aa;
+  --sidebar-active-bg: #f4f4f5; /* zinc-100 */
+  --sidebar-active-foreground: #18181b;
+  --sidebar-border: transparent;
+  --card: #ffffff;
+  --border: #f4f4f5; 
+  --user-message-bg: #f4f4f5;
+  --token-surface: #ffffff;
+  --token-surface-secondary: #f8f9fa;
+  --token-text-primary: #18181b;
+  --token-text-secondary: #71717a;
+  --token-border: #e4e4e7;
+  /* Accents */
+  --accent-blue: #1d9bf0;
+  /* Code Block Theme */
+  --code-bg: #f9fafb;
+  --code-text-default: #374151;
+  --code-text-comment: #6B7280;
+  --code-text-keyword: #7C3AED;
+  --code-text-string: #2563EB;
+  --code-text-number: #DB2777;
+  --code-text-function: #C026D3;
+  --code-text-tag: #4338CA;
+  --input-bg: #ffffff;
+}
+
+.dark {
+  --background: #121212; /* Base Background - almost black */
+  --foreground: #e4e4e7; /* Primary Text - zinc-200 */
+  --muted-foreground: #a1a1aa; /* Secondary Text - zinc-400 */
+  
+  --sidebar-bg: #121212; 
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-muted-foreground: #71717a;
+  --sidebar-active-bg: #212121; /* Surface 1 */
+  --sidebar-active-foreground: #ffffff;
+  --sidebar-border: #333333;
+  
+  --card: #212121; /* Surface 1 */
+  --border: #333333;
+  
+  --user-message-bg: #212121; /* Surface 1 */
+  
+  --token-surface: #212121;
+  --token-surface-secondary: #292929; /* Surface 2 */
+  --token-text-primary: #e4e4e7;
+  --token-text-secondary: #a1a1aa;
+  --token-border: #333333;
+  
+  /* Accents */
+  --accent-blue: #1d9bf0; /* X Blue */
+  
+  /* Code Block Theme */
+  --code-bg: #18181b;
+  --code-text-default: #e2e8f0;
+  --code-text-comment: #94a3b8;
+  --code-text-keyword: #c4b5fd;
+  --code-text-string: #a5b4fc;
+  --code-text-number: #f9a8d4;
+  --code-text-function: #f0abfc;
+  --code-text-tag: #93c5fd;
+  
+  --input-bg: #212121;
+}
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+.bg-sidebar { background-color: var(--sidebar-bg); }
+.text-sidebar-fg { color: var(--sidebar-foreground); }
+.text-sidebar-muted-fg { color: var(--sidebar-muted-foreground); }
+.bg-sidebar-active { background-color: var(--sidebar-active-bg); }
+.text-sidebar-active-fg { color: var(--sidebar-active-foreground); }
+.border-sidebar { border-color: var(--sidebar-border); }
+.bg-card { background-color: var(--card); }
+.border-default { border-color: var(--border); }
+.text-muted { color: var(--muted-foreground); }
+.placeholder-muted::placeholder { color: var(--muted-foreground); }
+.bg-user-message { background-color: var(--user-message-bg); }
+.bg-token-surface { background-color: var(--token-surface); }
+.bg-token-surface-secondary { background-color: var(--token-surface-secondary); }
+.text-token-primary { color: var(--token-text-primary); }
+.text-token-secondary { color: var(--token-text-secondary); }
+.border-token { border-color: var(--token-border); }
+
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-links: var(--accent-blue);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-bullets: #a1a1aa;
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--code-text-default);
+  --tw-prose-pre-bg: var(--code-bg);
+  --tw-prose-th-borders: #d4d4d8;
+  --tw-prose-td-borders: #e4e4e7;
+  overflow-wrap: break-word; word-break: break-word;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.dark .prose {
+  --tw-prose-bullets: #52525b;
+  --tw-prose-th-borders: #3f3f46;
+  --tw-prose-td-borders: #27272a;
+}
+.prose h1, .prose h2, .prose h3 { margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; line-height: 1.25; }
+.prose h1 { font-size: 1.35rem; letter-spacing: -0.02em; }
+.prose h2 { font-size: 1.15rem; letter-spacing: -0.015em; }
+.prose h3 { font-size: 1.05rem; }
+.prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
+.prose ul, .prose ol { margin-top: 0.5em; margin-bottom: 0.5em; padding-left: 1.25em; }
+.prose a { color: var(--tw-prose-links); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
+.prose a:hover { border-bottom-color: var(--tw-prose-links); text-decoration: none; }
+.prose pre {
+  color: var(--tw-prose-pre-code);
+  background-color: var(--tw-prose-pre-bg);
+  overflow-x: auto; font-size: 0.85em; line-height: 1.6;
+  margin-top: 1em; margin-bottom: 1em; border-radius: 0.5rem; padding: 1em;
+  border: 1px solid var(--border);
+}
+.prose code:not(pre > code) {
+  font-size: 0.85rem; padding: 0.1rem 0.3rem; margin: 0 0.1rem; border-radius: 0.25rem;
+  background-color: var(--token-surface-secondary); color: var(--foreground); border: 1px solid var(--border);
+  font-weight: 500;
+}
+.prose code:not(pre > code)::before, .prose code:not(pre > code)::after { content: none; }
+.prose blockquote { border-left: 2px solid var(--border); padding-left: 1em; margin: 1em 0; font-style: italic; color: var(--muted-foreground); }
+
+.typing-indicator.cursor {
+  width: 2px; height: 1.1em; border-radius: 1px;
+  animation: blink 1s infinite; margin-left: 1px;
+  background-color: var(--foreground); display: inline-block;
+}
+.ai-text-loading {
+    background: linear-gradient(to right, var(--foreground) 20%, var(--muted-foreground) 40%, var(--muted-foreground) 60%, var(--foreground) 80%);
+    background-size: 200% auto;
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: shine 1.5s linear infinite; display: inline-block;
+}
+.output-block {
+    background-color: var(--background); color: var(--foreground);
+    border-radius: 0.5rem; padding: 0.75rem 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85rem; border: 1px solid var(--border);
+    transition: all 0.2s ease-in-out;
+}
+.output-block.success { border-color: var(--border); }
+.output-block.error { border-color: #ef4444; background-color: rgba(239, 68, 68, 0.05); }
+.dark .output-block.error { border-color: #f87171; background-color: rgba(248, 113, 113, 0.05); }
+.output-block pre { white-space: pre-wrap; word-break: break-word; margin: 0; padding: 0; background-color: transparent; color: inherit; font-size: inherit; font-family: inherit; line-height: inherit; }
+.error-text { color: #ef4444; }
+.dark .error-text { color: #f87171; }
+
+.code-block-area { background-color: var(--code-bg); border-radius: 0.5rem; }
+.code-block-area .hljs { background: transparent !important; color: var(--code-text-default); }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes shine { from { background-position: -200% center; } to { background-position: 200% center; } }
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.animate-skeleton-pulse { animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@0.14.0",
+    "marked": "https://esm.sh/marked@12.0.2",
+    "formidable": "https://esm.sh/formidable@3.5.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.2",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.7",
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security"
+  }
+}
+</script>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+<div id="root"></div>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>

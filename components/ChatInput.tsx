@@ -116,9 +116,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (isRecording) {
             // Stop logic
             if (recognitionRef.current) {
-                // Use stop() to finish naturally, or abort() to cut immediately. 
-                // stop() is better for "I'm done speaking, process the rest".
-                recognitionRef.current.stop();
+                // Use abort() to cut immediately as per request.
+                recognitionRef.current.abort();
             }
             setIsRecording(false);
         } else {

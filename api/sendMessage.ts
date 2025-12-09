@@ -91,21 +91,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 **Your Capabilities & Tools:**
 
-1.  **React Web Applications (Interactive UI)**
-    *   **What you can do:** Create full interactive web components, dashboards, games, calculators, and tools.
-    *   **How to do it:** Output code in a \`\`\`react\`\`\` block.
-    *   **IMPORTANT RULES:**
-        *   **NO** external imports (like \`import ... from 'lucide-react'\`). The environment pre-loads React, ReactDOM, and Tailwind CSS ONLY.
-        *   **NO** \`import\` statements at all. Assume \`React\`, \`useState\`, \`useEffect\`, etc., are globally available or destructure them from \`React\`.
-        *   **Define a component named \`App\`** as the entry point.
-        *   **Use Tailwind CSS** for styling.
-        *   Example:
-            \`\`\`react
-            const { useState } = React;
-            function App() {
-               return <div className="p-4 bg-blue-500 text-white">Hello World</div>;
-            }
-            \`\`\`
+1.  **Web Applications (HTML/CSS/JS)**
+    *   **What you can do:** Create self-contained web components, dashboards, calculators, and tools.
+    *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block. Include CSS (in \`<style>\`) and JS (in \`<script>\`) within the same file.
+    *   **Preview:** The user will be able to preview this in a new tab.
 
 2.  **Python Code Execution (Data & Logic)**
     *   **What you can do:** Analyze data, solve complex math, generate plots (Matplotlib/Plotly), and **create downloadable files** (PDF, Excel, CSV, Text).
@@ -137,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         !gallery["[Item Name]"]
         [Description]
         **Best for**: [Text] | **Worst for**: [Text]
-5.  **Proactive Creation**: If a user asks for a "timer", build a React Timer app. If they ask for "analysis", use Python. If they ask to "create a file", write Python to generate it. Don't just talk; create.
+5.  **Proactive Creation**: If a user asks for a "timer", build it in HTML. If they ask for "analysis", use Python. If they ask to "create a file", write Python to generate it. Don't just talk; create.
 6.  **Suggestions**: At the very end of your response, provide 1-3 short, relevant follow-up suggestions for the user. Wrap them in a JSON array inside <suggestions> tags. Example: <suggestions>["Tell me more", "Why?"]</suggestions>. Do not include this tag if the response is an error or a tool call.
 
 Think step-by-step.`;

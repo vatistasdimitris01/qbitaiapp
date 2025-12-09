@@ -180,34 +180,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             }
         });
     }, [code, onExecutionComplete, t]);
-    
-    const runJavaScript = useCallback(() => {
-        setStatus('executing');
-        setHasRunOnce(true);
-        let consoleOutput = '';
-        const oldConsoleLog = console.log;
-        console.log = (...args) => {
-            consoleOutput += args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ') + '\n';
-        };
-        try {
-            const result = (0, eval)(code);
-            let finalOutput = consoleOutput;
-            if (result !== undefined) {
-                finalOutput += `\n// returns\n${JSON.stringify(result, null, 2)}`;
-            }
-            const trimmedOutput = finalOutput.trim();
-            setOutput(trimmedOutput);
-            setStatus('success');
-            onExecutionComplete({ output: trimmedOutput, error: '', type: 'string' });
-        } catch (err: any) {
-            const errorMsg = err.toString();
-            setError(errorMsg);
-            setStatus('error');
-            onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
-        } finally {
-            console.log = oldConsoleLog;
-        }
-    }, [code, onExecutionComplete]);
 
     const runHtml = useCallback(() => {
         setStatus('executing');
@@ -233,83 +205,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
             onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
     }, [code, onExecutionComplete, t]);
-    
-    const runReact = useCallback(() => {
-        setStatus('executing');
-        setHasRunOnce(true);
-
-        // Pre-process code to remove imports which cause syntax errors in non-module scripts
-        // and remove export default
-        const processedCode = code
-            .replace(/import\s+.*?from\s+['"].*?['"];?/g, '')
-            .replace(/export\s+default\s+/g, '');
-
-        const iframeHtml = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body { background-color: white; margin: 0; padding: 1rem; font-family: sans-serif; }
-      ::-webkit-scrollbar { display: none; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="text/babel">
-      window.onerror = function(message, source, lineno, colno, error) {
-        const rootElement = document.getElementById('root');
-        if(rootElement) {
-            rootElement.innerHTML = '<div style="color:red; padding:1rem;">Error: ' + message + '</div>';
-        }
-        return true;
-      };
-
-      // User Code
-      ${processedCode}
-      
-      // Mounting Logic
-      try {
-          const rootElement = document.getElementById('root');
-          const root = ReactDOM.createRoot(rootElement);
-          
-          if (typeof App !== 'undefined') {
-            root.render(<App />);
-          } else if (typeof Component !== 'undefined') {
-            root.render(<Component />);
-          } else {
-             // Try to find a function that looks like a component if App isn't defined
-             // This is a basic heuristic
-             root.render(<div style={{color:'#666', fontStyle:'italic'}}>
-                Rendered. If you don't see content, ensure you define a component named <b>App</b>.
-             </div>);
-          }
-      } catch (err) {
-        document.getElementById('root').innerHTML = '<div style="color:red; padding:1rem;">Mount Error: ' + err.message + '</div>';
-      }
-    </script>
-  </body>
-</html>`;
-
-        setOutput(
-            <iframe 
-                srcDoc={iframeHtml} 
-                className="w-full h-[500px] border-none bg-white rounded-lg shadow-sm"
-                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
-                title="React Preview"
-            />
-        );
-        
-        // Auto collapse code for better UX when preview is active
-        setIsCollapsed(true);
-        setStatus('success');
-        onExecutionComplete({ output: 'React component rendered in sandbox.', error: '', type: 'string' });
-    }, [code, onExecutionComplete]);
 
     const handleRunCode = useCallback(async () => {
         setOutput('');
@@ -322,16 +217,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
         
         switch (lang.toLowerCase()) {
             case 'python': await runPython(); break;
-            case 'javascript': case 'js': runJavaScript(); break;
             case 'html': runHtml(); break;
-            case 'react': case 'jsx': runReact(); break;
             default:
                 const errorMsg = t('code.langNotSupported', { lang });
                 setError(errorMsg);
                 setStatus('error');
                 onExecutionComplete({ output: null, error: errorMsg, type: 'error' });
         }
-    }, [lang, runPython, runJavaScript, runHtml, runReact, onExecutionComplete, t]);
+    }, [lang, runPython, runHtml, onExecutionComplete, t]);
 
     const handleClear = useCallback(() => {
         setOutput('');
@@ -362,9 +255,6 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                         setOutput(<img src={`data:image/png;base64,${savedOutput}`} alt="Generated plot" className="max-w-full h-auto bg-white rounded-lg" />);
                     } else if (type === 'plotly-json') {
                         setOutput(savedOutput);
-                    } else if (lang === 'react' || lang === 'jsx') {
-                         // Re-run react to restore iframe preview
-                         runReact();
                     } else {
                         setOutput(savedOutput);
                     }
@@ -379,14 +269,14 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                 setHasRunOnce(true);
             }
         }
-    }, [persistedResult, lang, runReact]);
+    }, [persistedResult, lang]);
 
     useEffect(() => {
         // Auto-expand on first run, but NOT if it resulted in a downloadable file (which auto-collapses)
-        if (autorun && hasRunOnce && lang !== 'react' && lang !== 'jsx' && !downloadableFile) {
+        if (autorun && hasRunOnce && !downloadableFile) {
             setIsCollapsed(false);
         }
-    }, [autorun, hasRunOnce, lang, downloadableFile]);
+    }, [autorun, hasRunOnce, downloadableFile]);
 
     useEffect(() => {
         if (autorun && isPythonReady && prevIsLoading && !isLoading && !persistedResult) {

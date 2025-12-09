@@ -287,7 +287,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                                 <CodeExecutor
                                     code={part.code}
                                     lang={part.lang}
-                                    isExecutable={['python', 'javascript', 'js', 'html', 'react', 'jsx'].includes(part.lang.toLowerCase())}
+                                    isExecutable={['python', 'html'].includes(part.lang.toLowerCase())}
                                     autorun={shouldAutorun}
                                     onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)}
                                     onFixRequest={(err) => onFixRequest(part.code, part.lang, err)}

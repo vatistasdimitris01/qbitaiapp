@@ -1,13 +1,32 @@
 
+
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckIcon, BarChartIcon } from './icons';
+import { 
+    CheckIcon, 
+    BarChartIcon, 
+    SunIcon, 
+    CloudIcon, 
+    CloudRainIcon, 
+    WindIcon, 
+    TrendingUpIcon, 
+    TrendingDownIcon 
+} from './icons';
 
 interface GenerativeUIProps {
     toolName: string;
     args: any;
 }
 
-const ChartRenderer: React.FC<{ type: string; data: any; title?: string }> = ({ type, data, title }) => {
+// --- Helper for Weather Icons ---
+const getWeatherIcon = (condition: string, className: string = "size-6") => {
+    const c = condition.toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return <CloudRainIcon className={className} />;
+    if (c.includes('cloud') || c.includes('overcast')) return <CloudIcon className={className} />;
+    if (c.includes('wind') || c.includes('breez')) return <WindIcon className={className} />;
+    return <SunIcon className={className} />;
+};
+
+const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?: string; colors?: string[] }> = ({ type, data, title, height, colors }) => {
     const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -15,58 +34,188 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string }> = ({ 
 
         let plotData: any[] = [];
         let layout: any = { 
-            title: title || 'Chart',
+            title: title ? { text: title, font: { color: '#e4e4e4' } } : undefined,
             autosize: true,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
-            font: { color: 'var(--foreground)' },
-            margin: { t: 40, r: 20, l: 40, b: 40 },
+            font: { color: '#888' },
+            margin: { t: title ? 30 : 10, r: 10, l: 30, b: 30 },
+            xaxis: { gridcolor: '#333', zerolinecolor: '#333' },
+            yaxis: { gridcolor: '#333', zerolinecolor: '#333' },
+            showlegend: false,
         };
 
-        // Normalize data structure based on typical simple AI output
+        const defaultColor = colors ? colors[0] : '#1d9bf0';
+
         if (type === 'line' || type === 'bar') {
-            // Expecting data to be array of objects or simple x/y arrays
             if (Array.isArray(data)) {
-                // If it's already a Plotly trace array
-                if (data[0]?.x && data[0]?.y) {
-                    plotData = data.map((trace: any) => ({ ...trace, type: type }));
+                 if (data[0]?.x && data[0]?.y) {
+                    plotData = data.map((trace: any, i: number) => ({ 
+                        ...trace, 
+                        type: type,
+                        marker: { color: colors ? colors[i % colors.length] : defaultColor }
+                    }));
                 } else {
-                    // Try to infer from simple array of objects
                     const keys = Object.keys(data[0] || {});
                     if (keys.length >= 2) {
-                        const xKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('name') || k.toLowerCase().includes('label')) || keys[0];
+                        const xKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('time') || k.toLowerCase().includes('label')) || keys[0];
                         const yKey = keys.find(k => k !== xKey) || keys[1];
                         
                         plotData = [{
                             x: data.map((d: any) => d[xKey]),
                             y: data.map((d: any) => d[yKey]),
                             type: type,
-                            marker: { color: '#1d9bf0' }
+                            marker: { color: defaultColor },
+                            line: { width: 3 }
                         }];
                     }
                 }
             } else if (data.x && data.y) {
-                 plotData = [{ ...data, type: type, marker: { color: '#1d9bf0' } }];
+                 plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { width: 3 } }];
             }
         } else if (type === 'pie' || type === 'donut') {
              if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
-                 plotData = data.map((trace: any) => ({ ...trace, type: 'pie', hole: type === 'donut' ? 0.4 : 0 }));
+                 plotData = data.map((trace: any) => ({ ...trace, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }));
              } else if (data.labels && data.values) {
-                 plotData = [{ ...data, type: 'pie', hole: type === 'donut' ? 0.4 : 0 }];
+                 plotData = [{ ...data, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }];
              }
         }
 
         const config = { responsive: true, displayModeBar: false };
         window.Plotly.newPlot(chartRef.current, plotData, layout, config);
 
-    }, [type, data, title]);
+    }, [type, data, title, colors]);
 
     return (
-        <div className="w-full h-64 md:h-80 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] rounded-xl overflow-hidden shadow-sm my-4">
+        <div style={{ height: height || '320px' }} className="w-full">
             <div ref={chartRef} className="w-full h-full" />
         </div>
     );
 };
+
+const StockWidget: React.FC<{ 
+    symbol: string; 
+    price: string; 
+    change: string; 
+    changePercent: string; 
+    chartData: any; 
+    stats: any 
+}> = ({ symbol, price, change, changePercent, chartData, stats }) => {
+    const isNegative = change.includes('-') || changePercent.includes('-');
+    const changeColor = isNegative ? 'text-[#f14d42]' : 'text-[#4caf50]';
+    const [activeRange, setActiveRange] = useState('1D');
+
+    return (
+        <div className="bg-[#1e1e1e] border border-[#333] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans">
+            <div className="p-5 flex flex-wrap justify-between items-end gap-4">
+                <div>
+                    <div className="text-sm text-[#999] font-medium">{symbol}</div>
+                    <div className="text-5xl font-semibold text-[#e4e4e4] my-2">{price}</div>
+                    <div className={`text-sm font-medium ${changeColor} flex items-center gap-1`}>
+                        {isNegative ? <TrendingDownIcon className="size-4" /> : <TrendingUpIcon className="size-4" />}
+                        {change} ({changePercent}) <span className="text-[#666] ml-1">Today</span>
+                    </div>
+                </div>
+                <div className="flex bg-[#2a2a2a] rounded-lg overflow-hidden p-1">
+                    {['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y'].map(r => (
+                        <button 
+                            key={r}
+                            onClick={() => setActiveRange(r)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeRange === r ? 'bg-[#e4e4e4] text-black' : 'text-[#aaa] hover:text-white'}`}
+                        >
+                            {r}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="h-[340px] bg-[#1a1a1a] mx-5 mb-5 rounded-lg border border-[#2a2a2a] overflow-hidden relative">
+                 {/* Simplified Chart Implementation using existing ChartRenderer but customized */}
+                 <ChartRenderer 
+                    type="line" 
+                    data={chartData} 
+                    height="340px" 
+                    colors={[isNegative ? '#f14d42' : '#4caf50']}
+                />
+            </div>
+
+            <div className="bg-[#2a2a2a] border-t border-[#333] p-5 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-8">
+                {Object.entries(stats).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center text-sm">
+                        <span className="text-[#999]">{key}</span>
+                        <span className="text-[#e4e4e4] font-medium">{String(value)}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const WeatherWidget: React.FC<{
+    location: string;
+    currentTemp: string;
+    condition: string;
+    high: string;
+    low: string;
+    hourly: any[];
+    daily: any[];
+}> = ({ location, currentTemp, condition, high, low, hourly, daily }) => {
+    return (
+        <div className="bg-gradient-to-br from-[#1e3a8a] to-[#172554] text-white rounded-2xl p-6 shadow-xl my-4 max-w-sm border border-blue-900/50 relative overflow-hidden">
+             {/* Background Decoration */}
+            <div className="absolute -top-10 -right-10 size-40 bg-blue-500/20 rounded-full blur-3xl"></div>
+            
+            <div className="flex justify-between items-start relative z-10">
+                <div>
+                    <h2 className="text-2xl font-semibold tracking-tight">{location}</h2>
+                    <p className="text-blue-200 text-sm font-medium">{condition}</p>
+                </div>
+                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
+                    {getWeatherIcon(condition, "size-8 text-yellow-300")}
+                </div>
+            </div>
+
+            <div className="mt-6 mb-8 relative z-10">
+                <div className="text-6xl font-light tracking-tighter">{currentTemp}°</div>
+                <div className="text-blue-200 font-medium mt-1">H:{high}° L:{low}°</div>
+            </div>
+
+            {/* Hourly Forecast */}
+            <div className="mb-6 relative z-10">
+                <p className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-3">Hourly Forecast</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+                    {hourly.map((h: any, i: number) => (
+                        <div key={i} className="flex flex-col items-center gap-2 min-w-[50px]">
+                            <span className="text-xs text-blue-100">{h.time}</span>
+                            {getWeatherIcon(h.condition, "size-5 text-white")}
+                            <span className="text-sm font-semibold">{h.temp}°</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+             {/* Daily Forecast */}
+            <div className="relative z-10 bg-black/20 rounded-xl p-3">
+                 <p className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2">5-Day Forecast</p>
+                 <div className="space-y-3">
+                    {daily.map((d: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="w-12 font-medium">{d.day}</span>
+                            <div className="flex-1 flex justify-center">
+                                {getWeatherIcon(d.condition, "size-4 text-blue-100")}
+                            </div>
+                            <div className="flex gap-3 w-20 justify-end">
+                                <span className="text-blue-300">{d.low}°</span>
+                                <span className="font-semibold">{d.high}°</span>
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+            </div>
+        </div>
+    );
+};
+
 
 const KPICard: React.FC<{ title: string; value: string; change?: string; trend?: 'up' | 'down' | 'neutral' }> = ({ title, value, change, trend }) => {
     const trendColor = trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500';
@@ -172,7 +321,31 @@ const Flashcards: React.FC<{ cards: { front: string; back: string }[] }> = ({ ca
 };
 
 const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
-    // console.log("Rendering Generative UI:", toolName, args);
+    
+    // --- Stock Widget Handler ---
+    if (toolName === 'get_stock_quote') {
+        return <StockWidget 
+            symbol={args.symbol} 
+            price={args.price} 
+            change={args.change} 
+            changePercent={args.changePercent} 
+            chartData={args.chartData} 
+            stats={args.stats} 
+        />;
+    }
+
+    // --- Weather Widget Handler ---
+    if (toolName === 'get_weather_forecast') {
+        return <WeatherWidget
+            location={args.location}
+            currentTemp={args.currentTemp}
+            condition={args.condition}
+            high={args.high}
+            low={args.low}
+            hourly={args.hourly || []}
+            daily={args.daily || []}
+        />;
+    }
 
     if (toolName === 'render_chart' || toolName === 'render_line_chart' || toolName === 'render_bar_chart' || toolName === 'render_pie_chart') {
         const chartType = args.type || (toolName.includes('line') ? 'line' : toolName.includes('bar') ? 'bar' : toolName.includes('pie') ? 'pie' : 'bar');

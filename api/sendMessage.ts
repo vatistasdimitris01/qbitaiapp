@@ -1,4 +1,5 @@
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -95,10 +96,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 **Your Capabilities & Tools:**
 
 1.  **Generative UI (Interactive Components)**
-    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, and more to answer user questions visually.
-    *   **How to do it:** Use the provided tools like \`render_chart\`, \`render_kpi_card\`, \`render_table\`, etc.
-    *   **When to use:** Whenever a user asks for data visualization, lists, comparisons, or tracking.
-    *   **Example:** User: "Show me sales" -> Call \`render_chart\`. User: "Add task" -> Call \`create_todo_item\`.
+    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, STOCK WIDGETS, and WEATHER WIDGETS.
+    *   **How to do it:** Use the provided tools.
+    *   **When to use:** 
+        *   User asks about stock prices -> Call \`get_stock_quote\`.
+        *   User asks about weather -> Call \`get_weather_forecast\`.
+        *   User asks for data visualization -> Call \`render_chart\`.
 
 2.  **Web Applications (HTML/CSS/JS)**
     *   **What you can do:** Create self-contained web components, dashboards, calculators.
@@ -146,6 +149,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 },
                 required: ['type', 'data']
+            }
+        };
+
+        const getStockQuoteTool: FunctionDeclaration = {
+            name: 'get_stock_quote',
+            description: 'Get a detailed stock quote and render a widget with chart and stats.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    symbol: { type: Type.STRING, description: 'Stock symbol e.g. AAPL' },
+                    price: { type: Type.STRING },
+                    change: { type: Type.STRING, description: 'Price change e.g. -1.20' },
+                    changePercent: { type: Type.STRING, description: 'Percentage change e.g. -0.5%' },
+                    chartData: { 
+                        type: Type.OBJECT, 
+                        description: 'Simple line chart data object',
+                        properties: {
+                            x: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            y: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                        }
+                    },
+                    stats: { type: Type.OBJECT, description: 'Key value pairs of stats like Open, High, Low, Market Cap' }
+                },
+                required: ['symbol', 'price', 'chartData']
+            }
+        };
+
+        const getWeatherForecastTool: FunctionDeclaration = {
+            name: 'get_weather_forecast',
+            description: 'Get current weather and forecast for a location.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    location: { type: Type.STRING },
+                    currentTemp: { type: Type.STRING },
+                    condition: { type: Type.STRING },
+                    high: { type: Type.STRING },
+                    low: { type: Type.STRING },
+                    hourly: { 
+                        type: Type.ARRAY, 
+                        items: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, temp: {type: Type.STRING}, condition: {type: Type.STRING} } } 
+                    },
+                    daily: { 
+                        type: Type.ARRAY, 
+                        items: { type: Type.OBJECT, properties: { day: {type: Type.STRING}, high: {type: Type.STRING}, low: {type: Type.STRING}, condition: {type: Type.STRING} } } 
+                    }
+                },
+                required: ['location', 'currentTemp', 'hourly', 'daily']
             }
         };
 
@@ -231,7 +282,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             tools: [{ 
                 functionDeclarations: [
                     googleSearchTool, 
-                    renderChartTool, 
+                    renderChartTool,
+                    getStockQuoteTool,
+                    getWeatherForecastTool,
                     renderKpiTool, 
                     renderTableTool, 
                     createTodoTool,

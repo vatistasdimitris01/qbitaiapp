@@ -11,10 +11,13 @@ interface CodeAnalysisModalProps {
 
 const normalizeLanguage = (lang: string) => {
     if (!lang) return 'plaintext';
-    const lower = lang.toLowerCase();
-    if (lower === 'react' || lower === 'jsx' || lower === 'js') return 'javascript';
-    if (lower === 'ts' || lower === 'tsx') return 'typescript';
-    if (lower === 'vue') return 'xml';
+    const lower = lang.toLowerCase().trim();
+    if (['react', 'jsx', 'js', 'node', 'nodejs'].includes(lower)) return 'javascript';
+    if (['ts', 'tsx', 'typescript'].includes(lower)) return 'typescript';
+    if (['py', 'python3'].includes(lower)) return 'python';
+    if (['sh', 'bash', 'zsh', 'shell'].includes(lower)) return 'bash';
+    if (['vue', 'html', 'xml', 'svg'].includes(lower)) return 'xml';
+    if (['c++', 'cpp', 'cplusplus'].includes(lower)) return 'cpp';
     return lower;
 };
 

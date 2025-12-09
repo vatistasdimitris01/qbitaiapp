@@ -73,11 +73,14 @@ function usePrevious<T>(value: T): T | undefined {
 
 const normalizeLanguage = (lang: string) => {
     if (!lang) return 'plaintext';
-    const lower = lang.toLowerCase();
+    const lower = lang.toLowerCase().trim();
     // Map common aliases to languages highlight.js likely supports in the standard pack
-    if (lower === 'react' || lower === 'jsx' || lower === 'js') return 'javascript';
-    if (lower === 'ts' || lower === 'tsx') return 'typescript';
-    if (lower === 'vue') return 'xml'; 
+    if (['react', 'jsx', 'js', 'node', 'nodejs'].includes(lower)) return 'javascript';
+    if (['ts', 'tsx', 'typescript'].includes(lower)) return 'typescript';
+    if (['py', 'python3'].includes(lower)) return 'python';
+    if (['sh', 'bash', 'zsh', 'shell'].includes(lower)) return 'bash';
+    if (['vue', 'html', 'xml', 'svg'].includes(lower)) return 'xml';
+    if (['c++', 'cpp', 'cplusplus'].includes(lower)) return 'cpp';
     return lower;
 };
 
@@ -434,7 +437,7 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
     };
     
     const handleStopCode = () => {
-        if (lang === 'python') {
+        if (lang.toLowerCase() === 'python') {
             stopPythonExecution();
             onStopExecution(); 
             setStatus('idle');
@@ -515,6 +518,9 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
 
     // Logic to hide the code block entirely if a file was successfully generated
     const showCodeBlock = !downloadableFile || status === 'error';
+    
+    // Lines hidden count
+    const lineCount = code.trim().split('\n').length;
 
     return (
         <div className="not-prose my-4 font-sans max-w-full">
@@ -523,6 +529,11 @@ export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, title, i
                     <div className="flex items-center justify-between px-3 py-1.5 bg-background/30">
                         <div className="flex items-center gap-2">
                             <span className="font-mono text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{title || lang}</span>
+                            {isCollapsed && lineCount > 1 && (
+                                <span className="text-[10px] text-muted-foreground ml-2 lowercase">
+                                    {lineCount} lines hidden
+                                </span>
+                            )}
                             {isPython && !isPythonReady && status !== 'executing' && (
                                 <span className="text-[10px] text-yellow-600 dark:text-yellow-500 opacity-80">{t('code.loading')}</span>
                             )}

@@ -116,8 +116,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (isRecording) {
             // Stop logic
             if (recognitionRef.current) {
-                // abort() stops immediately and prevents further results, avoiding 'stuck' sensation or trailing text
-                recognitionRef.current.abort(); 
+                // Use stop() to finish naturally, or abort() to cut immediately. 
+                // stop() is better for "I'm done speaking, process the rest".
+                recognitionRef.current.stop();
             }
             setIsRecording(false);
         } else {
@@ -149,7 +150,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 for (let i = 0; i < event.results.length; ++i) {
                    transcript += event.results[i][0].transcript;
                 }
-                // Update parent text
+                // Update parent text. Note: This overrides concurrent manual edits.
                 onTextChange(initialText + transcript);
             };
 
@@ -230,7 +231,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onChange={handleInputChange} 
                         onKeyDown={handleKeyDown} 
                         onPaste={handlePaste}
-                        // Removed readOnly to allow editing during/after recording
                     />
                     
                     {/* Right Side: Absolute Buttons */}

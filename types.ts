@@ -59,6 +59,12 @@ export interface FileAttachment {
 
 export type Tool = 'web-search' | 'code-execution' | 'agent-mode' | null;
 
+export interface ToolCall {
+  id: string;
+  name: string;
+  args: any;
+}
+
 export type MessageContent = string | CodeBlockContent | AgentPlanContent;
 
 export interface Message {
@@ -67,6 +73,7 @@ export interface Message {
   content: MessageContent;
   files?: FileAttachment[];
   tool?: Tool;
+  toolCalls?: ToolCall[];
   usageMetadata?: {
     promptTokenCount: number;
     candidatesTokenCount: number;

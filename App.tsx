@@ -436,6 +436,20 @@ const App: React.FC = () => {
                     case 'usage':
                         newMessages = newMessages.map(msg => msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg);
                         break;
+                    case 'tool_call':
+                        // Handle Generative UI update
+                        setAiStatus('generating');
+                        newMessages = newMessages.map(msg => {
+                            if (msg.id === aiMessageId) {
+                                const currentToolCalls = msg.toolCalls || [];
+                                // Only add if not already there (simple dedup check by id)
+                                if (!currentToolCalls.some(tc => tc.id === update.payload.id)) {
+                                     return { ...msg, toolCalls: [...currentToolCalls, update.payload] };
+                                }
+                            }
+                            return msg;
+                        });
+                        break;
                 }
                 return { ...c, messages: newMessages };
             }));
@@ -500,6 +514,18 @@ const App: React.FC = () => {
                         break;
                     case 'usage':
                         newMessages = newMessages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, usageMetadata: update.payload } : msg);
+                        break;
+                    case 'tool_call':
+                        setAiStatus('generating');
+                        newMessages = newMessages.map(msg => {
+                            if (msg.id === messageIdToRegenerate) {
+                                const currentToolCalls = msg.toolCalls || [];
+                                if (!currentToolCalls.some(tc => tc.id === update.payload.id)) {
+                                     return { ...msg, toolCalls: [...currentToolCalls, update.payload] };
+                                }
+                            }
+                            return msg;
+                        });
                         break;
                 }
                 return { ...c, messages: newMessages };

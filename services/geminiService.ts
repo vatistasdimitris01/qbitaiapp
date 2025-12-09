@@ -1,7 +1,8 @@
+
 import { FileAttachment, LocationInfo, Message, MessageContent, MessageType } from "../types";
 
 export interface StreamUpdate {
-    type: 'chunk' | 'usage' | 'end' | 'error' | 'searching' | 'sources';
+    type: 'chunk' | 'usage' | 'end' | 'error' | 'searching' | 'sources' | 'tool_call';
     payload?: any;
 }
 
@@ -30,6 +31,7 @@ export const streamMessageToAI = async (
     const historyForApi = conversationHistory.map(msg => ({
         type: msg.type,
         content: getTextFromMessageContent(msg.content),
+        toolCalls: msg.toolCalls, // Pass previous tool calls to context if needed
         files: msg.files?.map(f => ({
             mimeType: f.type,
             // Ensure dataUrl is a base64 string for history

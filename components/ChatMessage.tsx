@@ -11,6 +11,7 @@ import AITextLoading from './AITextLoading';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import GroundingSources from './GroundingSources';
+import GenerativeUI from './GenerativeUI';
 
 type ExecutionResult = {
   output: string | null;
@@ -266,7 +267,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             {/* Main AI Message Content */}
             <div className="text-gray-900 dark:text-[#e4e4e7] text-[16px] leading-relaxed w-full">
                  {/* Empty State / Loading */}
-                 {!parsedResponseText && isLoading && !parsedThinkingText && (
+                 {!parsedResponseText && isLoading && !parsedThinkingText && !message.toolCalls && (
                     <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                         {aiStatus === 'searching' && <span className="animate-pulse">Searching the web...</span>}
                         {aiStatus === 'generating' && <AITextLoading />}
@@ -274,6 +275,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     </div>
                 )}
                 
+                {/* Tool Calls (Generative UI) */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                     <div className="w-full mb-4 space-y-4">
+                         {message.toolCalls.map((toolCall, idx) => (
+                             <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />
+                         ))}
+                     </div>
+                )}
+
                 {renderableContent.map((part: any, index: number) => {
                     if (part.type === 'code') {
                          const resultKey = `${message.id}_${part.partIndex}`;

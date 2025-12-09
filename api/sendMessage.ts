@@ -13,6 +13,7 @@ interface HistoryItem {
     type: 'USER' | 'AI_RESPONSE' | 'SYSTEM' | 'ERROR' | 'AGENT_ACTION' | 'AGENT_PLAN';
     content: string;
     files?: ApiAttachment[];
+    toolCalls?: any[];
 }
 
 const languageMap: { [key: string]: string } = {
@@ -62,13 +63,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const geminiHistory: Content[] = (history as HistoryItem[])
             .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
-            .map(msg => ({
-                role: msg.type === 'USER' ? 'user' : 'model',
-                parts: [
-                    ...(msg.content ? [{ text: msg.content }] : []),
-                    ...(msg.files ? msg.files.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.data } })) : [])
-                ] as Part[],
-            })).filter(c => c.parts.length > 0);
+            .map(msg => {
+                const parts: Part[] = [];
+                if (msg.content) parts.push({ text: msg.content });
+                if (msg.files) {
+                    msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
+                }
+                // Reconstruct tool calls if present in history to maintain context
+                if (msg.toolCalls && msg.toolCalls.length > 0) {
+                     msg.toolCalls.forEach(tc => {
+                         parts.push({ functionCall: { name: tc.name, args: tc.args } });
+                         // We also implicitly assume a function response followed, but for simplicity in history reconstruction
+                         // we might just let the model see the call. In a perfect world we'd store the response too.
+                     });
+                }
+                return {
+                    role: msg.type === 'USER' ? 'user' : 'model',
+                    parts: parts
+                } as Content;
+            }).filter(c => c.parts.length > 0);
         
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -83,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-flash-lite-latest'; // Explicitly using the Lite model
+        const model = 'gemini-flash-lite-latest';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
@@ -91,119 +104,248 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 **Your Capabilities & Tools:**
 
-1.  **Web Applications (HTML/CSS/JS)**
-    *   **What you can do:** Create self-contained web components, dashboards, calculators, and tools.
-    *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block. Include CSS (in \`<style>\`) and JS (in \`<script>\`) within the same file.
-    *   **Preview:** The user will be able to preview this in a new tab.
+1.  **Generative UI (Interactive Components)**
+    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, and more to answer user questions visually.
+    *   **How to do it:** Use the provided tools like \`render_chart\`, \`render_kpi_card\`, \`render_table\`, etc.
+    *   **When to use:** Whenever a user asks for data visualization, lists, comparisons, or tracking.
+    *   **Example:** User: "Show me sales" -> Call \`render_chart\`. User: "Add task" -> Call \`create_todo_item\`.
 
-2.  **Python Code Execution (Data & Logic)**
-    *   **What you can do:** Analyze data, solve complex math, generate plots (Matplotlib/Plotly), and **create downloadable files** (PDF, Excel, CSV, Text).
+2.  **Web Applications (HTML/CSS/JS)**
+    *   **What you can do:** Create self-contained web components, dashboards, calculators.
+    *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block.
+
+3.  **Python Code Execution**
+    *   **What you can do:** Analyze data, solve math, generate plots.
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
-    *   **Libraries:** \`numpy\`, \`pandas\`, \`matplotlib\`, \`scipy\`, \`sklearn\`, \`networkx\`, \`sympy\`, \`fpdf\`, \`openpyxl\`.
-    *   **Output:** Print results to stdout. Generated plots are automatically shown. 
-    *   **File Creation:** When you use libraries to save files (e.g., \`workbook.save("data.xlsx")\`), the system automatically detecting it. **The code block will be hidden**, and a download link will be shown to the user.
 
-3.  **Google Search (Grounding)**
-    *   **What you can do:** Search the live web for real-time information.
+4.  **Google Search (Grounding)**
     *   **How to do it:** Use the \`google_search\` tool.
-    *   **Output:** The search results will be provided to you. Synthesize them into a response.
-
-4.  **Image Gallery Search**
-    *   **What you can do:** Show visual examples of places, things, or concepts.
-    *   **How to do it:** Output \`!gallery["search query"]\` on a separate line.
 
 **General Guidelines:**
 
 1.  **Language**: Respond in ${userLanguageName}.
-2.  **Identity**: Created by Vatistas Dimitris (X: @vatistasdim, Insta: @vatistasdimitris).
-3.  **No Inline Links**: Do NOT include markdown links \`[text](url)\` in your response unless specifically asked for a list of links. Citations are handled automatically.
-4.  **Places & Lists**:
-    *   When listing places/products, show **5 images** for each item using the gallery syntax.
-    *   Include **Rating**, **Reviews count**, **Best for**, **Worst for**.
-    *   Format:
-        ### [Item Name]
-        **Rating**: ⭐⭐⭐⭐½ (1.2k reviews)
-        !gallery["[Item Name]"]
-        [Description]
-        **Best for**: [Text] | **Worst for**: [Text]
-5.  **Proactive Creation**: If a user asks for a "timer", build it in HTML. If they ask for "analysis", use Python. If they ask to "create a file", write Python to generate it. Don't just talk; create.
-6.  **Suggestions**: At the very end of your response, provide 1-3 short, relevant follow-up suggestions for the user. Wrap them in a JSON array inside <suggestions> tags. Example: <suggestions>["Tell me more", "Why?"]</suggestions>. Do not include this tag if the response is an error or a tool call.
-
-Think step-by-step.`;
+2.  **Proactive**: If a visual tool fits the request, USE IT instead of just describing the data.
+3.  **Suggestions**: Provide 1-3 short follow-up suggestions in JSON format <suggestions>["Next query"]</suggestions> at the end.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
+        // --- Tool Definitions ---
+
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
             description: 'Get information from the web using Google Search.',
             parameters: {
                 type: Type.OBJECT,
-                properties: {
-                  query: { type: Type.STRING, description: 'The search query.' },
-                },
+                properties: { query: { type: Type.STRING } },
                 required: ['query'],
             },
         };
 
+        const renderChartTool: FunctionDeclaration = {
+            name: 'render_chart',
+            description: 'Render an interactive chart (line, bar, pie, donut).',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    type: { type: Type.STRING, enum: ['line', 'bar', 'pie', 'donut'], description: 'The type of chart' },
+                    title: { type: Type.STRING, description: 'Chart title' },
+                    data: { 
+                        type: Type.ARRAY, 
+                        description: 'Array of objects with data points. For Line/Bar: [{x: "Label", y: 10}]. For Pie: [{label: "A", value: 10}]',
+                        items: { type: Type.OBJECT } 
+                    }
+                },
+                required: ['type', 'data']
+            }
+        };
+
+        const renderKpiTool: FunctionDeclaration = {
+            name: 'render_kpi_card',
+            description: 'Render a key performance indicator (KPI) card with value and trend.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    value: { type: Type.STRING },
+                    change: { type: Type.STRING, description: 'e.g. "+5%" or "-$200"' },
+                    trend: { type: Type.STRING, enum: ['up', 'down', 'neutral'] }
+                },
+                required: ['title', 'value']
+            }
+        };
+
+        const renderTableTool: FunctionDeclaration = {
+            name: 'render_table',
+            description: 'Render a data table.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    columns: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    data: { type: Type.ARRAY, items: { type: Type.OBJECT }, description: 'Array of row objects matching columns' }
+                },
+                required: ['columns', 'data']
+            }
+        };
+
+        const createTodoTool: FunctionDeclaration = {
+            name: 'create_todo_item',
+            description: 'Create a todo list or item.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING, description: 'List title' },
+                    items: { 
+                        type: Type.ARRAY, 
+                        items: { 
+                            type: Type.OBJECT, 
+                            properties: { label: { type: Type.STRING }, due: { type: Type.STRING }, done: { type: Type.BOOLEAN } } 
+                        } 
+                    }
+                },
+                required: ['items']
+            }
+        };
+
+        const renderCalendarEventTool: FunctionDeclaration = {
+            name: 'render_calendar_event',
+            description: 'Render a calendar event card.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    date: { type: Type.STRING },
+                    time: { type: Type.STRING },
+                    description: { type: Type.STRING }
+                },
+                required: ['title', 'date', 'time']
+            }
+        };
+        
+        const renderFlashcardsTool: FunctionDeclaration = {
+            name: 'render_flashcards',
+            description: 'Render a set of flashcards for study.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    cards: { 
+                        type: Type.ARRAY, 
+                        items: { type: Type.OBJECT, properties: { front: { type: Type.STRING }, back: { type: Type.STRING } } } 
+                    }
+                },
+                required: ['cards']
+            }
+        };
+
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool] }],
+            tools: [{ 
+                functionDeclarations: [
+                    googleSearchTool, 
+                    renderChartTool, 
+                    renderKpiTool, 
+                    renderTableTool, 
+                    createTodoTool,
+                    renderCalendarEventTool,
+                    renderFlashcardsTool
+                ] 
+            }],
         };
 
         try {
             const initialStream = await ai.models.generateContentStream({ model, contents, config });
-            let functionCallToHandle: FunctionCall | null = null;
+            
+            // We need to handle potential multiple turns if tools are called
+            let currentStream = initialStream;
+            let keepGoing = true;
 
-            for await (const chunk of initialStream) {
-                if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                    functionCallToHandle = chunk.functionCalls[0];
-                    break;
-                }
-                if (chunk.text) write({ type: 'chunk', payload: chunk.text });
-                if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
-            }
-
-            if (functionCallToHandle) {
-                const functionCall = functionCallToHandle;
-                if (functionCall.name !== 'google_search') throw new Error(`Unsupported function: ${functionCall.name}`);
-
-                write({ type: 'searching' });
-                const query = functionCall.args.query as string;
+            // This loop allows us to handle a tool call, send it to client, feed "success" back to model, and stream the rest.
+            while (keepGoing) {
+                keepGoing = false; // Default to stop unless we hit a tool call we want to loop on
+                let functionCallToHandle: FunctionCall | null = null;
                 
-                const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-                const cseId = process.env.GOOGLE_CSE_ID;
-                if (!apiKey || !cseId) throw new Error("Search config missing.");
-
-                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`);
-                const searchResults = await searchResponse.json();
-                
-                if (searchResults.items) {
-                    const groundingChunks = searchResults.items.map((item: any) => ({
-                        web: { uri: item.link, title: item.title },
-                    }));
-                    write({ type: 'sources', payload: groundingChunks });
-                }
-
-                const formattedResults = searchResults.items?.map((item: any) => 
-                    `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
-                ).join('\n\n---\n\n') || "No results.";
-
-                const searchContext = (searchContextTranslations[langCode] || searchContextTranslations.en)
-                    .replace('{query}', query)
-                    .replace('{results}', formattedResults);
-                
-                const newContents: Content[] = [
-                    ...contents,
-                    { role: 'model', parts: [{ functionCall }] },
-                    { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchContext } } }] },
-                ];
-                
-                const finalStream = await ai.models.generateContentStream({ model, contents: newContents, config });
-                for await (const chunk of finalStream) {
+                for await (const chunk of currentStream) {
+                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                        functionCallToHandle = chunk.functionCalls[0];
+                        // Don't break immediately, let's see if there is mixed content (unlikely with this API but safe)
+                    }
                     if (chunk.text) write({ type: 'chunk', payload: chunk.text });
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
+
+                if (functionCallToHandle) {
+                    const fc = functionCallToHandle;
+                    
+                    if (fc.name === 'google_search') {
+                        // ... Google Search Handling (Server-side execution) ...
+                        write({ type: 'searching' });
+                        const query = fc.args.query as string;
+                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                        const cseId = process.env.GOOGLE_CSE_ID;
+                        
+                        let searchResultText = "No results found or search failed.";
+                        if (apiKey && cseId) {
+                            try {
+                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`);
+                                const searchResults = await searchResponse.json();
+                                if (searchResults.items) {
+                                     const groundingChunks = searchResults.items.map((item: any) => ({
+                                        web: { uri: item.link, title: item.title },
+                                    }));
+                                    write({ type: 'sources', payload: groundingChunks });
+                                    
+                                    searchResultText = searchResults.items.map((item: any) => 
+                                        `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+                                    ).join('\n\n---\n\n');
+                                }
+                            } catch (e) {
+                                console.error("Search error", e);
+                            }
+                        }
+
+                        // Feed back to model
+                         const newContents: Content[] = [
+                            ...contents,
+                            { role: 'model', parts: [{ functionCall: fc }] },
+                            { role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] },
+                        ];
+                        // Update contents for next loop
+                        // Note: In a stateless Vercel function, we just reconstruct contents for the next API call locally
+                        // But strictly we should append to the 'contents' variable
+                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+
+                        currentStream = await ai.models.generateContentStream({ model, contents, config });
+                        keepGoing = true; // Loop to stream the answer based on search
+
+                    } else {
+                        // ... Generative UI Tool Handling (Client-side execution) ...
+                        // 1. Tell Client to render it
+                        write({ 
+                            type: 'tool_call', 
+                            payload: { 
+                                name: fc.name, 
+                                args: fc.args, 
+                                id: Math.random().toString(36).substring(7) 
+                            } 
+                        });
+
+                        // 2. Feed "Success" back to model so it can finish its thought (e.g. "I have rendered the chart.")
+                        const newContents: Content[] = [
+                            ...contents,
+                            { role: 'model', parts: [{ functionCall: fc }] },
+                            { role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Component Rendered Successfully." } } }] },
+                        ];
+                        // Update local contents for potential next loop
+                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Component Rendered Successfully." } } }] });
+
+                        // Resume stream to get any closing remarks from AI
+                        currentStream = await ai.models.generateContentStream({ model, contents, config });
+                        keepGoing = true;
+                    }
+                }
             }
+
         } finally {
             write({ type: 'end' });
             res.end();

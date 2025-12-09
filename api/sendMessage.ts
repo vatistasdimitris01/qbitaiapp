@@ -1,5 +1,4 @@
 
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -68,6 +67,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
+    // Helper to write to stream
+    const write = (data: object) => res.write(JSON.stringify(data) + '\n');
+
     try {
         const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
             const form = formidable({});
@@ -108,7 +110,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        const write = (data: object) => res.write(JSON.stringify(data) + '\n');
         
         const userMessageParts: Part[] = [{ text: message }];
         if (fileList.length > 0) {
@@ -449,6 +450,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } catch (error) {
         console.error("API Error:", error);
-        res.status(500).json({ error: { message: error instanceof Error ? error.message : String(error) } });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // If headers are already sent, we must stream the error
+        if (res.headersSent) {
+            write({ type: 'error', payload: errorMessage });
+            res.end();
+        } else {
+            res.status(500).json({ error: { message: errorMessage } });
+        }
     }
 }

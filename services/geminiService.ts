@@ -111,8 +111,15 @@ export const streamMessageToAI = async (
                         if (update.type === 'end') {
                             return; // Graceful end of stream
                         }
+                        if (update.type === 'error') {
+                            throw new Error(update.payload);
+                        }
                         onUpdate(update);
                     } catch (e) {
+                        // If it's the error we just threw, re-throw it to break the loop and hit the catch block below
+                        if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
+                             throw e;
+                        }
                         console.error("Failed to parse stream line:", line, e);
                     }
                 }
@@ -127,6 +134,7 @@ export const streamMessageToAI = async (
                 if (line.trim() === '') continue;
                 try {
                     const update: StreamUpdate = JSON.parse(line);
+                    if (update.type === 'error') throw new Error(update.payload);
                     onUpdate(update);
                 } catch (e) {
                     console.error("Failed to parse final stream buffer line:", line, e);

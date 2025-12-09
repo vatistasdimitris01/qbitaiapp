@@ -117,6 +117,8 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox, isLast, onSendSuggestion }) => {
     const isUser = message.type === MessageType.USER;
+    const isError = message.type === MessageType.ERROR;
+    
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -246,6 +248,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         );
     }
 
+    if (isError) {
+        return (
+            <div className="flex flex-col w-full mb-8 max-w-[95%]">
+                <div className="p-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    {messageText || "An unknown error occurred."}
+                </div>
+                {/* Retry button */}
+                <div className="flex items-center space-x-0 mt-3 text-gray-500 text-sm">
+                    <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
+                        <MessageRefreshIcon className="size-4" />
+                    </IconButton>
+                </div>
+            </div>
+        )
+    }
+
     // Check if we have any content to show (text or tools)
     const hasContent = parsedResponseText || (message.toolCalls && message.toolCalls.length > 0);
 
@@ -275,6 +293,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         {aiStatus === 'searching' && <span className="animate-pulse">Searching the web...</span>}
                         {aiStatus === 'generating' && <AITextLoading />}
                         {aiStatus === 'thinking' && !hasThinkingTag && <span className="animate-pulse">Thinking...</span>}
+                    </div>
+                )}
+                
+                {/* Fallback for empty message when done loading */}
+                {!hasContent && !isLoading && !parsedThinkingText && (
+                    <div className="text-gray-400 italic text-sm">
+                        (Empty response)
                     </div>
                 )}
                 

@@ -171,8 +171,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         if (!textToRender) return [];
     
         const blockRegex = /(```[\w\s\S]*?```|!gallery\[".*?"\])/g;
-        const inlineImageRegex = /!g\[(.*?)\]\((.*?)\)/g;
-
+        
         let finalParts: any[] = [];
         let partIndex = 0;
 
@@ -265,7 +264,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     }
 
     // Check if we have any content to show (text or tools)
-    const hasContent = parsedResponseText || (message.toolCalls && message.toolCalls.length > 0);
+    const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
+    const hasText = !!parsedResponseText;
+    const hasContent = hasText || hasToolCalls;
 
     return (
         <div className="flex flex-col w-full mb-8 max-w-[95%]">
@@ -304,9 +305,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 )}
                 
                 {/* Tool Calls (Generative UI) */}
-                {message.toolCalls && message.toolCalls.length > 0 && (
+                {hasToolCalls && (
                      <div className="w-full mb-4 space-y-4">
-                         {message.toolCalls.map((toolCall, idx) => (
+                         {message.toolCalls!.map((toolCall, idx) => (
                              <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />
                          ))}
                      </div>
@@ -316,7 +317,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     if (part.type === 'code') {
                          const resultKey = `${message.id}_${part.partIndex}`;
                          const result = executionResults[resultKey];
-                         // Auto-execute if not executed yet and isPythonReady (for Python)
                          const isPython = part.lang === 'python';
                          const shouldAutorun = isPython && !result;
 

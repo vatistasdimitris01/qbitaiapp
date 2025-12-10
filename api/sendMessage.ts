@@ -30,37 +30,6 @@ export const config = {
   },
 };
 
-// --- Yahoo Finance Helper ---
-async function fetchYahooData(symbol: string) {
-    // Yahoo Finance often requires a User-Agent to prevent 403 Forbidden
-    const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
-
-    try {
-        const [quoteRes, chartRes, summaryRes] = await Promise.all([
-            fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`, { headers }),
-            // Fetching 1 month of data for a nice sparkline/chart
-            fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`, { headers }), 
-            // Fetching key stats
-            fetch(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=summaryDetail,defaultKeyStatistics,price`, { headers })
-        ]);
-
-        const quoteJson = await quoteRes.json();
-        const chartJson = await chartRes.json();
-        const summaryJson = await summaryRes.json();
-
-        return {
-            quote: quoteJson.quoteResponse?.result?.[0],
-            chart: chartJson.chart?.result?.[0],
-            summary: summaryJson.quoteSummary?.result?.[0]
-        };
-    } catch (e) {
-        console.error("Yahoo fetch error:", e);
-        return null;
-    }
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
@@ -132,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, and STOCK WIDGETS.
     *   **How to do it:** Use the provided tools.
     *   **When to use:** 
-        *   User asks about stock prices -> Call \`get_stock_quote\`.
+        *   User asks about stock prices -> YOU must generate the latest known or realistic data (price, chart points, stats) yourself and call \`render_stock_widget\`. Do NOT say you can't access data; simulate a realistic visualization.
         *   User asks for data visualization -> Call \`render_chart\`.
 
 2.  **Web Applications (HTML/CSS/JS)**
@@ -184,15 +153,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         };
 
-        const getStockQuoteTool: FunctionDeclaration = {
-            name: 'get_stock_quote',
-            description: 'Get real-time stock quote, chart, and stats for a given symbol.',
+        const renderStockWidgetTool: FunctionDeclaration = {
+            name: 'render_stock_widget',
+            description: 'Render a rich stock card with chart. Generate realistic or latest known data for the stock including price, change, stats and a simulated intraday chart.',
             parameters: {
                 type: Type.OBJECT,
                 properties: {
                     symbol: { type: Type.STRING, description: 'Stock symbol e.g. AAPL' },
+                    price: { type: Type.STRING, description: 'Current price, e.g. "234.50"' },
+                    currency: { type: Type.STRING, description: 'Currency symbol, e.g. "$"' },
+                    change: { type: Type.STRING, description: 'Price change, e.g. "-0.45"' },
+                    changePercent: { type: Type.STRING, description: 'Price change percent, e.g. "-0.23%"' },
+                    stats: {
+                        type: Type.OBJECT,
+                        description: 'Key statistics like Open, High, Low, Vol, Mkt Cap, PE Ratio',
+                    },
+                    chartData: {
+                        type: Type.OBJECT,
+                        description: 'Chart data with x (dates/times) and y (prices) arrays.',
+                        properties: {
+                            x: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            y: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                        }
+                    }
                 },
-                required: ['symbol']
+                required: ['symbol', 'price', 'change', 'chartData']
             }
         };
 
@@ -279,7 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 functionDeclarations: [
                     googleSearchTool, 
                     renderChartTool,
-                    getStockQuoteTool,
+                    renderStockWidgetTool,
                     renderKpiTool, 
                     renderTableTool, 
                     createTodoTool,
@@ -294,25 +279,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             let currentStream = initialStream;
             let keepGoing = true;
+            let hasSentText = false;
 
             while (keepGoing) {
                 keepGoing = false;
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    // Safe handling of tool calls
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
                     
-                    // Safe access to text with try-catch as getter might throw on non-text chunks
                     let text = '';
                     try {
                         text = chunk.text || '';
-                    } catch (e) {
-                        // ignore property access error
+                    } catch (e) { }
+                    
+                    if (text) {
+                        write({ type: 'chunk', payload: text });
+                        hasSentText = true;
                     }
-                    if (text) write({ type: 'chunk', payload: text });
 
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
@@ -352,80 +338,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
 
-                    } else if (fc.name === 'get_stock_quote') {
-                        write({ type: 'searching' }); // Show loading state
-                        const symbol = fc.args.symbol as string;
-                        
-                        const stockData = await fetchYahooData(symbol);
-                        
-                        let functionResponseContent = "Could not fetch stock data.";
-                        let toolCallPayload = null;
-
-                        if (stockData && stockData.quote) {
-                            const q = stockData.quote;
-                            const c = stockData.chart;
-                            const s = stockData.summary;
-
-                            // Format Chart Data
-                            const cleanChartData: { x: string[], y: number[] } = { x: [], y: [] };
-                            if (c && c.timestamp && c.indicators && c.indicators.quote && c.indicators.quote[0]) {
-                                const timestamps = c.timestamp;
-                                const closes = c.indicators.quote[0].close;
-                                timestamps.forEach((ts: number, i: number) => {
-                                    if (closes[i] !== null && ts) {
-                                        cleanChartData.x.push(new Date(ts * 1000).toISOString());
-                                        cleanChartData.y.push(closes[i]);
-                                    }
-                                });
-                            }
-
-                            // Format Widget Data
-                            toolCallPayload = {
-                                name: 'get_stock_quote',
-                                args: {
-                                    symbol: q.symbol,
-                                    price: q.regularMarketPrice?.toFixed(2) || 'N/A',
-                                    currency: q.currency === 'USD' ? '$' : q.currency,
-                                    change: q.regularMarketChange?.toFixed(2) || '0.00',
-                                    changePercent: (q.regularMarketChangePercent?.toFixed(2) + '%') || '0.00%',
-                                    chartData: cleanChartData,
-                                    stats: {
-                                        "Open": q.regularMarketOpen?.toFixed(2) || '-',
-                                        "High": q.regularMarketDayHigh?.toFixed(2) || '-',
-                                        "Low": q.regularMarketDayLow?.toFixed(2) || '-',
-                                        "Vol": q.regularMarketVolume ? (q.regularMarketVolume / 1000000).toFixed(1) + 'M' : '-',
-                                        "Mkt Cap": s?.summaryDetail?.marketCap?.fmt || '-',
-                                        "PE Ratio": s?.summaryDetail?.trailingPE?.fmt || '-'
-                                    }
-                                },
-                                id: Math.random().toString(36).substring(7)
-                            };
-
-                            // Provide text summary for AI
-                            functionResponseContent = JSON.stringify({
-                                symbol: q.symbol,
-                                name: q.longName,
-                                price: q.regularMarketPrice,
-                                change: q.regularMarketChange,
-                                percent: q.regularMarketChangePercent,
-                                marketCap: s?.summaryDetail?.marketCap?.fmt,
-                                peRatio: s?.summaryDetail?.trailingPE?.fmt,
-                                description: s?.assetProfile?.longBusinessSummary ? s.assetProfile.longBusinessSummary.substring(0, 200) + '...' : ''
-                            });
-                        }
-
-                        if (toolCallPayload) {
-                            write({ type: 'tool_call', payload: toolCallPayload });
-                        }
-
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: 'get_stock_quote', response: { content: functionResponseContent } } }] });
-
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
-
                     } else {
-                        // Generic Generative UI Tool Handling (Model imagines the data)
+                        // Generic Tool Handling (including render_stock_widget)
                         write({ 
                             type: 'tool_call', 
                             payload: { 
@@ -436,12 +350,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         });
 
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Component Rendered Successfully." } } }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered Successfully." } } }] });
 
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
                 }
+            }
+
+            // Fallback: If no text was sent (e.g. model refused to answer or tool failed without error text), send a generic message to prevent empty bubble.
+            if (!hasSentText) {
+                write({ type: 'chunk', payload: "I'm sorry, I couldn't process that request properly." });
             }
 
         } finally {
@@ -452,7 +371,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("API Error:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         
-        // If headers are already sent, we must stream the error
         if (res.headersSent) {
             write({ type: 'error', payload: errorMessage });
             res.end();

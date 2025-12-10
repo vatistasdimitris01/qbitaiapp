@@ -16,7 +16,10 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
     const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!window.Plotly || !chartRef.current || !data) return;
+        if (!window.Plotly || !chartRef.current) return;
+        
+        // Safety check for data
+        if (!data || (Array.isArray(data) && data.length === 0)) return;
 
         let plotData: any[] = [];
         let layout: any = { 
@@ -33,43 +36,49 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
 
         const defaultColor = colors ? colors[0] : '#1d9bf0';
 
-        if (type === 'line' || type === 'bar') {
-            if (Array.isArray(data)) {
-                 if (data[0]?.x && data[0]?.y) {
-                    plotData = data.map((trace: any, i: number) => ({ 
-                        ...trace, 
-                        type: type,
-                        marker: { color: colors ? colors[i % colors.length] : defaultColor },
-                        line: { color: colors ? colors[i % colors.length] : defaultColor, width: 2 }
-                    }));
-                } else {
-                    const keys = Object.keys(data[0] || {});
-                    if (keys.length >= 2) {
-                        const xKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('time') || k.toLowerCase().includes('label')) || keys[0];
-                        const yKey = keys.find(k => k !== xKey) || keys[1];
-                        
-                        plotData = [{
-                            x: data.map((d: any) => d[xKey]),
-                            y: data.map((d: any) => d[yKey]),
+        try {
+            if (type === 'line' || type === 'bar') {
+                if (Array.isArray(data)) {
+                     if (data[0]?.x && data[0]?.y) {
+                        plotData = data.map((trace: any, i: number) => ({ 
+                            ...trace, 
                             type: type,
-                            marker: { color: defaultColor },
-                            line: { color: defaultColor, width: 2 }
-                        }];
+                            marker: { color: colors ? colors[i % colors.length] : defaultColor },
+                            line: { color: colors ? colors[i % colors.length] : defaultColor, width: 2 }
+                        }));
+                    } else {
+                        const keys = Object.keys(data[0] || {});
+                        if (keys.length >= 2) {
+                            const xKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('time') || k.toLowerCase().includes('label')) || keys[0];
+                            const yKey = keys.find(k => k !== xKey) || keys[1];
+                            
+                            plotData = [{
+                                x: data.map((d: any) => d[xKey]),
+                                y: data.map((d: any) => d[yKey]),
+                                type: type,
+                                marker: { color: defaultColor },
+                                line: { color: defaultColor, width: 2 }
+                            }];
+                        }
                     }
+                } else if (data && data.x && data.y) {
+                     plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { color: defaultColor, width: 2 } }];
                 }
-            } else if (data && data.x && data.y) {
-                 plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { color: defaultColor, width: 2 } }];
+            } else if (type === 'pie' || type === 'donut') {
+                 if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
+                     plotData = data.map((trace: any) => ({ ...trace, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }));
+                 } else if (data && data.labels && data.values) {
+                     plotData = [{ ...data, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }];
+                 }
             }
-        } else if (type === 'pie' || type === 'donut') {
-             if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
-                 plotData = data.map((trace: any) => ({ ...trace, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }));
-             } else if (data && data.labels && data.values) {
-                 plotData = [{ ...data, type: 'pie', hole: type === 'donut' ? 0.6 : 0 }];
-             }
-        }
 
-        const config = { responsive: true, displayModeBar: false };
-        window.Plotly.newPlot(chartRef.current, plotData, layout, config);
+            if (plotData.length > 0) {
+                const config = { responsive: true, displayModeBar: false };
+                window.Plotly.newPlot(chartRef.current, plotData, layout, config);
+            }
+        } catch (e) {
+            console.error("Chart rendering failed", e);
+        }
 
     }, [type, data, title, colors]);
 
@@ -88,17 +97,16 @@ const StockWidget: React.FC<{
     chartData: any; 
     stats: any;
     currency?: string;
-}> = ({ symbol, price, change = '', changePercent = '', chartData, stats = {}, currency = '$' }) => {
+}> = ({ symbol = 'N/A', price = '0.00', change = '', changePercent = '', chartData, stats = {}, currency = '$' }) => {
     // Robust checks for string methods
-    const safeChange = String(change || '');
-    const safeChangePercent = String(changePercent || '');
+    const safeChange = String(change || '0.00');
+    const safeChangePercent = String(changePercent || '0.00%');
     const isNegative = safeChange.includes('-') || safeChangePercent.includes('-');
     
-    const trendColor = isNegative ? 'text-[#ef4444]' : 'text-[#22c55e]'; // tailwind red-500 : green-500
+    const trendColor = isNegative ? 'text-[#ef4444]' : 'text-[#22c55e]';
     const chartColor = isNegative ? '#ef4444' : '#22c55e';
     const [activeRange, setActiveRange] = useState('1D');
 
-    // Ensure price has currency symbol if missing
     const safePrice = String(price || '0.00');
     const displayPrice = safePrice.startsWith(currency) ? safePrice : `${currency}${safePrice}`;
 
@@ -141,7 +149,7 @@ const StockWidget: React.FC<{
                     {Object.entries(stats).map(([key, value]) => (
                         <div key={key} className="flex justify-between items-center text-sm">
                             <span className="text-[#a1a1aa] font-normal">{key}</span>
-                            <span className="text-white font-medium">{String(value)}</span>
+                            <span className="text-white font-medium">{String(value || '-')}</span>
                         </div>
                     ))}
                 </div>
@@ -170,6 +178,7 @@ const KPICard: React.FC<{ title: string; value: string; change?: string; trend?:
 };
 
 const DataRenderer: React.FC<{ columns: string[]; data: any[] }> = ({ columns, data }) => {
+    if (!data || data.length === 0) return null;
     return (
         <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-[#333] shadow-sm my-4 bg-white dark:bg-[#1e1e1e]">
             <table className="w-full text-sm text-left">
@@ -185,7 +194,6 @@ const DataRenderer: React.FC<{ columns: string[]; data: any[] }> = ({ columns, d
                         <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
                             {columns.map((col, cIdx) => (
                                 <td key={cIdx} className="px-4 py-3 text-gray-900 dark:text-gray-200">
-                                    {/* Handle both array of values and array of objects */}
                                     {typeof row === 'object' && row !== null && !Array.isArray(row) ? row[Object.keys(row)[cIdx]] || row[col.toLowerCase()] : row[cIdx]}
                                 </td>
                             ))}
@@ -198,7 +206,7 @@ const DataRenderer: React.FC<{ columns: string[]; data: any[] }> = ({ columns, d
 };
 
 const TodoList: React.FC<{ title: string; items: { label: string; due?: string; done?: boolean }[] }> = ({ title, items }) => {
-    const [tasks, setTasks] = useState(items);
+    const [tasks, setTasks] = useState(items || []);
 
     const toggleTask = (index: number) => {
         const newTasks = [...tasks];
@@ -255,9 +263,10 @@ const Flashcards: React.FC<{ cards: { front: string; back: string }[] }> = ({ ca
 };
 
 const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
-    
+    if (!args) return null;
+
     // --- Stock Widget Handler ---
-    if (toolName === 'get_stock_quote') {
+    if (toolName === 'render_stock_widget') {
         return <StockWidget 
             symbol={args.symbol} 
             price={args.price} 
@@ -275,7 +284,6 @@ const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
     }
 
     if (toolName === 'render_kpi_card' || toolName === 'render_stats') {
-        // Can handle single object or array of objects
         const items = Array.isArray(args) ? args : [args];
         return (
             <div className="flex flex-wrap gap-4 my-4">

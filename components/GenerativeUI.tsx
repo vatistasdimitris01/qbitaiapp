@@ -16,7 +16,7 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
         if (!window.Plotly || !chartRef.current) return;
         
         // Safety check for data
-        if (!data || (Array.isArray(data) && data.length === 0)) return;
+        if (!data) return;
 
         let plotData: any[] = [];
         let layout: any = { 
@@ -36,30 +36,22 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
         try {
             if (type === 'line' || type === 'bar') {
                 if (Array.isArray(data)) {
-                     if (data[0]?.x && data[0]?.y) {
-                        plotData = data.map((trace: any, i: number) => ({ 
-                            ...trace, 
-                            type: type,
-                            marker: { color: colors ? colors[i % colors.length] : defaultColor },
-                            line: { color: colors ? colors[i % colors.length] : defaultColor, width: 2 }
-                        }));
-                    } else {
-                        const keys = Object.keys(data[0] || {});
-                        if (keys.length >= 2) {
-                            const xKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('time') || k.toLowerCase().includes('label')) || keys[0];
-                            const yKey = keys.find(k => k !== xKey) || keys[1];
-                            
-                            plotData = [{
-                                x: data.map((d: any) => d[xKey]),
-                                y: data.map((d: any) => d[yKey]),
-                                type: type,
-                                marker: { color: defaultColor },
-                                line: { color: defaultColor, width: 2 }
-                            }];
-                        }
-                    }
-                } else if (data && data.x && data.y) {
-                     plotData = [{ ...data, type: type, marker: { color: defaultColor }, line: { color: defaultColor, width: 2 } }];
+                     // Array of traces
+                     plotData = data.map((trace: any, i: number) => ({ 
+                        ...trace, 
+                        type: type,
+                        marker: { color: colors ? colors[i % colors.length] : defaultColor },
+                        line: { color: colors ? colors[i % colors.length] : defaultColor, width: 2 }
+                    }));
+                } else if (data.x && data.y) {
+                     // Single trace object
+                     plotData = [{ 
+                        x: data.x, 
+                        y: data.y, 
+                        type: type, 
+                        marker: { color: defaultColor }, 
+                        line: { color: defaultColor, width: 2 } 
+                    }];
                 }
             } else if (type === 'pie' || type === 'donut') {
                  if (Array.isArray(data) && data[0]?.labels && data[0]?.values) {
@@ -71,7 +63,7 @@ const ChartRenderer: React.FC<{ type: string; data: any; title?: string; height?
 
             if (plotData.length > 0) {
                 const config = { responsive: true, displayModeBar: false };
-                window.Plotly.newPlot(chartRef.current, plotData, layout, config);
+                window.Plotly.react(chartRef.current, plotData, layout, config);
             }
         } catch (e) {
             console.error("Chart rendering failed", e);
@@ -108,7 +100,12 @@ const StockWidget: React.FC<{
     const safePrice = String(price || '0.00');
     const displayPrice = safePrice.startsWith(currency) ? safePrice : `${currency}${safePrice}`;
 
-    const currentData = (activeRange === '1D' || !history[activeRange]) ? chartData : history[activeRange];
+    // Determine current chart data based on range
+    const currentData = React.useMemo(() => {
+        if (activeRange === '1D') return chartData;
+        if (history && history[activeRange]) return history[activeRange];
+        return chartData; // Fallback
+    }, [activeRange, chartData, history]);
 
     return (
         <div className="bg-[#121212] border border-[#27272a] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans text-[#e4e4e7]">
@@ -126,7 +123,8 @@ const StockWidget: React.FC<{
                         <button 
                             key={r}
                             onClick={() => setActiveRange(r)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeRange === r ? 'bg-[#3f3f46] text-white' : 'text-[#a1a1aa] hover:text-white hover:bg-white/5'}`}
+                            disabled={r !== '1D' && (!history || !history[r])}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeRange === r ? 'bg-[#3f3f46] text-white' : 'text-[#a1a1aa] hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed'}`}
                         >
                             {r}
                         </button>

@@ -101,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **What you can do:** Instantly render a rich stock market card with price, stats, and interactive charts for different time ranges.
     *   **How to do it:** Use the \`render_stock_widget\` tool.
     *   **When to use:** User asks about stock prices, market trends, or specific ticker symbols. YOU must generate the data.
+    *   **CRITICAL:** You MUST generate simulated but realistic historical data for '5D', '1M', '6M', '1Y', '5Y' ranges in the \`history\` field of the tool call. The chart will not work without this data.
 
 2.  **Web Applications (HTML/CSS/JS)**
     *   **What you can do:** Create self-contained web components, dashboards, calculators.
@@ -158,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     },
                     history: {
                         type: Type.OBJECT,
-                        description: 'Simulated historical chart data for ranges: 5D, 1M, 6M, 1Y, 5Y. Keys are range names (e.g. "5D"), values are objects with x (dates) and y (prices) arrays.',
+                        description: 'REQUIRED: Simulated historical chart data for ranges: 5D, 1M, 6M, 1Y, 5Y. Keys are range names (e.g. "5D"), values are objects with x (dates) and y (prices) arrays.',
                         properties: {
                             "5D": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
                             "1M": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
@@ -188,6 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let currentStream = initialStream;
             let keepGoing = true;
             let hasSentText = false;
+            let hasSentTool = false;
 
             while (keepGoing) {
                 keepGoing = false;
@@ -256,6 +258,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 id: Math.random().toString(36).substring(7) 
                             } 
                         });
+                        hasSentTool = true;
 
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered Successfully." } } }] });
@@ -266,8 +269,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
 
-            // Fallback: If no text was sent (e.g. model refused to answer or tool failed without error text), send a generic message to prevent empty bubble.
-            if (!hasSentText) {
+            // Fallback: If absolutely nothing was sent (no text AND no tool), send a fallback message.
+            if (!hasSentText && !hasSentTool) {
                 write({ type: 'chunk', payload: "I'm sorry, I couldn't process that request properly." });
             }
 

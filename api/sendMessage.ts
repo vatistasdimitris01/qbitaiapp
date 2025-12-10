@@ -97,12 +97,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 **Your Capabilities & Tools:**
 
-1.  **Generative UI (Interactive Components)**
-    *   **What you can do:** Instantly render interactive charts, KPI cards, tables, todo lists, and STOCK WIDGETS.
-    *   **How to do it:** Use the provided tools.
-    *   **When to use:** 
-        *   User asks about stock prices -> YOU must generate the latest known or realistic data (price, chart points, stats) yourself and call \`render_stock_widget\`. Do NOT say you can't access data; simulate a realistic visualization.
-        *   User asks for data visualization -> Call \`render_chart\`.
+1.  **Stock Market Widget**
+    *   **What you can do:** Instantly render a rich stock market card with price, stats, and interactive charts for different time ranges.
+    *   **How to do it:** Use the \`render_stock_widget\` tool.
+    *   **When to use:** User asks about stock prices, market trends, or specific ticker symbols. YOU must generate the data.
 
 2.  **Web Applications (HTML/CSS/JS)**
     *   **What you can do:** Create self-contained web components, dashboards, calculators.
@@ -135,27 +133,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
         };
 
-        const renderChartTool: FunctionDeclaration = {
-            name: 'render_chart',
-            description: 'Render an interactive chart (line, bar, pie, donut).',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    type: { type: Type.STRING, enum: ['line', 'bar', 'pie', 'donut'], description: 'The type of chart' },
-                    title: { type: Type.STRING, description: 'Chart title' },
-                    data: { 
-                        type: Type.ARRAY, 
-                        description: 'Array of objects with data points. For Line/Bar: [{x: "Label", y: 10}]. For Pie: [{label: "A", value: 10}]',
-                        items: { type: Type.OBJECT } 
-                    }
-                },
-                required: ['type', 'data']
-            }
-        };
-
         const renderStockWidgetTool: FunctionDeclaration = {
             name: 'render_stock_widget',
-            description: 'Render a rich stock card with chart. Generate realistic or latest known data for the stock including price, change, stats and a simulated intraday chart.',
+            description: 'Render a rich stock card with chart. Generate realistic or latest known data for the stock including price, change, stats and a simulated intraday chart. Also provide simulated history data for other ranges if possible.',
             parameters: {
                 type: Type.OBJECT,
                 properties: {
@@ -170,91 +150,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     },
                     chartData: {
                         type: Type.OBJECT,
-                        description: 'Chart data with x (dates/times) and y (prices) arrays.',
+                        description: 'Intraday (1D) chart data with x (times) and y (prices) arrays.',
                         properties: {
                             x: { type: Type.ARRAY, items: { type: Type.STRING } },
                             y: { type: Type.ARRAY, items: { type: Type.NUMBER } }
                         }
+                    },
+                    history: {
+                        type: Type.OBJECT,
+                        description: 'Simulated historical chart data for ranges: 5D, 1M, 6M, 1Y, 5Y. Keys are range names (e.g. "5D"), values are objects with x (dates) and y (prices) arrays.',
+                        properties: {
+                            "5D": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "1M": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "6M": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "1Y": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "5Y": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } }
+                        }
                     }
                 },
                 required: ['symbol', 'price', 'change', 'chartData']
-            }
-        };
-
-        const renderKpiTool: FunctionDeclaration = {
-            name: 'render_kpi_card',
-            description: 'Render a key performance indicator (KPI) card with value and trend.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    value: { type: Type.STRING },
-                    change: { type: Type.STRING, description: 'e.g. "+5%" or "-$200"' },
-                    trend: { type: Type.STRING, enum: ['up', 'down', 'neutral'] }
-                },
-                required: ['title', 'value']
-            }
-        };
-
-        const renderTableTool: FunctionDeclaration = {
-            name: 'render_table',
-            description: 'Render a data table.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    columns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    data: { type: Type.ARRAY, items: { type: Type.OBJECT }, description: 'Array of row objects matching columns' }
-                },
-                required: ['columns', 'data']
-            }
-        };
-
-        const createTodoTool: FunctionDeclaration = {
-            name: 'create_todo_item',
-            description: 'Create a todo list or item.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING, description: 'List title' },
-                    items: { 
-                        type: Type.ARRAY, 
-                        items: { 
-                            type: Type.OBJECT, 
-                            properties: { label: { type: Type.STRING }, due: { type: Type.STRING }, done: { type: Type.BOOLEAN } } 
-                        } 
-                    }
-                },
-                required: ['items']
-            }
-        };
-
-        const renderCalendarEventTool: FunctionDeclaration = {
-            name: 'render_calendar_event',
-            description: 'Render a calendar event card.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    date: { type: Type.STRING },
-                    time: { type: Type.STRING },
-                    description: { type: Type.STRING }
-                },
-                required: ['title', 'date', 'time']
-            }
-        };
-        
-        const renderFlashcardsTool: FunctionDeclaration = {
-            name: 'render_flashcards',
-            description: 'Render a set of flashcards for study.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    cards: { 
-                        type: Type.ARRAY, 
-                        items: { type: Type.OBJECT, properties: { front: { type: Type.STRING }, back: { type: Type.STRING } } } 
-                    }
-                },
-                required: ['cards']
             }
         };
 
@@ -263,13 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             tools: [{ 
                 functionDeclarations: [
                     googleSearchTool, 
-                    renderChartTool,
-                    renderStockWidgetTool,
-                    renderKpiTool, 
-                    renderTableTool, 
-                    createTodoTool,
-                    renderCalendarEventTool,
-                    renderFlashcardsTool
+                    renderStockWidgetTool
                 ] 
             }],
         };
@@ -339,7 +247,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         keepGoing = true;
 
                     } else {
-                        // Generic Tool Handling (including render_stock_widget)
+                        // Generic Tool Handling (render_stock_widget)
                         write({ 
                             type: 'tool_call', 
                             payload: { 

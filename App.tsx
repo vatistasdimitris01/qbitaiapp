@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -661,7 +660,7 @@ const App: React.FC = () => {
             <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-40">
-              <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4 min-h-full">
+              <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4 min-h-full flex flex-col">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -669,7 +668,7 @@ const App: React.FC = () => {
                           return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} isLast={isLastMessage} onSendSuggestion={handleSendSuggestion} />;
                       })
                   ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="flex-1 flex items-center justify-center">
                           <GreetingMessage text={greeting} />
                       </div>
                   )}

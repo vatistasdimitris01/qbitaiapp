@@ -1,10 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { 
-    CheckIcon, 
-    BarChartIcon, 
-    TrendingUpIcon, 
-    TrendingDownIcon 
+    BarChartIcon
 } from './icons';
 
 interface GenerativeUIProps {
@@ -94,10 +91,11 @@ const StockWidget: React.FC<{
     price: string; 
     change: string; 
     changePercent: string; 
-    chartData: any; 
+    chartData: any;
+    history?: any;
     stats: any;
     currency?: string;
-}> = ({ symbol = 'N/A', price = '0.00', change = '', changePercent = '', chartData, stats = {}, currency = '$' }) => {
+}> = ({ symbol = 'N/A', price = '0.00', change = '', changePercent = '', chartData, history = {}, stats = {}, currency = '$' }) => {
     // Robust checks for string methods
     const safeChange = String(change || '0.00');
     const safeChangePercent = String(changePercent || '0.00%');
@@ -110,6 +108,8 @@ const StockWidget: React.FC<{
     const safePrice = String(price || '0.00');
     const displayPrice = safePrice.startsWith(currency) ? safePrice : `${currency}${safePrice}`;
 
+    const currentData = (activeRange === '1D' || !history[activeRange]) ? chartData : history[activeRange];
+
     return (
         <div className="bg-[#121212] border border-[#27272a] rounded-xl overflow-hidden shadow-lg my-4 max-w-3xl font-sans text-[#e4e4e7]">
             <div className="p-5 flex flex-wrap justify-between items-start gap-4">
@@ -119,11 +119,10 @@ const StockWidget: React.FC<{
                     <div className={`text-sm font-medium ${trendColor} flex items-center gap-1.5`}>
                         <span className="font-bold">{safeChange}</span> 
                         <span>({safeChangePercent})</span>
-                        <span className="text-[#71717a] ml-1 font-normal">Today</span>
                     </div>
                 </div>
                 <div className="flex bg-[#27272a] rounded-lg overflow-hidden p-1 self-center">
-                    {['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y', 'MAX'].map(r => (
+                    {['1D', '5D', '1M', '6M', '1Y', '5Y'].map(r => (
                         <button 
                             key={r}
                             onClick={() => setActiveRange(r)}
@@ -138,7 +137,7 @@ const StockWidget: React.FC<{
             <div className="h-[340px] w-full px-2 relative">
                  <ChartRenderer 
                     type="line" 
-                    data={chartData} 
+                    data={currentData} 
                     height="340px" 
                     colors={[chartColor]}
                 />
@@ -158,110 +157,6 @@ const StockWidget: React.FC<{
     );
 };
 
-
-const KPICard: React.FC<{ title: string; value: string; change?: string; trend?: 'up' | 'down' | 'neutral' }> = ({ title, value, change, trend }) => {
-    const trendColor = trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500';
-    
-    return (
-        <div className="bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] rounded-xl p-5 shadow-sm min-w-[200px] flex-1">
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">{title}</p>
-            <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
-                {change && (
-                    <span className={`text-xs font-medium ${trendColor} bg-opacity-10 px-1.5 py-0.5 rounded-full bg-current`}>
-                        {change}
-                    </span>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const DataRenderer: React.FC<{ columns: string[]; data: any[] }> = ({ columns, data }) => {
-    if (!data || data.length === 0) return null;
-    return (
-        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-[#333] shadow-sm my-4 bg-white dark:bg-[#1e1e1e]">
-            <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 dark:bg-[#252525] text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-[#333]">
-                    <tr>
-                        {columns.map((col, idx) => (
-                            <th key={idx} className="px-4 py-3 whitespace-nowrap">{col}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-[#333]">
-                    {data.map((row, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
-                            {columns.map((col, cIdx) => (
-                                <td key={cIdx} className="px-4 py-3 text-gray-900 dark:text-gray-200">
-                                    {typeof row === 'object' && row !== null && !Array.isArray(row) ? row[Object.keys(row)[cIdx]] || row[col.toLowerCase()] : row[cIdx]}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-const TodoList: React.FC<{ title: string; items: { label: string; due?: string; done?: boolean }[] }> = ({ title, items }) => {
-    const [tasks, setTasks] = useState(items || []);
-
-    const toggleTask = (index: number) => {
-        const newTasks = [...tasks];
-        newTasks[index] = { ...newTasks[index], done: !newTasks[index].done };
-        setTasks(newTasks);
-    };
-
-    return (
-        <div className="bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] rounded-xl p-0 shadow-sm my-4 overflow-hidden max-w-md">
-            {title && <div className="px-4 py-3 bg-gray-50 dark:bg-[#252525] border-b border-gray-200 dark:border-[#333] font-semibold text-gray-700 dark:text-gray-200">{title}</div>}
-            <div className="divide-y divide-gray-100 dark:divide-[#333]">
-                {tasks.map((task, idx) => (
-                    <div key={idx} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors cursor-pointer" onClick={() => toggleTask(idx)}>
-                        <div className={`size-5 rounded-full border flex items-center justify-center transition-colors ${task.done ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-gray-600'}`}>
-                            {task.done && <CheckIcon className="size-3.5 text-white" />}
-                        </div>
-                        <div className="flex-1">
-                            <p className={`text-sm ${task.done ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-200'}`}>{task.label}</p>
-                            {task.due && <p className="text-xs text-gray-400">{task.due}</p>}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const Flashcards: React.FC<{ cards: { front: string; back: string }[] }> = ({ cards }) => {
-    const [flipped, setFlipped] = useState<number | null>(null);
-
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
-            {cards.map((card, idx) => (
-                <div 
-                    key={idx} 
-                    className="group perspective h-48 cursor-pointer"
-                    onClick={() => setFlipped(flipped === idx ? null : idx)}
-                >
-                    <div className={`relative w-full h-full duration-500 preserve-3d transition-transform ${flipped === idx ? 'rotate-y-180' : ''}`}>
-                        {/* Front */}
-                        <div className="absolute inset-0 backface-hidden bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] rounded-xl p-6 flex items-center justify-center text-center shadow-sm">
-                            <p className="font-medium text-gray-900 dark:text-gray-100">{card.front}</p>
-                             <div className="absolute bottom-3 right-3 text-xs text-gray-400">Click to flip</div>
-                        </div>
-                        {/* Back */}
-                        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-blue-50 dark:bg-[#1d9bf0]/10 border border-blue-200 dark:border-blue-800 rounded-xl p-6 flex items-center justify-center text-center shadow-sm">
-                            <p className="text-gray-800 dark:text-blue-100">{card.back}</p>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
 const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
     if (!args) return null;
 
@@ -272,61 +167,11 @@ const GenerativeUI: React.FC<GenerativeUIProps> = ({ toolName, args }) => {
             price={args.price} 
             change={args.change} 
             changePercent={args.changePercent} 
-            chartData={args.chartData} 
+            chartData={args.chartData}
+            history={args.history}
             stats={args.stats}
             currency={args.currency}
         />;
-    }
-
-    if (toolName === 'render_chart' || toolName === 'render_line_chart' || toolName === 'render_bar_chart' || toolName === 'render_pie_chart') {
-        const chartType = args.type || (toolName.includes('line') ? 'line' : toolName.includes('bar') ? 'bar' : toolName.includes('pie') ? 'pie' : 'bar');
-        return <ChartRenderer type={chartType} data={args.data} title={args.title} />;
-    }
-
-    if (toolName === 'render_kpi_card' || toolName === 'render_stats') {
-        const items = Array.isArray(args) ? args : [args];
-        return (
-            <div className="flex flex-wrap gap-4 my-4">
-                {items.map((item: any, idx: number) => (
-                    <KPICard 
-                        key={idx} 
-                        title={item.title} 
-                        value={item.value} 
-                        change={item.change || item.delta} 
-                        trend={item.trend || (item.change?.includes('+') ? 'up' : item.change?.includes('-') ? 'down' : 'neutral')} 
-                    />
-                ))}
-            </div>
-        );
-    }
-
-    if (toolName === 'render_table') {
-        return <DataRenderer columns={args.columns || args.headers} data={args.data || args.rows} />;
-    }
-
-    if (toolName === 'create_todo_item' || toolName === 'render_todo_list') {
-        const items = args.items ? args.items : (args.task ? [{ label: args.task, due: args.due_date }] : []);
-        const title = args.title || "To Do";
-        return <TodoList title={title} items={items} />;
-    }
-
-    if (toolName === 'render_flashcards') {
-        return <Flashcards cards={args.cards || []} />;
-    }
-
-    if (toolName === 'render_calendar_event') {
-        return (
-            <div className="bg-white dark:bg-[#1e1e1e] border border-l-4 border-l-blue-500 border-gray-200 dark:border-[#333] rounded-r-xl p-4 shadow-sm my-4 max-w-sm">
-                <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-1">Calendar Event</p>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{args.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{args.date} • {args.time}</p>
-                {args.description && <p className="text-sm text-gray-500 mt-2">{args.description}</p>}
-                <div className="mt-3 flex gap-2">
-                    <button className="text-xs bg-gray-100 dark:bg-[#333] hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors">Add to Google</button>
-                    <button className="text-xs bg-gray-100 dark:bg-[#333] hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors">Add to Outlook</button>
-                </div>
-            </div>
-        );
     }
     
     // Fallback for generic message or unknown tool

@@ -11,12 +11,11 @@ import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
-import { StopCircleIcon } from './components/icons';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { LayoutGridIcon, SquarePenIcon, ChevronDownIcon } from './components/icons';
+import { LayoutGridIcon, ChevronDownIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -87,7 +86,6 @@ const safeLocalStorageSetItem = (key: string, value: string) => {
         localStorage.setItem(key, value);
     } catch (e) {
         console.error(`Failed to save ${key} to localStorage:`, e);
-        // If quota exceeded, we could try to clear old items, but for now just logging prevents the app from crashing.
     }
 };
 
@@ -101,8 +99,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   
-  // Default sidebar to open on desktop, closed on mobile (handled by media queries/logic below)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  // Sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -135,6 +133,13 @@ const App: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const dragCounter = useRef(0);
   const { t, setLang, lang } = useTranslations(language);
+
+  // Set initial sidebar state based on screen width
+  useEffect(() => {
+    if (window.innerWidth >= 1024) {
+        setIsSidebarOpen(true);
+    }
+  }, []);
 
   const checkPythonReady = useCallback(() => {
     pythonExecutorReady().then(() => {
@@ -236,7 +241,6 @@ const App: React.FC = () => {
         if (savedLang && isLanguage(savedLang)) setLanguage(savedLang);
         if (savedResults) setExecutionResults(JSON.parse(savedResults));
         
-        // If there's a valid saved ID, use it. Otherwise, default to the "new chat" state (null).
         if (savedActiveId && loadedConvos.some((c: Conversation) => c.id === savedActiveId)) {
             setActiveConversationId(savedActiveId);
         } else {
@@ -250,7 +254,7 @@ const App: React.FC = () => {
   useDebouncedEffect(() => {
       const sanitized = sanitizeForStorage(conversations);
       safeLocalStorageSetItem('conversations', JSON.stringify(sanitized));
-  }, [conversations], 1000); // Increased debounce to reduce write frequency
+  }, [conversations], 1000);
 
   useDebouncedEffect(() => {
       safeLocalStorageSetItem('executionResults', JSON.stringify(executionResults));
@@ -470,12 +474,10 @@ const App: React.FC = () => {
                         newMessages = newMessages.map(msg => msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg);
                         break;
                     case 'tool_call':
-                        // Handle Generative UI update
                         setAiStatus('generating');
                         newMessages = newMessages.map(msg => {
                             if (msg.id === aiMessageId) {
                                 const currentToolCalls = msg.toolCalls || [];
-                                // Only add if not already there (simple dedup check by id)
                                 if (!currentToolCalls.some(tc => tc.id === update.payload.id)) {
                                      return { ...msg, toolCalls: [...currentToolCalls, update.payload] };
                                 }
@@ -632,15 +634,16 @@ const App: React.FC = () => {
     <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
         {isDragging && <DragDropOverlay t={t} />}
         
-        {/* Toggle Button - Visible on all devices when sidebar is closed */}
+        {/* Mobile Toggle - Top Left */}
         <button 
           onClick={() => setIsSidebarOpen(true)} 
-          className={`fixed top-4 left-4 z-30 p-2 bg-card/80 backdrop-blur-md rounded-lg text-muted-foreground hover:text-foreground border border-default shadow-md transition-all duration-300 ${isSidebarOpen ? 'opacity-0 pointer-events-none -translate-x-full' : 'opacity-100 translate-x-0'}`} 
+          className="lg:hidden fixed top-3 left-3 z-30 p-2 text-muted-foreground hover:text-foreground"
           aria-label={t('sidebar.open')}
         >
-            <LayoutGridIcon className="size-5" />
+            <LayoutGridIcon className="size-6" />
         </button>
 
+        {/* Sidebar */}
         <Sidebar 
             isOpen={isSidebarOpen} 
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
@@ -653,14 +656,15 @@ const App: React.FC = () => {
             t={t} 
         />
         
-        {/* Mobile Overlay */}
-        {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden" aria-hidden="true"></div>}
-        
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col h-full relative min-w-0 transition-all duration-300">
-            <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
+            {/* Header/Location - Hidden on small, subtle on large */}
+            <div className="hidden lg:block absolute top-0 w-full z-10">
+                <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
+            </div>
             
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-40">
-              <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4 min-h-full flex flex-col">
+            <main ref={mainContentRef} className="flex-1 overflow-y-auto scrollbar-none pb-40 pt-14 lg:pt-8">
+              <div className="w-full max-w-[48rem] mx-auto px-4 flex flex-col">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -668,7 +672,9 @@ const App: React.FC = () => {
                           return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} isLast={isLastMessage} onSendSuggestion={handleSendSuggestion} />;
                       })
                   ) : (
-                      <div className="flex-1 flex items-center justify-center">
+                      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
+                           {/* Centered Logo/Greeting for Empty State */}
+                           <div className="size-16 rounded-2xl bg-foreground text-background flex items-center justify-center text-3xl font-bold mb-4 shadow-lg">Q</div>
                           <GreetingMessage text={greeting} />
                       </div>
                   )}
@@ -676,21 +682,23 @@ const App: React.FC = () => {
             </main>
             
             <div className="absolute bottom-0 left-0 w-full pointer-events-none flex flex-col items-center justify-end pb-6 z-20">
+                 {/* Scroll to Bottom Button */}
                 {showScrollToBottom && !isLoading && (
                     <button 
                         onClick={handleScrollToBottomClick} 
                         className="pointer-events-auto mb-4 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" 
                         aria-label={t('chat.scrollToBottom')}
                     >
-                        <ChevronDownIcon className="size-6" />
+                        <ChevronDownIcon className="size-5" />
                     </button>
                 )}
                 
-                <div className="w-full px-4 pointer-events-auto flex justify-center">
+                <div className="w-full px-4 pointer-events-auto flex justify-center bg-gradient-to-t from-background via-background/80 to-transparent pt-10 pb-4">
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
                 </div>
             </div>
         </div>
+        
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
         {analysisModalContent &&
           <CodeAnalysisModal

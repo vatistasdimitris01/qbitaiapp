@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus } from '../types';
@@ -38,8 +37,8 @@ interface ChatMessageProps {
     onSendSuggestion: (text: string) => void;
 }
 
-const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-gray-500 dark:text-[#a1a1aa] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#333333]";
-const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-9 rounded-xl px-3.5 py-1.5 text-sm text-gray-500 dark:text-[#a1a1aa] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#333333] border border-transparent hover:border-gray-200 dark:hover:border-[#333]";
+const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-surface-l2";
+const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-9 rounded-xl px-3.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-l2 border border-transparent hover:border-border";
 
 const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
     <button onClick={onClick} className={iconBtnClass} title={title}>
@@ -105,7 +104,7 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
 
     if (loading) return (
          <div className="grid grid-cols-3 gap-1.5 my-2 max-w-xl">
-             {[1,2,3].map(i => <div key={i} className="aspect-square bg-gray-100 dark:bg-[#292929] animate-pulse rounded-lg" />)}
+             {[1,2,3].map(i => <div key={i} className="aspect-square bg-surface-l2 animate-pulse rounded-lg" />)}
          </div>
     );
     
@@ -121,7 +120,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
-    const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (aiStatus === 'thinking' || aiStatus === 'searching') setIsThinkingOpen(true);
@@ -214,21 +212,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     if (isUser) {
         return (
-            <div className="flex justify-end w-full mb-8">
-                <div className="flex flex-col items-end max-w-[85%]">
-                     <div className="bg-[#f4f4f5] dark:bg-[#212121] text-gray-900 dark:text-gray-200 px-5 py-3 rounded-[24px] rounded-br-lg border border-gray-200 dark:border-[#333333] shadow-sm mb-2">
+            <div className="flex justify-end w-full mb-6">
+                <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
+                     <div className="bg-user-message text-foreground px-5 py-3 rounded-2xl rounded-tr-sm border border-border">
                         <div className="whitespace-pre-wrap leading-relaxed text-[16px]">{messageText}</div>
                     </div>
                     
                     {/* Attachments */}
                     {message.files && message.files.length > 0 && (
-                        <div className="flex flex-wrap justify-end gap-2 mb-2">
+                        <div className="flex flex-wrap justify-end gap-2 mt-2">
                             {message.files.map((file, i) => (
-                                <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-[#333333]">
+                                <div key={i} className="relative group rounded-xl overflow-hidden border border-border">
                                     {isImageFile(file.type) ? (
-                                        <img src={file.dataUrl} alt={file.name} className="h-24 w-auto object-cover" />
+                                        <img src={file.dataUrl} alt={file.name} className="h-20 w-auto object-cover" />
                                     ) : (
-                                        <div className="h-24 w-24 bg-gray-100 dark:bg-[#292929] flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 p-2 text-center">
+                                        <div className="h-20 w-20 bg-surface-l2 flex items-center justify-center text-xs text-muted-foreground p-2 text-center break-all">
                                             {file.name}
                                         </div>
                                     )}
@@ -236,12 +234,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                             ))}
                         </div>
                     )}
-                    
-                    <div className="flex space-x-2">
-                        <IconButton title="Copy" onClick={handleCopy}>
-                            {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
-                        </IconButton>
-                    </div>
                 </div>
             </div>
         );
@@ -249,12 +241,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     if (isError) {
         return (
-            <div className="flex flex-col w-full mb-8 max-w-[95%]">
-                <div className="p-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+            <div className="flex flex-col w-full mb-8 max-w-full">
+                <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-red-500 text-sm">
                     {messageText || "An unknown error occurred."}
                 </div>
                 {/* Retry button */}
-                <div className="flex items-center space-x-0 mt-3 text-gray-500 text-sm">
+                <div className="flex items-center space-x-0 mt-2 text-muted-foreground">
                     <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                         <MessageRefreshIcon className="size-4" />
                     </IconButton>
@@ -269,17 +261,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasContent = hasText || hasToolCalls;
 
     return (
-        <div className="flex flex-col w-full mb-8 max-w-[95%]">
+        <div className="flex flex-col w-full mb-8 max-w-full group/message">
              {/* Thinking Block */}
              {hasThinkingTag && parsedThinkingText && (
                 <div className="mb-4">
-                     <div onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-gray-200 transition-colors w-fit p-1 rounded-lg">
-                        <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' ? 'animate-pulse text-[#1d9bf0]' : ''}`} />
+                     <div onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors w-fit p-1 rounded-lg">
+                        <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' ? 'animate-pulse text-accent-blue' : ''}`} />
                         <span className="text-sm font-medium">{t('chat.message.thinking')}</span>
                         <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                     </div>
                     {isThinkingOpen && (
-                        <div className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-[#333] text-gray-500 dark:text-gray-400 text-sm italic whitespace-pre-wrap animate-fade-in-up">
+                        <div className="mt-2 pl-3 border-l-2 border-border text-muted-foreground text-sm italic whitespace-pre-wrap animate-fade-in-up">
                             {parsedThinkingText}
                         </div>
                     )}
@@ -287,20 +279,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             )}
             
             {/* Main AI Message Content */}
-            <div className="text-gray-900 dark:text-[#e4e4e7] text-[16px] leading-relaxed w-full">
+            <div className="text-foreground text-[16px] leading-relaxed w-full">
                  {/* Empty State / Loading */}
                  {!hasContent && isLoading && !parsedThinkingText && (
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                        {aiStatus === 'searching' && <span className="animate-pulse">Searching the web...</span>}
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        {aiStatus === 'searching' && <span className="animate-pulse">Searching...</span>}
                         {aiStatus === 'generating' && <AITextLoading />}
                         {aiStatus === 'thinking' && !hasThinkingTag && <span className="animate-pulse">Thinking...</span>}
-                    </div>
-                )}
-                
-                {/* Fallback for empty message when done loading */}
-                {!hasContent && !isLoading && !parsedThinkingText && (
-                    <div className="text-gray-400 italic text-sm">
-                        (Empty response)
                     </div>
                 )}
                 
@@ -359,8 +344,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
 
-            {/* AI Action Icons Row */}
-            <div className="flex items-center space-x-0 mt-3 text-gray-500 text-sm">
+            {/* AI Action Icons Row - Visible on hover or focused */}
+            <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200">
                 <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                     <MessageRefreshIcon className="size-4" />
                 </IconButton>
@@ -371,7 +356,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     <GitForkIcon className="size-4" />
                 </IconButton>
                 {message.generationDuration && (
-                     <span className="ml-2 text-gray-500 dark:text-gray-600 text-xs select-none">{(message.generationDuration / 1000).toFixed(1)}s</span>
+                     <span className="ml-2 text-muted-foreground text-xs select-none font-mono">{(message.generationDuration / 1000).toFixed(1)}s</span>
                 )}
             </div>
             
@@ -380,7 +365,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                  <div className="mt-4 flex flex-col items-start gap-2 animate-fade-in-up">
                     {suggestions.map((suggestion, idx) => (
                         <SuggestionButton key={idx} onClick={() => onSendSuggestion(suggestion)}>
-                             <CornerDownRightIcon className="size-4 text-gray-500" />
+                             <CornerDownRightIcon className="size-3.5 text-muted-foreground" />
                              <span className="truncate max-w-[300px]">{suggestion}</span>
                         </SuggestionButton>
                     ))}

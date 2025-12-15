@@ -6,8 +6,8 @@ interface GreetingMessageProps {
 
 const GreetingMessage: React.FC<GreetingMessageProps> = ({ text }) => {
   return (
-    <div className="animate-fade-in-up">
-      <h1 className="text-2xl sm:text-3xl font-semibold text-muted-foreground">{text}</h1>
+    <div className="animate-fade-in-up text-center">
+      <h1 className="text-2xl sm:text-3xl font-semibold text-muted-foreground tracking-tight">{text}</h1>
     </div>
   );
 };

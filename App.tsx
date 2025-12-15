@@ -140,7 +140,7 @@ const App: React.FC = () => {
     // The prompt implied it starts "closed" as icons. Let's initialize false (collapsed rail) for desktop.
     // For mobile, false means hidden.
     if (window.innerWidth >= 1024) {
-        setIsSidebarOpen(false); // Start collapsed (rail mode) on desktop
+        setIsSidebarOpen(true); // Default open on large screens
     }
   }, []);
 
@@ -588,8 +588,8 @@ const App: React.FC = () => {
         
         <main 
             ref={mainContentRef}
-            className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[64px]'}
+            className={`flex-1 flex flex-col h-full relative transition-all duration-200 ease-linear
+                ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[60px]'}
                 bg-background w-full
             `}
             onScroll={handleScroll}

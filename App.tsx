@@ -677,7 +677,6 @@ const App: React.FC = () => {
                   ) : (
                       <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
                            {/* Centered Logo/Greeting for Empty State */}
-                           <div className="size-12 rounded-xl bg-foreground text-background flex items-center justify-center text-xl font-bold mb-4 shadow-sm select-none">Q</div>
                           <GreetingMessage text={greeting} />
                       </div>
                   )}

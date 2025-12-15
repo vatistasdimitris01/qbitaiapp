@@ -196,7 +196,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex flex-col w-full bg-surface-l1 rounded-[26px] shadow-sm border border-border transition-colors duration-300 overflow-hidden group"
+                    className="relative flex flex-col w-full bg-[#18181b] dark:bg-[#18181b] rounded-[26px] shadow-sm border border-white/5 transition-colors duration-300 overflow-hidden group hover:border-white/10"
                 >
                     <textarea 
                         ref={internalTextareaRef} 
@@ -216,7 +216,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             <button
                                 type="button"
                                 onClick={handleAttachClick}
-                                className="flex items-center justify-center size-9 rounded-full hover:bg-surface-l2 text-muted-foreground hover:text-foreground transition-colors"
+                                className="flex items-center justify-center size-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
                                 disabled={isLoading}
                                 aria-label={t('chat.input.attach')}
                             >
@@ -229,7 +229,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 <button 
                                     type="button"
                                     onClick={handleMicClick}
-                                    className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-surface-l2'}`}
+                                    className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-white/10'}`}
                                 >
                                     {isRecording ? <XIcon className="size-5" /> : <VoiceWaveIcon className="size-5" />}
                                 </button>
@@ -238,7 +238,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${hasContent || isLoading ? 'bg-foreground text-background' : 'bg-surface-l2 text-muted-foreground cursor-not-allowed'}`}
+                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${hasContent || isLoading ? 'bg-foreground text-background' : 'bg-white/10 text-muted-foreground cursor-not-allowed'}`}
                                 disabled={!hasContent && !isLoading}
                             >
                                 {isLoading ? (

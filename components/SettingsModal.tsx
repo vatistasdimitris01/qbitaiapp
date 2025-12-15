@@ -167,6 +167,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       </button>
   );
 
+  // ... (API Snippets constant definitions) ... 
   const curlSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -256,25 +257,6 @@ function AiNewsComponent() {
     </div>
   );
 }`;
-
-const toolDefinition = `const weatherTool = {
-  name: 'get_current_weather',
-  description: 'Get the current weather in a given location',
-  parameters: {
-    type: 'OBJECT',
-    properties: {
-      location: {
-        type: 'STRING',
-        description: 'The city and state, e.g. San Francisco, CA',
-      },
-      unit: {
-        type: 'STRING',
-        enum: ['celsius', 'fahrenheit'],
-      },
-    },
-    required: ['location'],
-  },
-};`;
 
 const curlToolSnippet = `curl -X POST https://aiqbit.vercel.app/api/chat \\
 -H "Content-Type: application/json" \\
@@ -440,19 +422,20 @@ const exampleToolResponse = `{
   ]
 }`;
 
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center sm:p-4" onClick={onClose}>
-      <div className="bg-token-surface shadow-xl w-full max-w-4xl h-full sm:h-[600px] sm:max-h-[85vh] flex flex-col overflow-hidden sm:rounded-2xl" onClick={e => e.stopPropagation()}>
-        <header className="flex items-center justify-between py-2.5 pl-6 pr-2 border-b border-token flex-shrink-0">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center sm:p-4" onClick={onClose}>
+      <div className="bg-token-surface shadow-2xl w-full max-w-4xl h-full sm:h-[600px] sm:max-h-[85vh] flex flex-col overflow-hidden sm:rounded-2xl border border-token" onClick={e => e.stopPropagation()}>
+        <header className="flex items-center justify-between py-3 px-6 border-b border-token flex-shrink-0 bg-token-surface">
           <h2 className="text-token-primary text-lg font-semibold">{t('settings.header')}</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-token-surface-secondary">
-            <XIcon className="size-5 text-token-secondary" />
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-token-surface-secondary text-token-secondary hover:text-token-primary transition-colors">
+            <XIcon className="size-5" />
           </button>
         </header>
         
-        <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
+        <div className="flex flex-1 flex-col md:flex-row overflow-hidden bg-token-surface">
            {/* Desktop Sidebar */}
-           <div className="hidden md:block w-56 shrink-0 border-r border-token bg-token-surface-secondary/50 p-4 space-y-2">
+           <div className="hidden md:block w-64 shrink-0 border-r border-token bg-token-surface-secondary/30 p-3 space-y-1">
               <TabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
               <TabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
               <TabButton tab="Usage" label={t('settings.tabs.usage')} icon={<BarChartIcon className="size-5" />} />
@@ -460,7 +443,7 @@ const exampleToolResponse = `{
           </div>
 
           {/* Mobile Top Nav */}
-          <div className="block md:hidden border-b border-token">
+          <div className="block md:hidden border-b border-token bg-token-surface-secondary/30">
               <div className="flex items-center justify-around">
                   <MobileTabButton tab="General" label={t('settings.tabs.general')} icon={<SettingsIcon className="size-5" />} />
                   <MobileTabButton tab="Personalization" label={t('settings.tabs.personalization')} icon={<SquarePenIcon className="size-5" />} />
@@ -469,29 +452,29 @@ const exampleToolResponse = `{
               </div>
           </div>
 
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-8">
+          <div className="flex-1 p-6 overflow-y-auto space-y-8 bg-token-surface">
             {activeTab === 'General' && (
               <section>
-                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.general.title')}</h3>
+                <h3 className="text-xl font-semibold text-token-primary mb-1">{t('settings.general.title')}</h3>
                 <p className="text-sm text-token-secondary mb-6">{t('settings.general.description')}</p>
                 <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-token-primary">{t('settings.general.theme')}</label>
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-token-primary block">{t('settings.general.theme')}</label>
+                    <div className="grid grid-cols-3 gap-2">
                       {(['light', 'dark', 'system'] as const).map(th => (
-                        <button key={th} onClick={() => setTheme(th)} className={`px-4 py-2 text-sm rounded-md capitalize transition-colors ${theme === th ? 'bg-gray-900 text-white dark:bg-white dark:text-black' : 'bg-token-surface-secondary text-token-primary hover:bg-gray-300 dark:hover:bg-neutral-800'}`}>
+                        <button key={th} onClick={() => setTheme(th)} className={`px-4 py-2.5 text-sm font-medium rounded-lg capitalize transition-all border ${theme === th ? 'bg-token-primary text-token-surface border-token-primary' : 'bg-token-surface-secondary text-token-primary border-transparent hover:bg-token-surface-secondary/80'}`}>
                           {t(`settings.general.themes.${th}`)}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="language-select" className="text-sm font-medium text-token-primary">{t('settings.general.language')}</label>
+                  <div className="space-y-3">
+                    <label htmlFor="language-select" className="text-sm font-medium text-token-primary block">{t('settings.general.language')}</label>
                     <select
                       id="language-select"
                       value={language}
                       onChange={e => setLanguage(e.target.value as Language)}
-                      className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary"
+                      className="w-full p-2.5 text-sm border rounded-lg bg-token-surface-secondary border-token text-token-primary focus:ring-1 focus:ring-token-primary outline-none"
                     >
                       {Object.keys(translations).map(langCode => (
                         <option key={langCode} value={langCode}>
@@ -506,29 +489,35 @@ const exampleToolResponse = `{
             
             {activeTab === 'Personalization' && (
               <section>
-                 <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.personalization.title')}</h3>
+                 <h3 className="text-xl font-semibold text-token-primary mb-1">{t('settings.personalization.title')}</h3>
                  <p className="text-sm text-token-secondary mb-6">{t('settings.personalization.description')}</p>
                 <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label htmlFor="persona-select" className="text-sm font-medium text-token-primary">{t('settings.personalization.personas')}</label>
-                    <p className="text-xs text-token-secondary">{t('settings.personalization.apply')}</p>
-                    <select id="persona-select" value={activeConversation?.personaId || 'default'} onChange={handlePersonaChange} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary">
-                      <option value="default">{t('settings.personalization.selectDefault')}</option>
-                      {personas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                  <div className="space-y-3">
+                    <label htmlFor="persona-select" className="text-sm font-medium text-token-primary block">{t('settings.personalization.personas')}</label>
+                    <div className="relative">
+                        <select id="persona-select" value={activeConversation?.personaId || 'default'} onChange={handlePersonaChange} className="w-full p-2.5 text-sm border rounded-lg bg-token-surface-secondary border-token text-token-primary focus:ring-1 focus:ring-token-primary outline-none appearance-none">
+                        <option value="default">{t('settings.personalization.selectDefault')}</option>
+                        {personas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-token-secondary">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
                   </div>
                   <div className="border-t border-token pt-6 space-y-4">
                     <h3 className="font-semibold text-token-primary">{t('settings.personalization.manage')}</h3>
-                    {personas.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-3 rounded-md bg-token-surface-secondary">
-                            <span className="text-token-primary font-medium">{p.name}</span>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingPersona(p)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{t('settings.personalization.edit')}</button>
-                                <button onClick={() => handleDeletePersona(p.id)}><Trash2Icon className="size-4 text-red-500 hover:text-red-700" /></button>
+                    <div className="space-y-2">
+                        {personas.map(p => (
+                            <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-token-surface-secondary border border-transparent hover:border-token transition-colors">
+                                <span className="text-token-primary font-medium text-sm">{p.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setEditingPersona(p)} className="text-xs font-medium text-blue-500 hover:text-blue-600 px-2 py-1 rounded hover:bg-blue-500/10">{t('settings.personalization.edit')}</button>
+                                    <button onClick={() => handleDeletePersona(p.id)} className="p-1 text-token-secondary hover:text-red-500 rounded hover:bg-red-500/10"><Trash2Icon className="size-4" /></button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 rounded-md border border-dashed border-token hover:bg-token-surface-secondary">{t('settings.personalization.add')}</button>
+                        ))}
+                    </div>
+                    <button onClick={() => setEditingPersona({id: `persona-${Date.now()}`, name: '', instruction: ''})} className="w-full py-2.5 text-sm font-medium text-blue-500 rounded-lg border border-dashed border-token hover:bg-token-surface-secondary transition-colors">{t('settings.personalization.add')}</button>
                   </div>
                 </div>
               </section>
@@ -536,34 +525,34 @@ const exampleToolResponse = `{
             
             {activeTab === 'Usage' && (
               <section>
-                <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.usage.title')}</h3>
+                <h3 className="text-xl font-semibold text-token-primary mb-1">{t('settings.usage.title')}</h3>
                 <p className="text-sm text-token-secondary mb-6">{t('settings.usage.description')}</p>
                 <div className="space-y-4">
-                    <div className="w-full rounded-lg border border-token bg-token-surface-secondary text-token-primary shadow-sm text-sm overflow-hidden">
-                        <div className="w-full space-y-2 p-4">
-                            <div className="flex items-center justify-between gap-3 text-xs">
-                                <p className="font-semibold">{t('settings.usage.tokenUsage')}</p>
-                                <p className="font-mono text-token-secondary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)}</p>
+                    <div className="w-full rounded-xl border border-token bg-token-surface-secondary/50 text-token-primary shadow-sm text-sm overflow-hidden">
+                        <div className="w-full space-y-2 p-5">
+                            <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-wider text-token-secondary font-semibold">
+                                <p>{t('settings.usage.tokenUsage')}</p>
+                                <p className="font-mono text-token-primary">{formatTokens(usageStats.inputTokens + usageStats.outputTokens)}</p>
                             </div>
-                            <div className="space-y-2">
-                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-token-surface">
+                            <div className="space-y-2 pt-2">
+                                <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-token-surface border border-token">
                                     <div className="bg-blue-500 h-full w-full flex-1 transition-all" style={{ width: '100%' }}></div>
                                 </div>
                             </div>
                         </div>
-                        <div className="w-full p-4 border-t border-token space-y-1">
-                            <div className="flex items-center justify-between text-xs">
+                        <div className="w-full px-5 pb-5 space-y-3">
+                            <div className="flex items-center justify-between text-sm">
                                 <span className="text-token-secondary">{t('settings.usage.input')}</span>
-                                <span>{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
+                                <span className="font-mono">{formatTokens(usageStats.inputTokens)}<span className="ml-2 text-token-secondary text-xs">(${((usageStats.inputTokens / 1_000_000) * INPUT_PRICE_PER_1M_TOKENS).toFixed(4)})</span></span>
                             </div>
-                            <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center justify-between text-sm">
                                 <span className="text-token-secondary">{t('settings.usage.output')}</span>
-                                <span>{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-secondary">• ${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)}</span></span>
+                                <span className="font-mono">{formatTokens(usageStats.outputTokens)}<span className="ml-2 text-token-secondary text-xs">(${((usageStats.outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M_TOKENS).toFixed(4)})</span></span>
                             </div>
                         </div>
-                        <div className="flex w-full items-center justify-between gap-3 bg-token-surface p-4 text-sm font-semibold">
+                        <div className="flex w-full items-center justify-between gap-3 bg-token-surface border-t border-token p-4 text-sm font-medium">
                             <span className="text-token-secondary">{t('settings.usage.totalCost')}</span>
-                            <span>${usageStats.totalCost.toFixed(4)}</span>
+                            <span className="text-base text-token-primary">${usageStats.totalCost.toFixed(4)}</span>
                         </div>
                     </div>
                 </div>
@@ -572,20 +561,22 @@ const exampleToolResponse = `{
             {activeTab === 'API' && (
               <section className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-semibold text-token-primary mb-1">{t('settings.api.title')}</h3>
+                  <h3 className="text-xl font-semibold text-token-primary mb-1">{t('settings.api.title')}</h3>
                   <p className="text-sm text-token-secondary mb-6">{t('settings.api.description')}</p>
                   <div className="space-y-2">
                       <label className="text-sm font-medium text-token-primary">{t('settings.api.endpoint')}</label>
-                      <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2 font-mono text-sm border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                      <div className="flex">
+                        <input type="text" readOnly value="https://aiqbit.vercel.app/api/chat" className="w-full p-2.5 font-mono text-sm border rounded-lg bg-token-surface-secondary border-token text-token-primary outline-none focus:ring-1 focus:ring-token-primary select-all" />
+                      </div>
                   </div>
                 </div>
 
                 <div>
-                   <h4 className="text-base font-semibold text-token-primary mb-1">{t('settings.api.basicTitle')}</h4>
-                   <p className="text-sm text-token-secondary mb-6">{t('settings.api.basicDescription')}</p>
-                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
+                   <h4 className="text-base font-semibold text-token-primary mb-2">{t('settings.api.basicTitle')}</h4>
+                   <p className="text-sm text-token-secondary mb-4">{t('settings.api.basicDescription')}</p>
+                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-max mb-4">
                         {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
-                            <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                            <button key={lang} onClick={() => setActiveSnippet(lang)} className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors flex-1 sm:flex-none text-center ${activeSnippet === lang ? 'bg-token-surface text-token-primary shadow-sm' : 'text-token-secondary hover:text-token-primary'}`}>
                                 {lang === 'javascript' ? 'Node.js' : lang}
                             </button>
                         ))}
@@ -597,11 +588,11 @@ const exampleToolResponse = `{
                 </div>
 
                 <div className="border-t border-token pt-8">
-                   <h4 className="text-base font-semibold text-token-primary mb-1">{t('settings.api.toolsTitle')}</h4>
-                   <p className="text-sm text-token-secondary mb-6">{t('settings.api.toolsDescription')}</p>
-                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-auto">
+                   <h4 className="text-base font-semibold text-token-primary mb-2">{t('settings.api.toolsTitle')}</h4>
+                   <p className="text-sm text-token-secondary mb-4">{t('settings.api.toolsDescription')}</p>
+                    <div className="flex items-center gap-1 p-1 bg-token-surface-secondary rounded-lg w-full sm:w-max mb-4">
                           {(['curl', 'python', 'javascript', 'react'] as const).map(lang => (
-                              <button key={lang} onClick={() => setActiveToolSnippet(lang)} className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors w-full sm:w-auto ${activeToolSnippet === lang ? 'bg-background text-token-primary shadow-sm' : 'text-token-secondary hover:bg-background/70'}`}>
+                              <button key={lang} onClick={() => setActiveToolSnippet(lang)} className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors flex-1 sm:flex-none text-center ${activeToolSnippet === lang ? 'bg-token-surface text-token-primary shadow-sm' : 'text-token-secondary hover:text-token-primary'}`}>
                                   {lang === 'javascript' ? 'Node.js' : lang}
                               </button>
                           ))}
@@ -635,16 +626,22 @@ const PersonaEditor: React.FC<{persona: Persona, onSave: (p: Persona) => void, o
     };
     
     return (
-         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-token-surface rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-token-surface rounded-xl shadow-2xl w-full max-w-lg border border-token overflow-hidden" onClick={e => e.stopPropagation()}>
                  <div className="p-6 space-y-4">
                     <h3 className="text-lg font-semibold text-token-primary">{persona.name ? t('settings.personaEditor.editTitle') : t('settings.personaEditor.addTitle')}</h3>
-                    <input type="text" placeholder={t('settings.personaEditor.name')} value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
-                    <textarea placeholder={t('settings.personaEditor.instruction')} value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2 border rounded-md bg-token-surface-secondary border-token text-token-primary" />
+                    <div>
+                        <label className="text-xs font-medium text-token-secondary mb-1 block">{t('settings.personaEditor.name')}</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2.5 border rounded-lg bg-token-surface-secondary border-token text-token-primary text-sm focus:ring-1 focus:ring-token-primary outline-none" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-token-secondary mb-1 block">{t('settings.personaEditor.instruction')}</label>
+                        <textarea value={instruction} onChange={e => setInstruction(e.target.value)} rows={5} className="w-full p-2.5 border rounded-lg bg-token-surface-secondary border-token text-token-primary text-sm focus:ring-1 focus:ring-token-primary outline-none" />
+                    </div>
                  </div>
-                 <div className="flex justify-end gap-2 p-4 border-t border-token bg-token-surface-secondary/50 rounded-b-lg">
-                     <button onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-token-surface border border-token text-token-primary hover:bg-token-surface-secondary">{t('settings.personaEditor.cancel')}</button>
-                     <button onClick={handleSave} className="px-4 py-2 text-sm rounded-md bg-gray-800 text-white dark:bg-white dark:text-black hover:bg-gray-900 dark:hover:bg-gray-200">{t('settings.personaEditor.save')}</button>
+                 <div className="flex justify-end gap-3 p-4 border-t border-token bg-token-surface-secondary/30">
+                     <button onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg text-token-secondary hover:text-token-primary hover:bg-token-surface-secondary transition-colors">{t('settings.personaEditor.cancel')}</button>
+                     <button onClick={handleSave} className="px-4 py-2 text-sm font-medium rounded-lg bg-token-primary text-token-surface hover:opacity-90 transition-opacity">{t('settings.personaEditor.save')}</button>
                  </div>
             </div>
         </div>

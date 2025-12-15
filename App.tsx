@@ -100,7 +100,7 @@ const App: React.FC = () => {
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   
   // Sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default logic handled in useEffect
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
@@ -134,10 +134,13 @@ const App: React.FC = () => {
   const dragCounter = useRef(0);
   const { t, setLang, lang } = useTranslations(language);
 
-  // Set initial sidebar state based on screen width
+  // Set initial sidebar state based on screen width - default closed (rail) for desktop
   useEffect(() => {
+    // If user preference exists, could load here. Default to true (expanded) for desktop if space allows? 
+    // The prompt implied it starts "closed" as icons. Let's initialize false (collapsed rail) for desktop.
+    // For mobile, false means hidden.
     if (window.innerWidth >= 1024) {
-        setIsSidebarOpen(true);
+        setIsSidebarOpen(false); // Start collapsed (rail mode) on desktop
     }
   }, []);
 
@@ -664,7 +667,7 @@ const App: React.FC = () => {
             </div>
             
             <main ref={mainContentRef} className="flex-1 overflow-y-auto scrollbar-none pb-40 pt-14 lg:pt-8">
-              <div className="w-full max-w-[48rem] mx-auto px-4 flex flex-col">
+              <div className="w-full max-w-[44rem] mx-auto px-4 flex flex-col">
                   {activeConversation ? (
                       activeConversation.messages.map((msg, index) => {
                           const isLastMessage = index === activeConversation.messages.length - 1;
@@ -674,7 +677,7 @@ const App: React.FC = () => {
                   ) : (
                       <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
                            {/* Centered Logo/Greeting for Empty State */}
-                           <div className="size-16 rounded-2xl bg-foreground text-background flex items-center justify-center text-3xl font-bold mb-4 shadow-lg">Q</div>
+                           <div className="size-12 rounded-xl bg-foreground text-background flex items-center justify-center text-xl font-bold mb-4 shadow-sm select-none">Q</div>
                           <GreetingMessage text={greeting} />
                       </div>
                   )}
@@ -693,7 +696,7 @@ const App: React.FC = () => {
                     </button>
                 )}
                 
-                <div className="w-full px-4 pointer-events-auto flex justify-center bg-gradient-to-t from-background via-background/80 to-transparent pt-10 pb-4">
+                <div className="w-full px-4 pointer-events-auto flex justify-center bg-gradient-to-t from-background via-background/90 to-transparent pt-10 pb-4">
                     <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
                 </div>
             </div>

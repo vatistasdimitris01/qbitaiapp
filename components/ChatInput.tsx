@@ -113,14 +113,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const handleMicClick = () => {
         if (isRecording) {
-            // Stop logic
             if (recognitionRef.current) {
-                // Use abort() to cut immediately as per request.
                 recognitionRef.current.abort();
             }
             setIsRecording(false);
         } else {
-            // Start logic
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 alert("Speech recognition is not supported in this browser.");
@@ -132,9 +129,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             recognition.interimResults = true;
             recognition.lang = language;
 
-            // Capture the text at the start of recording
             let initialText = text;
-            // Add space if there is text and no trailing space
             if (initialText.length > 0 && !/\s$/.test(initialText)) {
                 initialText += ' ';
             }
@@ -148,7 +143,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 for (let i = 0; i < event.results.length; ++i) {
                    transcript += event.results[i][0].transcript;
                 }
-                // Update parent text. Note: This overrides concurrent manual edits.
                 onTextChange(initialText + transcript);
             };
 
@@ -172,8 +166,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-3">
-            {/* Context & Preview Container */}
-             <div className="w-full max-w-[48rem] px-4 animate-fade-in-up">
+             <div className="w-full max-w-[44rem] px-4 animate-fade-in-up">
                 {(replyContextText || attachmentPreviews.length > 0) && (
                     <div className="w-full mb-2">
                         {replyContextText && (
@@ -199,11 +192,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 )}
             </div>
             
-            <div className="w-full max-w-[48rem] px-2 md:px-0 relative">
+            <div className="w-full max-w-[44rem] px-2 md:px-0 relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex flex-col w-full bg-surface-l1 rounded-[26px] shadow-sm border border-border transition-colors duration-300 overflow-hidden"
+                    className="relative flex flex-col w-full bg-surface-l1 rounded-[26px] shadow-sm border border-border transition-colors duration-300 overflow-hidden group"
                 >
                     <textarea 
                         ref={internalTextareaRef} 
@@ -232,7 +225,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                          </div>
 
                          <div className="flex items-center gap-2">
-                             {/* Mic Button - Toggle with Send if content exists */}
                              {!hasContent && (
                                 <button 
                                     type="button"
@@ -258,7 +250,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                          </div>
                     </div>
                 </form>
-                <div className="text-center mt-2 text-xs text-muted-foreground">
+                <div className="text-center mt-2 text-xs text-muted-foreground/60">
                     {t('chat.input.disclaimer')}
                 </div>
             </div>

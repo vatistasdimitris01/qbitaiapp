@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -26,7 +26,7 @@
 
 <!-- PWA Meta Tags -->
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#121212">
+<meta name="theme-color" content="#141414">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Qbit AI">
@@ -77,6 +77,7 @@
            "surface-base": "var(--surface-base)",
            "surface-l1": "var(--surface-l1)",
            "surface-l2": "var(--surface-l2)",
+           "surface-l3": "var(--surface-l3)",
            "sidebar": "var(--sidebar-bg)",
         }
       }
@@ -117,11 +118,12 @@ window.mermaid = mermaid;
 * { scrollbar-width: none; -ms-overflow-style: none; }
 
 :root {
-  /* Light Theme - Grok-ish Light */
+  /* Light Theme */
   --background: #f9f8f7;
   --surface-base: #f9f8f7;
   --surface-l1: #ffffff;
   --surface-l2: #f3f2f1;
+  --surface-l3: #e5e7eb;
   --foreground: #18181b;
   --muted-foreground: #71717a;
   
@@ -150,11 +152,12 @@ window.mermaid = mermaid;
 }
 
 .dark {
-  /* Dark Theme - Grok-ish Dark */
-  --background: #141414; /* Matches surface-base */
-  --surface-base: #141414; /* 0 0% 8% */
+  /* Dark Theme - Grok-ish Colors */
+  --background: #141414; /* 0 0% 8% */
+  --surface-base: #141414;
   --surface-l1: #212121;   /* 0 0% 13% */
   --surface-l2: #292929;   /* 0 0% 16% */
+  --surface-l3: #333333;
   
   --foreground: #f3f3f3;
   --muted-foreground: #a1a1aa;
@@ -164,10 +167,10 @@ window.mermaid = mermaid;
   --sidebar-muted-foreground: #71717a;
   --sidebar-active-bg: #292929;
   --sidebar-active-foreground: #ffffff;
-  --sidebar-border: #333333;
+  --sidebar-border: #292929;
   
   --card: #212121;
-  --border: #333333;
+  --border: #292929;
   
   --user-message-bg: #212121;
   
@@ -175,7 +178,7 @@ window.mermaid = mermaid;
   --token-surface-secondary: #252525;
   --token-text-primary: #e4e4e7;
   --token-text-secondary: #a1a1aa;
-  --token-border: #333333;
+  --token-border: #292929;
   
   --accent-blue: #1d9bf0;
   

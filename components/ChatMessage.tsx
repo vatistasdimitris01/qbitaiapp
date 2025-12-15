@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus, GroundingChunk } from '../types';
@@ -107,7 +109,41 @@ const GlobeIcon: React.FC<{className?: string}> = ({className}) => (
     </svg>
 );
 
-const SearchStatus: React.FC<{ sources?: GroundingChunk[] }> = ({ sources }) => {
+const SearchCounter: React.FC<{ target: number }> = ({ target }) => {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        if (target <= 0) return;
+        
+        let start = 0;
+        const duration = 1000; // 1 second animation
+        const startTime = performance.now();
+        
+        const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Ease out cubic
+            const ease = 1 - Math.pow(1 - progress, 3);
+            
+            const current = Math.floor(ease * target);
+            setCount(current);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                setCount(target);
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }, [target]);
+
+    return <span>{count.toLocaleString()}</span>;
+};
+
+
+const SearchStatus: React.FC<{ sources?: GroundingChunk[], resultCount?: number }> = ({ sources, resultCount }) => {
     const [step, setStep] = useState(0); // 0: Searching, 1: Found/Browsing
     
     useEffect(() => {
@@ -121,9 +157,21 @@ const SearchStatus: React.FC<{ sources?: GroundingChunk[] }> = ({ sources }) => 
             <div className="flex flex-row items-center gap-2 cursor-pointer hover:opacity-80">
                 <div className="flex flex-row items-center gap-2 text-foreground">
                     <SearchIcon className={`size-4 ${step === 0 ? 'animate-pulse text-accent-blue' : 'text-muted-foreground'}`} />
-                    <div className={step === 0 ? 'font-medium' : 'text-muted-foreground'}>Searching the web</div>
+                    <div className={step === 0 ? 'font-medium' : 'text-muted-foreground'}>
+                        {step === 0 ? 'Searching the web' : 'Searching the web'}
+                    </div>
                 </div>
-                {step === 1 && <div className="text-muted-foreground text-xs">{sources?.length || 0} results</div>}
+                {step === 1 && (
+                    <div className="text-muted-foreground text-xs">
+                        {resultCount && resultCount > 0 ? (
+                            <>
+                                <SearchCounter target={resultCount} /> results
+                            </>
+                        ) : (
+                            `${sources?.length || 0} results`
+                        )}
+                    </div>
+                )}
             </div>
             
             {step === 1 && sources && sources.length > 0 && (
@@ -286,8 +334,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasContent = hasText || hasToolCalls;
     
     // Determine if we should show the search UI
-    const isSearching = aiStatus === 'searching' || (aiStatus === 'generating' && message.groundingChunks && message.groundingChunks.length > 0 && !hasContent);
-    const showSearchUI = (aiStatus === 'searching') || (message.groundingChunks && message.groundingChunks.length > 0 && isLoading);
+    // Show search UI if:
+    // 1. Status is 'searching'
+    // 2. OR we have grounding chunks and we are still loading (generating text after search)
+    // 3. OR we have grounding chunks but no text yet (so search is "done" but AI hasn't spoken)
+    const showSearchUI = (aiStatus === 'searching') || (message.groundingChunks && message.groundingChunks.length > 0 && (!hasContent || isLoading));
 
     return (
         <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-start">
@@ -307,14 +358,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
             
-            {/* Search Status - Show this INSTEAD of loader if searching */}
-            {isLoading && showSearchUI && (
-                <SearchStatus sources={message.groundingChunks} />
+            {/* Search Status */}
+            {showSearchUI && (
+                <SearchStatus sources={message.groundingChunks} resultCount={message.searchResultCount} />
             )}
 
             {/* Main AI Message Content */}
             <div className={`message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : ''}`}>
-                 {/* Empty State / Loading - Only show Generic loader if NOT searching */}
+                 {/* Empty State / Loading - Only show Generic loader if NOT searching and NOT generated content */}
                  {!hasContent && isLoading && !parsedThinkingText && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
                         {(aiStatus === 'generating' || (aiStatus === 'thinking' && !hasThinkingTag)) && (

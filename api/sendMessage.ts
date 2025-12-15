@@ -1,4 +1,5 @@
 
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -225,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         let searchResultText = "No results found or search failed.";
                         if (apiKey && cseId) {
                             try {
-                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=5`);
+                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
                                 const searchResults = await searchResponse.json();
                                 if (searchResults.items) {
                                      const groundingChunks = searchResults.items.map((item: any) => ({
@@ -233,6 +234,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                     }));
                                     write({ type: 'sources', payload: groundingChunks });
                                     
+                                    // Send search result count if available
+                                    if (searchResults.searchInformation && searchResults.searchInformation.totalResults) {
+                                        write({ type: 'search_result_count', payload: parseInt(searchResults.searchInformation.totalResults, 10) });
+                                    }
+
                                     searchResultText = searchResults.items.map((item: any) => 
                                         `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
                                     ).join('\n\n---\n\n');
@@ -271,7 +277,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Fallback: If absolutely nothing was sent (no text AND no tool), send a fallback message.
             if (!hasSentText && !hasSentTool) {
-                write({ type: 'chunk', payload: "I'm sorry, I couldn't process that request properly." });
+                 // But wait, if we did a search (keepGoing=true at least once), we might not have sent text yet if the model decided to be empty after search.
+                 // We should only force text if the stream ended completely empty from user perspective.
+                 // However, the frontend handles "no text but has sources" now. 
+                 // So we only send fallback if truly nothing happened.
             }
 
         } finally {

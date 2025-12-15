@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -452,12 +454,16 @@ const App: React.FC = () => {
                     } else if (update.type === 'usage') {
                         msg.usageMetadata = update.payload;
                     } else if (update.type === 'sources') {
-                         msg.groundingChunks = update.payload;
+                         // Merge grounding chunks instead of overwriting, in case multiple searches occur
+                         msg.groundingChunks = [...(msg.groundingChunks || []), ...update.payload];
                     } else if (update.type === 'searching') {
                         setAiStatus('searching');
                     } else if (update.type === 'tool_call') {
                         if (!msg.toolCalls) msg.toolCalls = [];
                         msg.toolCalls.push(update.payload);
+                    } else if (update.type === 'search_result_count') {
+                        // Accumulate the count
+                         msg.searchResultCount = (msg.searchResultCount || 0) + update.payload;
                     }
                     
                     messages[msgIndex] = { ...msg };
@@ -476,9 +482,10 @@ const App: React.FC = () => {
                          const msg = messages[msgIndex];
                          const contentStr = typeof msg.content === 'string' ? msg.content : '';
                          const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
+                         const hasGrounding = msg.groundingChunks && msg.groundingChunks.length > 0;
                          
-                         // Safety check: if response is empty and no tools used, flag as error
-                         if (!contentStr && !hasTools) {
+                         // Safety check: if response is empty and no tools used and no sources found, flag as error
+                         if (!contentStr && !hasTools && !hasGrounding) {
                              messages[msgIndex] = { ...msg, type: MessageType.ERROR, content: "Empty response from AI." };
                          } else {
                              messages[msgIndex] = { ...msg, generationDuration: duration };

@@ -6,11 +6,11 @@ import {
     BrainIcon, ChevronDownIcon, CheckIcon, GitForkIcon, MessageRefreshIcon, MessageCopyIcon, CornerDownRightIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
-import AITextLoading from './AITextLoading';
 import ImageGallery from './ImageGallery';
 import InlineImage from './InlineImage';
 import GroundingSources from './GroundingSources';
 import GenerativeUI from './GenerativeUI';
+import GeneratingLoader from './GeneratingLoader';
 
 type ExecutionResult = {
   output: string | null;
@@ -282,10 +282,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             <div className="text-foreground text-[16px] leading-relaxed w-full">
                  {/* Empty State / Loading */}
                  {!hasContent && isLoading && !parsedThinkingText && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
                         {aiStatus === 'searching' && <span className="animate-pulse">Searching...</span>}
-                        {aiStatus === 'generating' && <AITextLoading />}
-                        {aiStatus === 'thinking' && !hasThinkingTag && <span className="animate-pulse">Thinking...</span>}
+                        {(aiStatus === 'generating' || (aiStatus === 'thinking' && !hasThinkingTag)) && (
+                            <GeneratingLoader />
+                        )}
                     </div>
                 )}
                 

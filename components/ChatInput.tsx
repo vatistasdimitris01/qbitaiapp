@@ -40,9 +40,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            // Base height for single line is ~24px content.
-            // If height grows beyond a threshold, we treat it as multiline for styling.
-            const isMulti = newHeight > 30; // Threshold for roughly >1 line
+            // Threshold for expanding from pill to rounded-rect
+            const isMulti = newHeight > 30; 
             
             textarea.style.height = `${Math.max(24, newHeight)}px`;
             setIsMultiline(isMulti);
@@ -170,9 +169,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
-    // Show Send if content exists or if recording (to potentially stop/send) or if loading (to stop).
-    // Actually, prompt says: "if type show the arroup send button when not show voice"
-    const showSendButton = hasContent || isLoading; 
+    // Show Send button if user is typing, attached files, or if loading (to allow stop). 
+    // Otherwise show Voice button.
+    const showSendButton = hasContent || isLoading;
 
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-2">

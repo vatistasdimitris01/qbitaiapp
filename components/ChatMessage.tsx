@@ -61,7 +61,6 @@ const textToHtml = (text: string): string => {
     return html;
 };
 
-// ... GallerySearchLoader is same as before ...
 const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: any[], index: number) => void }> = ({ query, onOpenLightbox }) => {
     const [images, setImages] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

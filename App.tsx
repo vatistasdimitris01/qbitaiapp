@@ -473,7 +473,16 @@ const App: React.FC = () => {
                      const messages = [...c.messages];
                      const msgIndex = messages.findIndex(m => m.id === aiMessageId);
                      if (msgIndex !== -1) {
-                         messages[msgIndex] = { ...messages[msgIndex], generationDuration: duration };
+                         const msg = messages[msgIndex];
+                         const contentStr = typeof msg.content === 'string' ? msg.content : '';
+                         const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
+                         
+                         // Safety check: if response is empty and no tools used, flag as error
+                         if (!contentStr && !hasTools) {
+                             messages[msgIndex] = { ...msg, type: MessageType.ERROR, content: "Empty response from AI." };
+                         } else {
+                             messages[msgIndex] = { ...msg, generationDuration: duration };
+                         }
                      }
                      return { ...c, messages };
                 }

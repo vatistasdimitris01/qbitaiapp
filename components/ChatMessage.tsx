@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
-import type { Message, AIStatus } from '../types';
+import type { Message, AIStatus, GroundingChunk } from '../types';
 import { MessageType } from '../types';
 import {
-    BrainIcon, ChevronDownIcon, CheckIcon, GitForkIcon, MessageRefreshIcon, MessageCopyIcon, CornerDownRightIcon
+    BrainIcon, ChevronDownIcon, CheckIcon, GitForkIcon, MessageRefreshIcon, MessageCopyIcon, CornerDownRightIcon, SearchIcon, MapPinIcon
 } from './icons';
 import { CodeExecutor } from './CodeExecutor';
 import ImageGallery from './ImageGallery';
@@ -61,6 +61,7 @@ const textToHtml = (text: string): string => {
     return html;
 };
 
+// ... GallerySearchLoader is same as before ...
 const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: any[], index: number) => void }> = ({ query, onOpenLightbox }) => {
     const [images, setImages] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -98,6 +99,50 @@ const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: an
     return <ImageGallery images={images} onImageClick={(i) => onOpenLightbox(images, i)} />;
 }
 
+// Globe/Browsing Icon
+const GlobeIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+        <path d="M2 12h20"></path>
+    </svg>
+);
+
+const SearchStatus: React.FC<{ sources?: GroundingChunk[] }> = ({ sources }) => {
+    const [step, setStep] = useState(0); // 0: Searching, 1: Found/Browsing
+    
+    useEffect(() => {
+        if (sources && sources.length > 0) {
+            setStep(1);
+        }
+    }, [sources]);
+
+    return (
+        <div className="flex flex-col gap-1 cursor-crosshair text-sm mb-4 animate-fade-in-up">
+            <div className="flex flex-row items-center gap-2 cursor-pointer hover:opacity-80">
+                <div className="flex flex-row items-center gap-2 text-foreground">
+                    <SearchIcon className={`size-4 ${step === 0 ? 'animate-pulse text-accent-blue' : 'text-muted-foreground'}`} />
+                    <div className={step === 0 ? 'font-medium' : 'text-muted-foreground'}>Searching the web</div>
+                </div>
+                {step === 1 && <div className="text-muted-foreground text-xs">{sources?.length || 0} results</div>}
+            </div>
+            
+            {step === 1 && sources && sources.length > 0 && (
+                <div className="flex flex-row items-center gap-2 cursor-pointer hover:opacity-80 animate-fade-in-up">
+                    <div className="flex flex-row items-center gap-2 text-foreground">
+                        <GlobeIcon className="size-4 animate-pulse text-accent-blue" />
+                        <div className="font-medium">Browsing</div>
+                    </div>
+                    {/* Show first source link as a sample */}
+                    <div className="text-muted-foreground text-xs truncate max-w-[200px]">
+                        {'web' in sources[0] ? sources[0].web.uri : sources[0].maps.uri}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox, isLast, onSendSuggestion }) => {
     const isUser = message.type === MessageType.USER;
@@ -107,7 +152,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
-        if (aiStatus === 'thinking' || aiStatus === 'searching') setIsThinkingOpen(true);
+        if (aiStatus === 'thinking') setIsThinkingOpen(true);
     }, [aiStatus]);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
@@ -240,6 +285,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
     const hasText = !!parsedResponseText;
     const hasContent = hasText || hasToolCalls;
+    
+    // Determine if we should show the search UI
+    const isSearching = aiStatus === 'searching' || (aiStatus === 'generating' && message.groundingChunks && message.groundingChunks.length > 0 && !hasContent);
+    const showSearchUI = (aiStatus === 'searching') || (message.groundingChunks && message.groundingChunks.length > 0 && isLoading);
 
     return (
         <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-start">
@@ -259,12 +308,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
             
+            {/* Search Status - Show this INSTEAD of loader if searching */}
+            {isLoading && showSearchUI && (
+                <SearchStatus sources={message.groundingChunks} />
+            )}
+
             {/* Main AI Message Content */}
-            <div className="message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words w-full max-w-none px-4 py-2">
-                 {/* Empty State / Loading */}
-                 {!hasContent && isLoading && !parsedThinkingText && (
+            <div className={`message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : ''}`}>
+                 {/* Empty State / Loading - Only show Generic loader if NOT searching */}
+                 {!hasContent && isLoading && !parsedThinkingText && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
-                        {aiStatus === 'searching' && <span className="animate-pulse">Searching...</span>}
                         {(aiStatus === 'generating' || (aiStatus === 'thinking' && !hasThinkingTag)) && (
                             <GeneratingLoader />
                         )}
@@ -320,14 +373,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 })}
             </div>
 
-            {/* Sources */}
-            {message.groundingChunks && message.groundingChunks.length > 0 && (
+            {/* Sources (Final list) */}
+            {message.groundingChunks && message.groundingChunks.length > 0 && !isLoading && (
                 <div className="mt-2 flex flex-wrap gap-2">
                     <GroundingSources chunks={message.groundingChunks} t={t} />
                 </div>
             )}
 
-            {/* AI Action Icons Row - Visible on hover or focused */}
+            {/* AI Action Icons Row */}
             <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
                 <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                     <MessageRefreshIcon className="size-4" />

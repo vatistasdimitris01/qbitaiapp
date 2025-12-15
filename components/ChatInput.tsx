@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, StopCircleIcon, MicIcon, XIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -40,11 +40,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            // Standard height for single line is often around 24px content + padding. 
-            // If height > 50px roughly, it's multiline.
-            textarea.style.height = `${Math.max(24, newHeight)}px`;
+            // Base height for single line is ~24px content.
+            // If height grows beyond a threshold, we treat it as multiline for styling.
+            const isMulti = newHeight > 30; // Threshold for roughly >1 line
             
-            setIsMultiline(newHeight > 40); // Threshold for multiline shape change
+            textarea.style.height = `${Math.max(24, newHeight)}px`;
+            setIsMultiline(isMulti);
         }
     }, []);
 
@@ -168,14 +169,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     };
 
     const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
-    // Logic: Show Send button if there is text or files, or if loading (to allow stop). Otherwise show Voice.
-    const showSendButton = text.trim().length > 0 || attachmentPreviews.length > 0 || isLoading;
+    const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
+    // Show Send if content exists or if recording (to potentially stop/send) or if loading (to stop).
+    // Actually, prompt says: "if type show the arroup send button when not show voice"
+    const showSendButton = hasContent || isLoading; 
 
     return (
-        <div className="flex flex-col justify-end w-full relative items-center gap-3">
+        <div className="flex flex-col justify-end w-full relative items-center gap-2">
              <div className="w-full max-w-[44rem] px-4 animate-fade-in-up">
                 {(replyContextText || attachmentPreviews.length > 0) && (
-                    <div className="w-full mb-2">
+                    <div className="w-full mb-1">
                         {replyContextText && (
                             <div className="flex items-center justify-between gap-2 bg-surface-l2 border border-border p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
                                 <div className="text-sm text-foreground line-clamp-1 border-l-2 border-accent-blue pl-3">{replyContextText}</div>
@@ -186,7 +189,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         {attachmentPreviews.length > 0 && (
                             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                                 {attachmentPreviews.map((attachment, index) => (
-                                    <div key={index} className="relative group shrink-0 size-16 rounded-xl overflow-hidden border border-border bg-surface-l2">
+                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-border bg-surface-l2">
                                         <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <XIcon className="size-4 text-white" />
@@ -209,7 +212,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         <textarea 
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3.5 max-h-[200px] text-[16px] leading-relaxed resize-none scrollbar-none align-bottom"
+                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3.5 max-h-[400px] text-[16px] leading-relaxed resize-none scrollbar-none align-bottom"
                             placeholder={placeholder} 
                             rows={1} 
                             value={text} 
@@ -219,7 +222,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         />
                     </div>
                     
-                    {/* Bottom Toolbar */}
+                    {/* Bottom Toolbar: Absolute Buttons */}
                     <div className="absolute inset-x-0 bottom-0 flex gap-1.5 p-2 items-end pointer-events-none">
                         {/* Attach Button (Left) */}
                         <div className="pointer-events-auto">
@@ -259,7 +262,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     className="group flex flex-col justify-center rounded-full focus:outline-none" 
                                     aria-label="Voice"
                                 >
-                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-white text-black ring-transparent'}`}>
+                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-white/10 text-foreground hover:bg-white/20 ring-transparent'}`}>
                                         {isRecording ? (
                                             <div className="flex gap-0.5 items-center justify-center h-4">
                                                 {[1,2,3,4,5].map(i => (
@@ -267,14 +270,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-center gap-0.5 text-black">
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-5"></div>
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-4"></div>
-                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
-                                            </div>
+                                            <MicIcon className="size-5" />
                                         )}
                                     </div>
                                 </button>

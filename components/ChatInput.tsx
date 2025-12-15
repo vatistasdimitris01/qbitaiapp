@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon, MicIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -40,10 +40,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            textarea.style.height = `${Math.max(44, newHeight)}px`; // Reduced min-height for pill shape
+            // Standard height for single line is often around 24px content + padding. 
+            // If height > 50px roughly, it's multiline.
+            textarea.style.height = `${Math.max(24, newHeight)}px`;
             
-            // Check if multiline (approximate based on height > single line height)
-            setIsMultiline(newHeight > 50);
+            setIsMultiline(newHeight > 40); // Threshold for multiline shape change
         }
     }, []);
 
@@ -167,7 +168,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     };
 
     const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
-    const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
+    // Logic: Show Send button if there is text or files, or if loading (to allow stop). Otherwise show Voice.
+    const showSendButton = text.trim().length > 0 || attachmentPreviews.length > 0 || isLoading;
 
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-3">
@@ -201,75 +203,83 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className={`relative flex flex-col w-full bg-[#18181b] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-300 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
+                    className={`relative flex flex-col w-full bg-[#18181b] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-200 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
                 >
-                    <textarea 
-                        ref={internalTextareaRef} 
-                        dir="auto" 
-                        className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3 max-h-[200px] min-h-[44px] text-[16px] leading-relaxed resize-none scrollbar-none"
-                        placeholder={placeholder} 
-                        rows={1} 
-                        value={text} 
-                        onChange={handleInputChange} 
-                        onKeyDown={handleKeyDown} 
-                        onPaste={handlePaste}
-                    />
-                    
-                    {/* Attach Button (Left) */}
-                    <div className="absolute left-1.5 bottom-1.5 z-10">
-                        <button 
-                            type="button"
-                            onClick={handleAttachClick}
-                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 hover:text-foreground h-8 w-8 rounded-full"
-                            aria-label={t('chat.input.attach')}
-                        >
-                            <PaperclipIcon className="size-5" />
-                        </button>
+                    <div className={`relative w-full ${isMultiline ? 'min-h-[60px]' : 'h-14'} flex flex-col justify-center`}>
+                        <textarea 
+                            ref={internalTextareaRef} 
+                            dir="auto" 
+                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3.5 max-h-[200px] text-[16px] leading-relaxed resize-none scrollbar-none align-bottom"
+                            placeholder={placeholder} 
+                            rows={1} 
+                            value={text} 
+                            onChange={handleInputChange} 
+                            onKeyDown={handleKeyDown} 
+                            onPaste={handlePaste}
+                        />
                     </div>
+                    
+                    {/* Bottom Toolbar */}
+                    <div className="absolute inset-x-0 bottom-0 flex gap-1.5 p-2 items-end pointer-events-none">
+                        {/* Attach Button (Left) */}
+                        <div className="pointer-events-auto">
+                            <button 
+                                type="button"
+                                onClick={handleAttachClick}
+                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-foreground/80 hover:bg-white/10 h-10 w-10 rounded-full"
+                                aria-label={t('chat.input.attach')}
+                            >
+                                <PaperclipIcon className="size-5" />
+                            </button>
+                        </div>
 
-                    {/* Right Action Button (Send or Voice) */}
-                    <div className="absolute right-1.5 bottom-1.5 z-10">
-                        {isLoading ? (
-                            <button 
-                                type="button"
-                                onClick={onAbortGeneration}
-                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                aria-label="Stop"
-                            >
-                                <div className="h-8 w-8 flex items-center justify-center rounded-full bg-foreground text-background">
-                                    <StopCircleIcon className="size-5" />
-                                </div>
-                            </button>
-                        ) : hasContent ? (
-                            <button 
-                                type="submit"
-                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                aria-label="Submit"
-                            >
-                                <div className="h-8 w-8 flex items-center justify-center rounded-full bg-foreground text-background">
-                                    <ArrowUpIcon className="size-5" />
-                                </div>
-                            </button>
-                        ) : (
-                            <button 
-                                type="button"
-                                onClick={handleMicClick}
-                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                aria-label="Voice"
-                            >
-                                <div className={`h-8 w-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-500 text-white' : 'bg-surface-l2 text-foreground hover:bg-surface-l3'}`}>
-                                    {isRecording ? (
-                                        <div className="flex gap-0.5 items-center justify-center h-3">
-                                            {[1,2,3].map(i => (
-                                                <div key={i} className="w-0.5 bg-white rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 8 + 4}px` }} />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <MicIcon className="size-5" />
-                                    )}
-                                </div>
-                            </button>
-                        )}
+                        <div className="grow" />
+
+                        {/* Right Action Button (Send or Voice) */}
+                        <div className="pointer-events-auto">
+                            {showSendButton ? (
+                                <button 
+                                    type={isLoading ? "button" : "submit"}
+                                    onClick={isLoading ? onAbortGeneration : undefined}
+                                    className="group flex flex-col justify-center rounded-full focus:outline-none" 
+                                    aria-label={isLoading ? "Stop" : "Submit"}
+                                >
+                                    <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full transition-colors duration-100 ${isLoading ? 'bg-white text-black' : 'bg-white text-black hover:opacity-90'}`}>
+                                        {isLoading ? (
+                                            <div className="h-2.5 w-2.5 bg-black rounded-[1px]" />
+                                        ) : (
+                                            <ArrowUpIcon className="size-5" />
+                                        )}
+                                    </div>
+                                </button>
+                            ) : (
+                                <button 
+                                    type="button"
+                                    onClick={handleMicClick}
+                                    className="group flex flex-col justify-center rounded-full focus:outline-none" 
+                                    aria-label="Voice"
+                                >
+                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-white text-black ring-transparent'}`}>
+                                        {isRecording ? (
+                                            <div className="flex gap-0.5 items-center justify-center h-4">
+                                                {[1,2,3,4,5].map(i => (
+                                                    <div key={i} className="w-0.5 bg-red-500 rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 10 + 4}px` }} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-0.5 text-black">
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-5"></div>
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-4"></div>
+                                                <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </form>
             </div>

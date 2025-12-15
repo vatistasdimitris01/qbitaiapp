@@ -153,12 +153,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <SidebarItem icon={ChatIcon} label="Chat" onClick={onNewChat} isActive={!activeConversationId} />
             </div>
 
-            {/* History Header & List */}
+            {/* History Section */}
             <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 mt-2 gap-0.5">
-                {/* Standardized History Item */}
+                {/* Standardized History Item as Trigger */}
                 <SidebarItem icon={HistoryIcon} label="History" onClick={() => {}} />
 
-                {/* History List */}
+                {/* History List - Only visible when open */}
                 {isOpen && (
                     <div className="flex flex-row gap-px mx-1 mt-1 pl-1.5">
                         {/* Tree Line */}

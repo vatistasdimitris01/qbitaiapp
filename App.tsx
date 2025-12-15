@@ -605,7 +605,7 @@ const App: React.FC = () => {
                 }
             }} t={t} />
 
-            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-4 md:p-6 pb-44">
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-4 md:p-6 pb-48">
                 <div className="max-w-3xl mx-auto flex flex-col min-h-full">
                      {(!activeConversation || activeConversation.messages.length === 0) ? (
                         <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">

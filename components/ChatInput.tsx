@@ -39,7 +39,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            textarea.style.height = `${newHeight}px`;
+            textarea.style.height = `${Math.max(56, newHeight)}px`;
         }
     }, []);
 
@@ -196,7 +196,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex flex-col w-full bg-[#18181b] dark:bg-[#18181b] rounded-[26px] shadow-sm border border-white/5 transition-colors duration-300 overflow-hidden group hover:border-white/10"
+                    className="relative flex flex-col w-full bg-[#18181b] rounded-[26px] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-300 overflow-hidden group"
                 >
                     <textarea 
                         ref={internalTextareaRef} 
@@ -211,8 +211,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     />
                     
                     {/* Bottom Toolbar */}
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                         <div className="flex items-center gap-1">
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                         <div className="flex items-center gap-1 pointer-events-auto">
                             <button
                                 type="button"
                                 onClick={handleAttachClick}
@@ -224,7 +224,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             </button>
                          </div>
 
-                         <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2 pointer-events-auto">
                              {!hasContent && (
                                 <button 
                                     type="button"

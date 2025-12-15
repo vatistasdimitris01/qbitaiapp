@@ -313,419 +313,404 @@ const App: React.FC = () => {
           setShowScrollToBottom(!isNearBottom);
       }
   }, []);
-  useEffect(() => {
-      const main = mainContentRef.current;
-      main?.addEventListener('scroll', handleScroll, { passive: true });
-      return () => main?.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
 
-  useEffect(() => { setTimeout(() => scrollToBottom('auto'), 0); }, [activeConversationId, scrollToBottom]);
-  useEffect(() => {
-    if (isLoading && !showScrollToBottom) scrollToBottom('smooth');
-  }, [activeConversation?.messages?.slice(-1)[0]?.content, isLoading, showScrollToBottom, scrollToBottom]);
-
-  const handleNewChat = () => {
-    if (activeConversationId === null) {
-      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-      return;
-    }
-    setActiveConversationId(null);
-    setGreeting(getRandomGreeting());
+  const handleNewChat = useCallback(() => {
+    const newConvo: Conversation = {
+        id: Date.now().toString(),
+        title: t('sidebar.newChat'),
+        messages: [],
+        createdAt: new Date().toISOString(),
+        greeting: getRandomGreeting(),
+    };
+    setConversations(prev => [newConvo, ...prev]);
+    setActiveConversationId(newConvo.id);
+    setChatInputText('');
+    setReplyContextText(null);
+    setAiStatus('idle');
+    chatInputRef.current?.focus();
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  };
+  }, [t]);
 
-  const handleDeleteConversation = (id: string) => {
-    const newConversations = conversations.filter(c => c.id !== id);
-    setConversations(newConversations);
-    
-    if (activeConversationId === id) {
-        if (newConversations.length > 0) {
-            const indexToDelete = conversations.findIndex(c => c.id === id);
-            const newIndex = Math.max(0, indexToDelete - 1);
-            setActiveConversationId(newConversations[newIndex].id);
-        } else {
-           setActiveConversationId(null);
-        }
-    }
-  };
-
-  const handleAbortGeneration = () => {
+  const handleSelectConversation = useCallback((id: string) => {
+    setActiveConversationId(id);
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+    // Clean up status
+    setAiStatus('idle');
+    setIsLoading(false);
     if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
     }
-    setIsLoading(false);
-    setAiStatus('idle');
-  };
+  }, []);
 
-  const handleAskWithSelection = (text: string) => {
-    setReplyContextText(text);
-    setSelectionPopup(null);
-    setTimeout(() => chatInputRef.current?.focus(), 50);
-  };
-  
-  const handleOpenLightbox = (images: any[], startIndex: number) => setLightboxState({ images, startIndex });
-  const handleCloseLightbox = () => setLightboxState(null);
+  const handleDeleteConversation = useCallback((id: string) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (activeConversationId === id) {
+        setActiveConversationId(null);
+    }
+  }, [activeConversationId]);
 
-  const handleSendMessage = async (text: string, files: File[] = []) => {
-    const trimmedText = text.trim();
-    if (isLoading || (!trimmedText && files.length === 0 && !replyContextText)) return;
+  const handleAbortGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+        setIsLoading(false);
+        setAiStatus('idle');
+    }
+  }, []);
 
+  const handleSendMessage = useCallback(async (text: string, attachments: File[] = []) => {
+    if (!text.trim() && attachments.length === 0) return;
+    
     let currentConvoId = activeConversationId;
-    let newConversation: Conversation | null = null;
-    let conversationHistoryForApi: Message[];
+    let currentConvo = conversations.find(c => c.id === currentConvoId);
 
-    if (currentConvoId === null) {
-        newConversation = {
-            id: `convo-${Date.now()}`,
-            title: trimmedText.substring(0, 50) || t('sidebar.newChat'),
+    if (!currentConvoId || !currentConvo) {
+        const newConvo: Conversation = {
+            id: Date.now().toString(),
+            title: text.slice(0, 30) || t('sidebar.newChat'),
             messages: [],
             createdAt: new Date().toISOString(),
+            greeting: getRandomGreeting(),
         };
-        currentConvoId = newConversation.id;
-        conversationHistoryForApi = [];
-    } else {
-        conversationHistoryForApi = activeConversation!.messages;
+        setConversations(prev => [newConvo, ...prev]);
+        currentConvoId = newConvo.id;
+        currentConvo = newConvo;
+        setActiveConversationId(newConvo.id);
     }
 
-    let messageToSend = trimmedText;
-    if (trimmedText === '' && files.length > 0 && !replyContextText) messageToSend = t('chat.input.messageWithFiles', { count: files.length.toString() });
-    else if (trimmedText === '' && replyContextText) messageToSend = 'Please elaborate on this.';
-
-    if (replyContextText) {
-        messageToSend = `${t('chat.replyContext', { context: replyContextText })}\n\n${messageToSend}`;
+    const processedAttachments: FileAttachment[] = [];
+    for (const file of attachments) {
+        processedAttachments.push({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: await fileToDataURL(file)
+        });
     }
 
-    const userMessageId = `user-${Date.now()}`;
-    const objectUrls: string[] = [];
-    const uiAttachments: FileAttachment[] = files.map(file => {
-        const url = URL.createObjectURL(file);
-        objectUrls.push(url);
-        return { name: file.name, type: file.type, size: file.size, dataUrl: url };
-    });
+    const newUserMessage: Message = {
+        id: Date.now().toString(),
+        type: MessageType.USER,
+        content: text,
+        files: processedAttachments,
+    };
 
-    const userMessage: Message = { id: userMessageId, type: MessageType.USER, content: messageToSend, files: uiAttachments };
-    const aiMessageId = `ai-${Date.now()}`;
-    const placeholderAiMessage: Message = { id: aiMessageId, type: MessageType.AI_RESPONSE, content: '' };
-    
-    setReplyContextText(null);
-
-    setConversations(prev => {
-        if (newConversation) {
-            const newConvoWithMessages = { ...newConversation, messages: [userMessage, placeholderAiMessage] };
-            return [newConvoWithMessages, ...prev];
+    // Update conversation with user message
+    setConversations(prev => prev.map(c => {
+        if (c.id === currentConvoId) {
+            const title = (c.messages.length === 0 && c.title === t('sidebar.newChat')) 
+                ? text.slice(0, 40) 
+                : c.title;
+            return { ...c, title, messages: [...c.messages, newUserMessage] };
         }
-        return prev.map(c => 
-            c.id === currentConvoId 
-                ? { ...c, messages: [...c.messages, userMessage, placeholderAiMessage] }
-                : c
-        );
-    });
-
-    if (newConversation) {
-        setActiveConversationId(newConversation.id);
-    }
-
-    setTimeout(() => scrollToBottom('smooth'), 0);
-
-    if (files.length > 0) {
-      Promise.all(files.map(fileToDataURL)).then(dataUrls => {
-          const persistentAttachments: FileAttachment[] = files.map((file, index) => ({
-              name: file.name, type: file.type, size: file.size, dataUrl: dataUrls[index]
-          }));
-          setConversations(prev => prev.map(c => {
-              if (c.id === currentConvoId) {
-                  const updatedMessages = c.messages.map(msg =>
-                      msg.id === userMessageId ? { ...msg, files: persistentAttachments } : msg
-                  );
-                  return { ...c, messages: updatedMessages };
-              }
-              return c;
-          }));
-          objectUrls.forEach(url => URL.revokeObjectURL(url));
-      });
-    }
+        return c;
+    }));
 
     setIsLoading(true);
     setAiStatus('thinking');
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const currentPersona = activeConversationId ? personas.find(p => p.id === activeConversation?.personaId) : null;
-    
-    await streamMessageToAI(
-        conversationHistoryForApi, messageToSend, files, currentPersona?.instruction, userLocation, lang, controller.signal,
-        (update) => { // onUpdate
-            setConversations(prev => prev.map(c => {
-                if (c.id !== currentConvoId) return c;
-                let newMessages = [...c.messages];
-                switch (update.type) {
-                    case 'searching':
-                        setAiStatus('searching');
-                        break;
-                    case 'sources':
-                        newMessages = newMessages.map(msg =>
-                            msg.id === aiMessageId ? { ...msg, groundingChunks: update.payload } : msg
-                        );
-                        break;
-                    case 'chunk':
-                        setAiStatus('generating');
-                        newMessages = newMessages.map(msg =>
-                            msg.id === aiMessageId ? { ...msg, content: (msg.content as string || '') + update.payload } : msg
-                        );
-                        break;
-                    case 'usage':
-                        newMessages = newMessages.map(msg => msg.id === aiMessageId ? { ...msg, usageMetadata: update.payload } : msg);
-                        break;
-                    case 'tool_call':
-                        setAiStatus('generating');
-                        newMessages = newMessages.map(msg => {
-                            if (msg.id === aiMessageId) {
-                                const currentToolCalls = msg.toolCalls || [];
-                                if (!currentToolCalls.some(tc => tc.id === update.payload.id)) {
-                                     return { ...msg, toolCalls: [...currentToolCalls, update.payload] };
-                                }
-                            }
-                            return msg;
-                        });
-                        break;
-                }
-                return { ...c, messages: newMessages };
-            }));
-        },
-        (duration) => { // onFinish
-            setConversations(prev => prev.map(c => {
-                 if (c.id !== currentConvoId) return c;
-                 return { ...c, messages: c.messages.map(msg => msg.id === aiMessageId ? { ...msg, generationDuration: duration } : msg) };
-            }));
-            setIsLoading(false); abortControllerRef.current = null; setAiStatus('complete');
-            setTimeout(() => setAiStatus('idle'), 500);
-        },
-        (errorText) => { // onError
-            setConversations(prev => prev.map(c => c.id !== currentConvoId ? c : { ...c, messages: c.messages.map(msg =>
-                msg.id === aiMessageId ? { ...msg, type: MessageType.ERROR, content: `Sorry, an error occurred: ${errorText}` } : msg
-            )}));
-            setIsLoading(false); abortControllerRef.current = null; setAiStatus('error');
-            setTimeout(() => setAiStatus('idle'), 500);
+    setShowScrollToBottom(true);
+    setTimeout(() => scrollToBottom('smooth'), 100);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const aiMessageId = (Date.now() + 1).toString();
+    setConversations(prev => prev.map(c => {
+        if (c.id === currentConvoId) {
+            return { 
+                ...c, 
+                messages: [...c.messages, { id: aiMessageId, type: MessageType.AI_RESPONSE, content: '' }] 
+            };
         }
-    );
-  };
-  
-  const handleRegenerate = async (messageIdToRegenerate: string) => {
-    if (!activeConversation || isLoading) return;
-    const messageIndex = activeConversation.messages.findIndex(msg => msg.id === messageIdToRegenerate);
-    if (messageIndex <= 0) return;
-    const lastUserMessageIndex = activeConversation.messages.slice(0, messageIndex).map(m => m.type).lastIndexOf(MessageType.USER);
-    if (lastUserMessageIndex === -1) return;
+        return c;
+    }));
 
-    const lastUserMessage = activeConversation.messages[lastUserMessageIndex];
-    
-    setIsLoading(true); setAiStatus('thinking');
-    const controller = new AbortController(); abortControllerRef.current = controller;
+    const history = currentConvo.messages;
+    const personaInstruction = currentConvo?.personaId ? personas.find(p => p.id === currentConvo.personaId)?.instruction : undefined;
 
-    const historyForApi = activeConversation.messages.slice(0, lastUserMessageIndex + 1);
-    const messagesForUi = [
-        ...historyForApi,
-        { id: messageIdToRegenerate, type: MessageType.AI_RESPONSE, content: '' }
-    ];
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForUi } : c));
-    setTimeout(() => scrollToBottom('smooth'), 0);
-    const currentPersona = personas.find(p => p.id === activeConversation.personaId);
-    
     await streamMessageToAI(
-        activeConversation.messages.slice(0, lastUserMessageIndex), lastUserMessage.content as string, [], currentPersona?.instruction, userLocation, lang, controller.signal,
+        history,
+        text,
+        attachments,
+        personaInstruction,
+        userLocation,
+        language,
+        abortController.signal,
         (update) => {
             setConversations(prev => prev.map(c => {
-                if (c.id !== activeConversationId) return c;
-                let newMessages = [...c.messages];
-                switch (update.type) {
-                    case 'searching':
+                if (c.id === currentConvoId) {
+                    const messages = [...c.messages];
+                    const msgIndex = messages.findIndex(m => m.id === aiMessageId);
+                    if (msgIndex === -1) return c;
+
+                    const msg = messages[msgIndex];
+                    
+                    if (update.type === 'chunk') {
+                        setAiStatus('generating');
+                        msg.content = (msg.content as string) + update.payload;
+                    } else if (update.type === 'usage') {
+                        msg.usageMetadata = update.payload;
+                    } else if (update.type === 'sources') {
+                         msg.groundingChunks = update.payload;
+                    } else if (update.type === 'searching') {
                         setAiStatus('searching');
-                        break;
-                    case 'sources':
-                        newMessages = newMessages.map(msg =>
-                            msg.id === messageIdToRegenerate ? { ...msg, groundingChunks: update.payload } : msg
-                        );
-                        break;
-                    case 'chunk':
-                        setAiStatus('generating');
-                        newMessages = newMessages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, content: (msg.content as string) + update.payload } : msg);
-                        break;
-                    case 'usage':
-                        newMessages = newMessages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, usageMetadata: update.payload } : msg);
-                        break;
-                    case 'tool_call':
-                        setAiStatus('generating');
-                        newMessages = newMessages.map(msg => {
-                            if (msg.id === messageIdToRegenerate) {
-                                const currentToolCalls = msg.toolCalls || [];
-                                if (!currentToolCalls.some(tc => tc.id === update.payload.id)) {
-                                     return { ...msg, toolCalls: [...currentToolCalls, update.payload] };
-                                }
-                            }
-                            return msg;
-                        });
-                        break;
+                    } else if (update.type === 'tool_call') {
+                        if (!msg.toolCalls) msg.toolCalls = [];
+                        msg.toolCalls.push(update.payload);
+                    }
+                    
+                    messages[msgIndex] = { ...msg };
+                    return { ...c, messages };
                 }
-                return { ...c, messages: newMessages };
+                return c;
             }));
+            scrollToBottom('smooth');
         },
         (duration) => {
             setConversations(prev => prev.map(c => {
-                 if (c.id !== activeConversationId) return c;
-                 return { ...c, messages: c.messages.map(msg => msg.id === messageIdToRegenerate ? { ...msg, generationDuration: duration } : msg) };
+                if (c.id === currentConvoId) {
+                     const messages = [...c.messages];
+                     const msgIndex = messages.findIndex(m => m.id === aiMessageId);
+                     if (msgIndex !== -1) {
+                         messages[msgIndex] = { ...messages[msgIndex], generationDuration: duration };
+                     }
+                     return { ...c, messages };
+                }
+                return c;
             }));
-            setIsLoading(false); abortControllerRef.current = null; setAiStatus('complete');
-            setTimeout(() => setAiStatus('idle'), 500);
+            setIsLoading(false);
+            setAiStatus('idle');
+            abortControllerRef.current = null;
         },
-        (errorText) => {
-            setConversations(prev => prev.map(c => c.id !== activeConversationId ? c : { ...c, messages: c.messages.map(msg =>
-                msg.id === messageIdToRegenerate ? { ...msg, type: MessageType.ERROR, content: `Sorry, an error occurred: ${errorText}` } : msg
-            )}));
-            setIsLoading(false); abortControllerRef.current = null; setAiStatus('error');
-            setTimeout(() => setAiStatus('idle'), 500);
+        (errorMsg) => {
+             setConversations(prev => prev.map(c => {
+                if (c.id === currentConvoId) {
+                     const messages = [...c.messages];
+                     const msgIndex = messages.findIndex(m => m.id === aiMessageId);
+                     if (msgIndex !== -1) {
+                         if ((messages[msgIndex].content as string).length === 0) {
+                             messages[msgIndex] = { ...messages[msgIndex], type: MessageType.ERROR, content: errorMsg };
+                         } else {
+                             messages[msgIndex] = { ...messages[msgIndex], content: (messages[msgIndex].content as string) + `\n\n[Error: ${errorMsg}]` };
+                         }
+                     }
+                     return { ...c, messages };
+                }
+                return c;
+            }));
+            setIsLoading(false);
+            setAiStatus('error');
+            abortControllerRef.current = null;
         }
     );
-  };
-  
-  const handleLocationUpdate = (locationInfo: LocationInfo, detectedLang?: string) => {
-      setUserLocation(locationInfo);
-      if(localStorage.getItem('language') === null && detectedLang && isLanguage(detectedLang)) setLanguage(detectedLang);
-  };
-  
-  const handleShowAnalysis = (code: string, lang: string) => setAnalysisModalContent({ code, lang });
-  const handleStoreExecutionResult = (messageId: string, partIndex: number, result: ExecutionResult) => {
-      const key = `${messageId}_${partIndex}`;
-      setExecutionResults(prev => ({ ...prev, [key]: result }));
-  };
-  
-  const handleStopExecution = () => {
-    setIsPythonReady(false); stopPythonExecution(); checkPythonReady();
-  };
+  }, [activeConversationId, conversations, personas, userLocation, language, t, scrollToBottom]);
 
-  const handleFixCodeRequest = (code: string, lang: string, error: string) => {
-    const message = `The following code block produced an error. Please analyze the code and the error message, identify the issue, and provide a corrected version of the code block.\n\nOriginal Code (\`${lang}\`):\n\`\`\`${lang}\n${code}\n\`\`\`\n\nError Message:\n\`\`\`\n${error}\n\`\`\``;
-    handleSendMessage(message);
-  };
+  const handleRegenerate = useCallback((messageId: string) => {
+    const convo = activeConversation;
+    if (!convo) return;
+    
+    const msgIndex = convo.messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
 
-  const handleForkConversation = (fromMessageId: string) => {
-    if (!activeConversation) return;
-    const messageIndex = activeConversation.messages.findIndex(msg => msg.id === fromMessageId);
-    if (messageIndex === -1) return;
-    const forkedMessages = activeConversation.messages.slice(0, messageIndex + 1);
-    const newConversation: Conversation = {
-        id: `convo-${Date.now()}`,
-        title: t('sidebar.forkedChatTitle', { oldTitle: activeConversation.title }),
-        messages: forkedMessages,
+    let targetUserMsgIndex = -1;
+    if (convo.messages[msgIndex].type === MessageType.AI_RESPONSE || convo.messages[msgIndex].type === MessageType.ERROR) {
+         for (let i = msgIndex - 1; i >= 0; i--) {
+             if (convo.messages[i].type === MessageType.USER) {
+                 targetUserMsgIndex = i;
+                 break;
+             }
+         }
+    } else {
+        targetUserMsgIndex = msgIndex;
+    }
+
+    if (targetUserMsgIndex !== -1) {
+        const userMsg = convo.messages[targetUserMsgIndex];
+        const text = userMsg.content as string;
+        const updatedMessages = convo.messages.slice(0, targetUserMsgIndex);
+        
+        setConversations(prev => prev.map(c => {
+            if(c.id === convo.id) return { ...c, messages: updatedMessages };
+            return c;
+        }));
+        
+        // We re-send the text. Re-attaching files is skipped for simplicity here, assuming they are processed in handleSendMessage context if provided.
+        // If files are needed, one would need to reconstruct File objects or adapt logic to reuse existing Attachment data URLs.
+        handleSendMessage(text, []); 
+    }
+  }, [activeConversation, handleSendMessage, conversations]);
+
+  const handleFork = useCallback((messageId: string) => {
+    const convo = activeConversation;
+    if (!convo) return;
+    
+    const msgIndex = convo.messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
+
+    const newMessages = convo.messages.slice(0, msgIndex + 1);
+    const newConvo: Conversation = {
+        id: Date.now().toString(),
+        title: t('sidebar.forkedChatTitle', { oldTitle: convo.title }),
+        messages: newMessages,
         createdAt: new Date().toISOString(),
-        personaId: activeConversation.personaId,
+        greeting: getRandomGreeting(),
+        personaId: convo.personaId
     };
-    setConversations(prev => [newConversation, ...prev]);
-    setActiveConversationId(newConversation.id);
-    if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  };
-  
-  const handleSelectConversation = (id: string) => {
-      setActiveConversationId(id);
-      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  };
+    
+    setConversations(prev => [newConvo, ...prev]);
+    setActiveConversationId(newConvo.id);
+  }, [activeConversation, t]);
 
-  const handleSendSuggestion = (text: string) => {
-      handleSendMessage(text);
-  };
+  const handleStoreExecutionResult = useCallback((messageId: string, partIndex: number, result: ExecutionResult) => {
+    const key = `${messageId}_${partIndex}`;
+    setExecutionResults(prev => ({ ...prev, [key]: result }));
+  }, []);
+
+  const handleFixRequest = useCallback((code: string, lang: string, error: string) => {
+    const prompt = `I encountered an error with the following ${lang} code:\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\nError:\n${error}\n\nPlease fix the code.`;
+    handleSendMessage(prompt);
+  }, [handleSendMessage]);
 
   return (
-    <div style={{ height: appHeight }} className="flex bg-background text-foreground font-sans overflow-hidden">
-        {isDragging && <DragDropOverlay t={t} />}
-        
-        {/* Mobile Toggle - Top Left */}
-        <button 
-          onClick={() => setIsSidebarOpen(true)} 
-          className="lg:hidden fixed top-3 left-3 z-30 p-2 text-muted-foreground hover:text-foreground"
-          aria-label={t('sidebar.open')}
-        >
-            <LayoutGridIcon className="size-6" />
-        </button>
-
-        {/* Sidebar */}
-        <Sidebar 
-            isOpen={isSidebarOpen} 
-            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-            conversations={conversations} 
-            activeConversationId={activeConversationId} 
-            onNewChat={handleNewChat} 
-            onSelectConversation={handleSelectConversation} 
-            onDeleteConversation={handleDeleteConversation} 
-            onOpenSettings={() => setIsSettingsOpen(true)} 
-            t={t} 
+    <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-accent-blue/20 selection:text-foreground">
+        <Sidebar
+            isOpen={isSidebarOpen}
+            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onNewChat={handleNewChat}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            t={t}
         />
         
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col h-full relative min-w-0 transition-all duration-300">
-            {/* Header/Location - Hidden on small, subtle on large */}
-            <div className="hidden lg:block absolute top-0 w-full z-10">
-                <LocationBanner onLocationUpdate={handleLocationUpdate} t={t} />
-            </div>
-            
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto scrollbar-none pb-40 pt-14 lg:pt-8">
-              <div className="w-full max-w-[44rem] mx-auto px-4 flex flex-col">
-                  {activeConversation ? (
-                      activeConversation.messages.map((msg, index) => {
-                          const isLastMessage = index === activeConversation.messages.length - 1;
-                          const isCurrentlyLoading = isLoading && isLastMessage;
-                          return <ChatMessage key={msg.id} message={msg} onRegenerate={handleRegenerate} onFork={handleForkConversation} isLoading={isCurrentlyLoading} aiStatus={isCurrentlyLoading ? aiStatus : 'idle'} onShowAnalysis={handleShowAnalysis} executionResults={executionResults} onStoreExecutionResult={handleStoreExecutionResult} onFixRequest={handleFixCodeRequest} onStopExecution={handleStopExecution} isPythonReady={isPythonReady} t={t} onOpenLightbox={handleOpenLightbox} isLast={isLastMessage} onSendSuggestion={handleSendSuggestion} />;
-                      })
-                  ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
-                           {/* Centered Logo/Greeting for Empty State */}
-                          <GreetingMessage text={greeting} />
-                      </div>
-                  )}
-              </div>
-            </main>
-            
-            <div className="absolute bottom-0 left-0 w-full pointer-events-none flex flex-col items-center justify-end pb-6 z-20">
-                 {/* Scroll to Bottom Button */}
-                {showScrollToBottom && !isLoading && (
-                    <button 
-                        onClick={handleScrollToBottomClick} 
-                        className="pointer-events-auto mb-4 p-2 bg-card/90 backdrop-blur-md rounded-full text-muted-foreground hover:text-foreground border border-default shadow-lg transition-all animate-fade-in-up" 
-                        aria-label={t('chat.scrollToBottom')}
-                    >
-                        <ChevronDownIcon className="size-5" />
-                    </button>
-                )}
-                
-                <div className="w-full px-4 pointer-events-auto flex justify-center bg-gradient-to-t from-background via-background/90 to-transparent pt-10 pb-4">
-                    <ChatInput ref={chatInputRef} text={chatInputText} onTextChange={setChatInputText} onSendMessage={handleSendMessage} isLoading={isLoading} t={t} onAbortGeneration={handleAbortGeneration} replyContextText={replyContextText} onClearReplyContext={() => setReplyContextText(null)} language={lang} />
+        <main 
+            ref={mainContentRef}
+            className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-in-out
+                ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[64px]'}
+                bg-background w-full
+            `}
+            onScroll={handleScroll}
+            onDragEnter={handleDragEnter as any} 
+            onDragOver={handleDragOver as any} 
+            onDragLeave={handleDragLeave as any} 
+            onDrop={handleDrop as any}
+        >
+            <LocationBanner onLocationUpdate={(loc, detectedLang) => {
+                setUserLocation(loc);
+                if (detectedLang && isLanguage(detectedLang) && language === 'en') {
+                     setLanguage(detectedLang);
+                }
+            }} t={t} />
+
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-4 md:p-6 pb-32">
+                <div className="max-w-3xl mx-auto flex flex-col min-h-full">
+                     {(!activeConversation || activeConversation.messages.length === 0) ? (
+                        <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">
+                            <GreetingMessage text={activeConversation?.greeting || greeting} />
+                        </div>
+                     ) : (
+                         activeConversation.messages.map((msg, index) => (
+                             <ChatMessage
+                                 key={msg.id}
+                                 message={msg}
+                                 onRegenerate={handleRegenerate}
+                                 onFork={handleFork}
+                                 isLoading={isLoading && index === activeConversation.messages.length - 1}
+                                 aiStatus={aiStatus}
+                                 onShowAnalysis={(code, lang) => setAnalysisModalContent({ code, lang })}
+                                 executionResults={executionResults}
+                                 onStoreExecutionResult={handleStoreExecutionResult}
+                                 onFixRequest={handleFixRequest}
+                                 onStopExecution={() => stopPythonExecution()}
+                                 isPythonReady={isPythonReady}
+                                 t={t}
+                                 onOpenLightbox={(images, startIdx) => setLightboxState({ images, startIndex: startIdx })}
+                                 isLast={index === activeConversation.messages.length - 1}
+                                 onSendSuggestion={(text) => handleSendMessage(text)}
+                             />
+                         ))
+                     )}
+                     <div className="h-4" />
                 </div>
             </div>
-        </div>
-        
-        <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={lang} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
-        {analysisModalContent &&
-          <CodeAnalysisModal
-            code={analysisModalContent.code}
-            lang={analysisModalContent.lang}
-            onClose={() => setAnalysisModalContent(null)}
-            t={t}
-          />
-        }
-        {selectionPopup?.visible && (
-          <SelectionPopup
-            x={selectionPopup.x}
-            y={selectionPopup.y}
-            text={selectionPopup.text}
-            onAsk={handleAskWithSelection}
-            t={t}
-          />
-        )}
-        {lightboxState && (
-            <Lightbox
-                images={lightboxState.images}
-                startIndex={lightboxState.startIndex}
-                onClose={handleCloseLightbox}
+
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-20">
+                 <div className="max-w-3xl mx-auto">
+                    {showScrollToBottom && (
+                        <button
+                            onClick={handleScrollToBottomClick}
+                            className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 p-2 bg-token-surface shadow-lg rounded-full text-token-secondary hover:text-token-primary border border-token transition-all animate-bounce"
+                            aria-label={t('chat.scrollToBottom')}
+                        >
+                            <ChevronDownIcon className="size-5" />
+                        </button>
+                    )}
+                    
+                    <ChatInput
+                        ref={chatInputRef}
+                        text={chatInputText}
+                        onTextChange={setChatInputText}
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading}
+                        t={t}
+                        onAbortGeneration={handleAbortGeneration}
+                        replyContextText={replyContextText}
+                        onClearReplyContext={() => setReplyContextText(null)}
+                        language={language}
+                    />
+                 </div>
+            </div>
+
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                theme={theme}
+                setTheme={setTheme}
+                language={language}
+                setLanguage={setLanguage}
+                personas={personas}
+                setPersonas={setPersonas}
+                conversations={conversations}
+                setConversations={setConversations}
+                activeConversationId={activeConversationId}
+                t={t}
             />
-        )}
+            
+            {analysisModalContent && (
+                <CodeAnalysisModal
+                    code={analysisModalContent.code}
+                    lang={analysisModalContent.lang}
+                    onClose={() => setAnalysisModalContent(null)}
+                    t={t}
+                />
+            )}
+            
+            {lightboxState && (
+                <Lightbox
+                    images={lightboxState.images}
+                    startIndex={lightboxState.startIndex}
+                    onClose={() => setLightboxState(null)}
+                />
+            )}
+            
+            {selectionPopup && selectionPopup.visible && (
+                <SelectionPopup
+                    x={selectionPopup.x}
+                    y={selectionPopup.y}
+                    text={selectionPopup.text}
+                    onAsk={(text) => {
+                        setSelectionPopup(null);
+                        handleSendMessage(text);
+                    }}
+                    t={t}
+                />
+            )}
+
+            {isDragging && <DragDropOverlay t={t} />}
+        </main>
     </div>
   );
 };

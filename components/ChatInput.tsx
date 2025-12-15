@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, VoiceWaveIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -201,7 +201,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-4 pt-4 pb-12 max-h-[200px] min-h-[56px] text-[16px] leading-relaxed resize-none scrollbar-none"
+                        className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-4 pt-4 pb-14 max-h-[200px] min-h-[56px] text-[16px] leading-relaxed resize-none scrollbar-none"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -210,44 +210,82 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onPaste={handlePaste}
                     />
                     
-                    {/* Bottom Toolbar */}
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
-                         <div className="flex items-center gap-1 pointer-events-auto">
-                            <button
-                                type="button"
-                                onClick={handleAttachClick}
-                                className="flex items-center justify-center size-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
-                                disabled={isLoading}
-                                aria-label={t('chat.input.attach')}
+                    {/* Bottom Toolbar - Absolute positioned as requested */}
+                    <div className="flex gap-1.5 absolute inset-x-0 bottom-0 p-2 max-w-full items-end" style={{ cursor: 'crosshair' }}>
+                        {/* Attach Button */}
+                        <button 
+                            type="button"
+                            onClick={handleAttachClick}
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 hover:text-foreground h-10 w-10 rounded-full"
+                            aria-label={t('chat.input.attach')}
+                        >
+                            <PaperclipIcon className="size-5" />
+                        </button>
+
+                        {/* Spacer / Hidden Middle */}
+                        <div className="grow" />
+
+                        {/* Right Actions */}
+                        <div className="flex flex-row items-end gap-1">
+                            {/* Model Select (Visual Only) */}
+                            <button 
+                                type="button" 
+                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors duration-100 select-none hover:bg-surface-l2 h-10 py-1.5 text-sm rounded-full text-foreground px-3.5"
                             >
-                                <PaperclipIcon className="size-5 transform rotate-90" />
+                                <div className="flex flex-row items-center gap-2">
+                                    <div className="flex items-center justify-center size-[18px] overflow-hidden shrink-0">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2]">
+                                            <path d="M5 14.25L14 4L13 9.75H19L10 20L11 14.25H5Z" stroke="currentColor" strokeWidth="2"></path>
+                                        </svg>
+                                    </div>
+                                    <span className="font-semibold text-sm shrink-0">Fast</span>
+                                </div>
                             </button>
-                         </div>
 
-                         <div className="flex items-center gap-2 pointer-events-auto">
-                             {!hasContent && (
-                                <button 
-                                    type="button"
-                                    onClick={handleMicClick}
-                                    className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-white/10'}`}
-                                >
-                                    {isRecording ? <XIcon className="size-5" /> : <VoiceWaveIcon className="size-5" />}
-                                </button>
-                             )}
+                            {/* Voice Button */}
+                            <button 
+                                type="button"
+                                onClick={handleMicClick}
+                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
+                                aria-label="Enter voice mode"
+                            >
+                                <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-surface-l2 text-foreground ring-transparent'}`}>
+                                    {isRecording ? (
+                                        <div className="flex gap-0.5 items-center justify-center h-4">
+                                            {[1,2,3,4,5].map(i => (
+                                                <div key={i} className="w-0.5 bg-red-500 rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 10 + 4}px` }} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center gap-0.5">
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-5"></div>
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-4"></div>
+                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
+                                        </div>
+                                    )}
+                                </div>
+                            </button>
 
+                            {/* Submit / Stop Button */}
                             <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`flex items-center justify-center size-9 rounded-full transition-all duration-200 ${hasContent || isLoading ? 'bg-foreground text-background' : 'bg-white/10 text-muted-foreground cursor-not-allowed'}`}
                                 disabled={!hasContent && !isLoading}
+                                className={`group flex flex-col justify-center rounded-full focus:outline-none transition-opacity ${!hasContent && !isLoading ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`} 
+                                aria-label="Submit"
                             >
-                                {isLoading ? (
-                                    <div className="size-2.5 bg-background rounded-[1px]" />
-                                ) : (
-                                    <ArrowUpIcon className="size-5 font-bold" />
-                                )}
+                                <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full ring-inset transition-colors duration-100 ${hasContent || isLoading ? 'bg-foreground text-background' : 'bg-surface-l2 text-muted-foreground'}`}>
+                                    {isLoading ? (
+                                        <StopCircleIcon className="size-5" />
+                                    ) : (
+                                        <ArrowUpIcon className="size-5" />
+                                    )}
+                                </div>
                             </button>
-                         </div>
+                        </div>
                     </div>
                 </form>
                 <div className="text-center mt-2 text-xs text-muted-foreground/60">

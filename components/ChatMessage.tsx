@@ -37,21 +37,6 @@ interface ChatMessageProps {
     onSendSuggestion: (text: string) => void;
 }
 
-const iconBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-surface-l2";
-const shareFactBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-9 rounded-xl px-3.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-l2 border border-transparent hover:border-border";
-
-const IconButton: React.FC<{ children: React.ReactNode; onClick?: () => void; title: string }> = ({ children, onClick, title }) => (
-    <button onClick={onClick} className={iconBtnClass} title={title}>
-        {children}
-    </button>
-);
-
-const SuggestionButton: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => (
-    <button onClick={onClick} className={shareFactBtnClass}>
-        {children}
-    </button>
-);
-
 const isImageFile = (mimeType: string) => mimeType.startsWith('image/');
 
 const getTextFromMessage = (content: any): string => {
@@ -212,29 +197,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     if (isUser) {
         return (
-            <div className="flex justify-end w-full mb-6">
-                <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
-                     <div className="bg-user-message text-foreground px-5 py-3 rounded-2xl rounded-tr-sm border border-border">
-                        <div className="whitespace-pre-wrap leading-relaxed text-[16px]">{messageText}</div>
-                    </div>
-                    
-                    {/* Attachments */}
-                    {message.files && message.files.length > 0 && (
-                        <div className="flex flex-wrap justify-end gap-2 mt-2">
-                            {message.files.map((file, i) => (
-                                <div key={i} className="relative group rounded-xl overflow-hidden border border-border">
-                                    {isImageFile(file.type) ? (
-                                        <img src={file.dataUrl} alt={file.name} className="h-20 w-auto object-cover" />
-                                    ) : (
-                                        <div className="h-20 w-20 bg-surface-l2 flex items-center justify-center text-xs text-muted-foreground p-2 text-center break-all">
-                                            {file.name}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-end">
+                <div className="message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words bg-surface-l1 border border-border max-w-[100%] @sm/mainview:max-w-[90%] px-4 py-2 rounded-br-lg">
+                    <div className="whitespace-pre-wrap leading-relaxed text-[16px]">{messageText}</div>
                 </div>
+                {/* Attachments */}
+                {message.files && message.files.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-2 mt-2">
+                        {message.files.map((file, i) => (
+                            <div key={i} className="relative group rounded-xl overflow-hidden border border-border">
+                                {isImageFile(file.type) ? (
+                                    <img src={file.dataUrl} alt={file.name} className="h-20 w-auto object-cover" />
+                                ) : (
+                                    <div className="h-20 w-20 bg-surface-l2 flex items-center justify-center text-xs text-muted-foreground p-2 text-center break-all">
+                                        {file.name}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     }
@@ -245,11 +227,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-red-500 text-sm">
                     {messageText || "An unknown error occurred."}
                 </div>
-                {/* Retry button */}
                 <div className="flex items-center space-x-0 mt-2 text-muted-foreground">
-                    <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
+                    <button className="p-1 hover:bg-surface-l2 rounded-full" onClick={() => onRegenerate(message.id)} title={t('chat.message.regenerate')}>
                         <MessageRefreshIcon className="size-4" />
-                    </IconButton>
+                    </button>
                 </div>
             </div>
         )
@@ -261,10 +242,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasContent = hasText || hasToolCalls;
 
     return (
-        <div className="flex flex-col w-full mb-8 max-w-full group/message">
+        <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-start">
              {/* Thinking Block */}
              {hasThinkingTag && parsedThinkingText && (
-                <div className="mb-4">
+                <div className="mb-2">
                      <div onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors w-fit p-1 rounded-lg">
                         <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' ? 'animate-pulse text-accent-blue' : ''}`} />
                         <span className="text-sm font-medium">{t('chat.message.thinking')}</span>
@@ -279,7 +260,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             )}
             
             {/* Main AI Message Content */}
-            <div className="text-foreground text-[16px] leading-relaxed w-full">
+            <div className="message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words w-full max-w-none px-4 py-2">
                  {/* Empty State / Loading */}
                  {!hasContent && isLoading && !parsedThinkingText && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
@@ -307,10 +288,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                          const shouldAutorun = isPython && !result;
 
                          return (
-                            <div key={index} className="w-full my-4">
+                            <div key={index} className="w-full my-4 not-prose">
                                 <CodeExecutor
                                     code={part.code}
                                     lang={part.lang}
+                                    title={part.lang.toUpperCase()}
                                     isExecutable={['python', 'html'].includes(part.lang.toLowerCase())}
                                     autorun={shouldAutorun}
                                     onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)}
@@ -340,22 +322,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
             {/* Sources */}
             {message.groundingChunks && message.groundingChunks.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                     <GroundingSources chunks={message.groundingChunks} t={t} />
                 </div>
             )}
 
             {/* AI Action Icons Row - Visible on hover or focused */}
-            <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200">
-                <IconButton title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
+            <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
+                <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                     <MessageRefreshIcon className="size-4" />
-                </IconButton>
-                <IconButton title={t('chat.message.copy')} onClick={handleCopy}>
+                </button>
+                <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.copy')} onClick={handleCopy}>
                     {isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}
-                </IconButton>
-                <IconButton title={t('chat.message.fork')} onClick={() => onFork(message.id)}>
+                </button>
+                <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.fork')} onClick={() => onFork(message.id)}>
                     <GitForkIcon className="size-4" />
-                </IconButton>
+                </button>
                 {message.generationDuration && (
                      <span className="ml-2 text-muted-foreground text-xs select-none font-mono">{(message.generationDuration / 1000).toFixed(1)}s</span>
                 )}
@@ -363,12 +345,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             
             {/* Suggestions */}
             {isLast && suggestions.length > 0 && !isLoading && (
-                 <div className="mt-4 flex flex-col items-start gap-2 animate-fade-in-up">
+                 <div className="mt-4 flex flex-col items-start gap-2 animate-fade-in-up w-full">
                     {suggestions.map((suggestion, idx) => (
-                        <SuggestionButton key={idx} onClick={() => onSendSuggestion(suggestion)}>
+                        <button 
+                            key={idx} 
+                            onClick={() => onSendSuggestion(suggestion)}
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 h-9 rounded-xl px-3.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-l2 border border-transparent hover:border-border"
+                        >
                              <CornerDownRightIcon className="size-3.5 text-muted-foreground" />
                              <span className="truncate max-w-[300px]">{suggestion}</span>
-                        </SuggestionButton>
+                        </button>
                     ))}
                 </div>
             )}

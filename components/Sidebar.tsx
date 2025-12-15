@@ -4,7 +4,8 @@ import {
   MoreHorizontalIcon,
   SearchIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  SettingsIcon
 } from './icons';
 
 interface SidebarProps {
@@ -35,34 +36,11 @@ const ChatIcon = () => (
   </svg>
 );
 
-const VoiceIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 10v3" /><path d="M6 6v11" /><path d="M10 3v18" /><path d="M14 8v7" /><path d="M18 5v13" /><path d="M22 10v3" />
-  </svg>
-);
-
-const ImagineIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="stroke-[2]" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="16" height="16" x="4" y="4" rx="4" /><path d="M4 12a5 5 0 0 1 6 8" /><circle cx="15.25" cy="8.75" r="1.75" fill="currentColor" stroke="none" /><path d="M4 16.5c2.333-.5 8-.5 9-2S11 13 11 13" />
-  </svg>
-);
-
-const ProjectsIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="stroke-[2]">
-    <path d="M3.6665 15.6666V4.33331H7.99984L11.9998 6.33331H20.3332V15.6666C20.3332 17.8758 18.5423 19.6666 16.3332 19.6666H7.6665C5.45736 19.6666 3.6665 17.8758 3.6665 15.6666Z" />
-    <path d="M3 11H21" />
-  </svg>
-);
-
 const HistoryIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="stroke-[2]">
     <path d="M4.4999 3L4.4999 8H9.49988M4.4999 7.99645C5.93133 5.3205 8.75302 3.5 11.9999 3.5C16.6943 3.5 20.4999 7.30558 20.4999 12C20.4999 16.6944 16.6943 20.5 11.9999 20.5C7.6438 20.5 4.05303 17.2232 3.55811 13" />
     <path d="M15 9L12 12V16" />
   </svg>
-);
-
-const HistoryIconCollapsed = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[2] transition-[transform] duration-100 rotate-90"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-linecap="square"></path></svg>
 );
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -173,9 +151,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* Navigation Groups */}
             <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 gap-0.5">
                 <SidebarItem icon={ChatIcon} label="Chat" onClick={onNewChat} isActive={!activeConversationId} />
-                <SidebarItem icon={VoiceIcon} label="Voice" onClick={() => {}} />
-                <SidebarItem icon={ImagineIcon} label="Imagine" onClick={() => {}} />
-                <SidebarItem icon={ProjectsIcon} label="Projects" onClick={() => {}} />
             </div>
 
             {/* History Header */}
@@ -185,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         className={`flex items-center gap-2 overflow-hidden rounded-xl text-left w-full h-[36px] hover:bg-surface-l2 transition-colors p-[0.375rem] text-sm text-foreground focus:outline-none ${!isOpen && 'justify-center'}`}
                     >
                         <div className={`size-6 flex items-center justify-center shrink-0 transition-transform ${!isOpen && 'group-hover/menu-item:scale-110'}`}>
-                            {isOpen ? <HistoryIcon /> : <HistoryIcon />} 
+                            <HistoryIcon />
                         </div>
                         {isOpen && <span className="opacity-100">History</span>}
                     </button>
@@ -244,11 +219,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className={`flex items-center gap-2 ${!isOpen && 'flex-col-reverse'}`}>
                     <button 
                         onClick={onOpenSettings}
-                        className="flex items-center justify-center p-1 rounded-full border border-transparent hover:bg-surface-l2 transition-colors"
+                        className="flex items-center justify-center p-2 rounded-lg border border-transparent hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground"
                     >
-                        <span className="relative flex shrink-0 overflow-hidden rounded-full border border-border w-8 h-8">
-                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">U</div>
-                        </span>
+                        <SettingsIcon className="size-5" />
                     </button>
                 </div>
             </div>

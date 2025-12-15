@@ -309,8 +309,9 @@ const App: React.FC = () => {
   const handleScroll = useCallback(() => {
       const main = mainContentRef.current;
       if (main) {
-          const isNearBottom = main.scrollHeight - main.scrollTop - main.clientHeight < 400;
-          setShowScrollToBottom(!isNearBottom);
+          // Show if user has scrolled up more than 1000px from the bottom
+          const distanceFromBottom = main.scrollHeight - main.scrollTop - main.clientHeight;
+          setShowScrollToBottom(distanceFromBottom > 1000);
       }
   }, []);
 
@@ -409,7 +410,6 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     setAiStatus('thinking');
-    setShowScrollToBottom(true);
     setTimeout(() => scrollToBottom('smooth'), 100);
 
     const abortController = new AbortController();

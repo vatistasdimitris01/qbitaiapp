@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, StopCircleIcon, MicIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -30,6 +30,7 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext, language }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
     const [isRecording, setIsRecording] = useState(false);
+    const [isMultiline, setIsMultiline] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recognitionRef = useRef<any>(null);
@@ -39,7 +40,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            textarea.style.height = `${Math.max(56, newHeight)}px`;
+            textarea.style.height = `${Math.max(44, newHeight)}px`; // Reduced min-height for pill shape
+            
+            // Check if multiline (approximate based on height > single line height)
+            setIsMultiline(newHeight > 50);
         }
     }, []);
 
@@ -99,6 +103,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             onTextChange('');
             setAttachmentPreviews([]);
             if (internalTextareaRef.current) internalTextareaRef.current.style.height = 'auto';
+            setIsMultiline(false);
         }
     };
     
@@ -196,12 +201,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex flex-col w-full bg-[#18181b] rounded-[26px] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-300 overflow-hidden group"
+                    className={`relative flex flex-col w-full bg-[#18181b] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-300 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
                 >
                     <textarea 
                         ref={internalTextareaRef} 
                         dir="auto" 
-                        className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-4 pt-4 pb-14 max-h-[200px] min-h-[56px] text-[16px] leading-relaxed resize-none scrollbar-none"
+                        className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3 max-h-[200px] min-h-[44px] text-[16px] leading-relaxed resize-none scrollbar-none"
                         placeholder={placeholder} 
                         rows={1} 
                         value={text} 
@@ -210,87 +215,63 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         onPaste={handlePaste}
                     />
                     
-                    {/* Bottom Toolbar - Absolute positioned as requested */}
-                    <div className="flex gap-1.5 absolute inset-x-0 bottom-0 p-2 max-w-full items-end" style={{ cursor: 'crosshair' }}>
-                        {/* Attach Button */}
+                    {/* Attach Button (Left) */}
+                    <div className="absolute left-1.5 bottom-1.5 z-10">
                         <button 
                             type="button"
                             onClick={handleAttachClick}
-                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 hover:text-foreground h-10 w-10 rounded-full"
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 hover:text-foreground h-8 w-8 rounded-full"
                             aria-label={t('chat.input.attach')}
                         >
                             <PaperclipIcon className="size-5" />
                         </button>
+                    </div>
 
-                        {/* Spacer / Hidden Middle */}
-                        <div className="grow" />
-
-                        {/* Right Actions */}
-                        <div className="flex flex-row items-end gap-1">
-                            {/* Model Select (Visual Only) */}
+                    {/* Right Action Button (Send or Voice) */}
+                    <div className="absolute right-1.5 bottom-1.5 z-10">
+                        {isLoading ? (
                             <button 
-                                type="button" 
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors duration-100 select-none hover:bg-surface-l2 h-10 py-1.5 text-sm rounded-full text-foreground px-3.5"
+                                type="button"
+                                onClick={onAbortGeneration}
+                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
+                                aria-label="Stop"
                             >
-                                <div className="flex flex-row items-center gap-2">
-                                    <div className="flex items-center justify-center size-[18px] overflow-hidden shrink-0">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2]">
-                                            <path d="M5 14.25L14 4L13 9.75H19L10 20L11 14.25H5Z" stroke="currentColor" strokeWidth="2"></path>
-                                        </svg>
-                                    </div>
-                                    <span className="font-semibold text-sm shrink-0">Fast</span>
+                                <div className="h-8 w-8 flex items-center justify-center rounded-full bg-foreground text-background">
+                                    <StopCircleIcon className="size-5" />
                                 </div>
                             </button>
-
-                            {/* Voice Button */}
+                        ) : hasContent ? (
+                            <button 
+                                type="submit"
+                                className="group flex flex-col justify-center rounded-full focus:outline-none" 
+                                aria-label="Submit"
+                            >
+                                <div className="h-8 w-8 flex items-center justify-center rounded-full bg-foreground text-background">
+                                    <ArrowUpIcon className="size-5" />
+                                </div>
+                            </button>
+                        ) : (
                             <button 
                                 type="button"
                                 onClick={handleMicClick}
                                 className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                aria-label="Enter voice mode"
+                                aria-label="Voice"
                             >
-                                <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-surface-l2 text-foreground ring-transparent'}`}>
+                                <div className={`h-8 w-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-500 text-white' : 'bg-surface-l2 text-foreground hover:bg-surface-l3'}`}>
                                     {isRecording ? (
-                                        <div className="flex gap-0.5 items-center justify-center h-4">
-                                            {[1,2,3,4,5].map(i => (
-                                                <div key={i} className="w-0.5 bg-red-500 rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 10 + 4}px` }} />
+                                        <div className="flex gap-0.5 items-center justify-center h-3">
+                                            {[1,2,3].map(i => (
+                                                <div key={i} className="w-0.5 bg-white rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 8 + 4}px` }} />
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-center gap-0.5">
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-5"></div>
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-3"></div>
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-4"></div>
-                                            <div className="w-0.5 relative z-10 rounded-full bg-current h-1.5"></div>
-                                        </div>
+                                        <MicIcon className="size-5" />
                                     )}
                                 </div>
                             </button>
-
-                            {/* Submit / Stop Button */}
-                            <button 
-                                type={isLoading ? "button" : "submit"}
-                                onClick={isLoading ? onAbortGeneration : undefined}
-                                disabled={!hasContent && !isLoading}
-                                className={`group flex flex-col justify-center rounded-full focus:outline-none transition-opacity ${!hasContent && !isLoading ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`} 
-                                aria-label="Submit"
-                            >
-                                <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full ring-inset transition-colors duration-100 ${hasContent || isLoading ? 'bg-foreground text-background' : 'bg-surface-l2 text-muted-foreground'}`}>
-                                    {isLoading ? (
-                                        <StopCircleIcon className="size-5" />
-                                    ) : (
-                                        <ArrowUpIcon className="size-5" />
-                                    )}
-                                </div>
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </form>
-                <div className="text-center mt-2 text-xs text-muted-foreground/60">
-                    {t('chat.input.disclaimer')}
-                </div>
             </div>
         </div>
     );

@@ -153,64 +153,56 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <SidebarItem icon={ChatIcon} label="Chat" onClick={onNewChat} isActive={!activeConversationId} />
             </div>
 
-            {/* History Header */}
-            <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 mt-2">
-                <div className="group/menu-item whitespace-nowrap font-semibold relative">
-                    <button 
-                        className={`flex items-center gap-2 overflow-hidden rounded-xl text-left w-full h-[36px] hover:bg-surface-l2 transition-colors p-[0.375rem] text-sm text-foreground focus:outline-none ${!isOpen && 'justify-center'}`}
-                    >
-                        <div className={`size-6 flex items-center justify-center shrink-0 transition-transform ${!isOpen && 'group-hover/menu-item:scale-110'}`}>
-                            <HistoryIcon />
+            {/* History Header & List */}
+            <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 mt-2 gap-0.5">
+                {/* Standardized History Item */}
+                <SidebarItem icon={HistoryIcon} label="History" onClick={() => {}} />
+
+                {/* History List */}
+                {isOpen && (
+                    <div className="flex flex-row gap-px mx-1 mt-1 pl-1.5">
+                        {/* Tree Line */}
+                        <div className="cursor-pointer ms-[8px] me-[2px] py-1">
+                            <div className="border-l border-border h-full ms-[10px] me-[4px]"></div>
                         </div>
-                        {isOpen && <span className="opacity-100">History</span>}
-                    </button>
-                </div>
-            </div>
-
-            {/* History List */}
-            {isOpen && (
-                <div className="flex flex-row gap-px mx-1 mt-1">
-                    {/* Tree Line */}
-                    <div className="cursor-pointer ms-[8px] me-[2px] py-1">
-                        <div className="border-l border-border h-full ms-[10px] me-[4px]"></div>
-                    </div>
-                    
-                    {/* Items */}
-                    <div className="flex flex-col gap-px w-full min-w-0">
-                        {filteredConversations.length > 0 && (
-                            <div className="py-1 pl-3 text-xs text-muted-foreground sticky top-0 z-20 text-nowrap font-semibold">Recent</div>
-                        )}
                         
-                        {filteredConversations.length === 0 && searchTerm && (
-                             <div className="py-2 pl-3 text-sm text-muted-foreground">No results</div>
-                        )}
+                        {/* Items */}
+                        <div className="flex flex-col gap-px w-full min-w-0">
+                            {filteredConversations.length > 0 && (
+                                <div className="py-1 pl-3 text-xs text-muted-foreground sticky top-0 z-20 text-nowrap font-semibold">Recent</div>
+                            )}
+                            
+                            {filteredConversations.length === 0 && searchTerm && (
+                                <div className="py-2 pl-3 text-sm text-muted-foreground">No results</div>
+                            )}
 
-                        {filteredConversations.map(convo => (
-                            <div key={convo.id} className="relative group/sidebar-menu-item">
-                                <button
-                                    onClick={() => onSelectConversation(convo.id)}
-                                    className={`flex items-center gap-2 rounded-xl text-left w-full h-[36px] transition-colors pl-3 pr-1.5 text-sm ${activeConversationId === convo.id ? 'bg-surface-l2 text-foreground' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
-                                >
-                                    <span className="flex-1 select-none text-nowrap max-w-full overflow-hidden inline-block truncate">
-                                        {convo.title}
-                                    </span>
-                                    
-                                    {/* Hover Options */}
-                                    <div 
-                                        className="items-center justify-center h-6 w-6 hidden group-hover/sidebar-menu-item:flex hover:bg-surface-l1 rounded-lg text-muted-foreground hover:text-foreground transition-colors z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (window.confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);
-                                        }}
+                            {filteredConversations.map(convo => (
+                                <div key={convo.id} className="relative group/sidebar-menu-item">
+                                    <button
+                                        onClick={() => onSelectConversation(convo.id)}
+                                        className={`flex items-center gap-2 rounded-xl text-left w-full h-[36px] transition-colors pl-3 pr-1.5 text-sm ${activeConversationId === convo.id ? 'bg-surface-l2 text-foreground' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
                                     >
-                                        <MoreHorizontalIcon className="size-3.5" />
-                                    </div>
-                                </button>
-                            </div>
-                        ))}
+                                        <span className="flex-1 select-none text-nowrap max-w-full overflow-hidden inline-block truncate">
+                                            {convo.title}
+                                        </span>
+                                        
+                                        {/* Hover Options */}
+                                        <div 
+                                            className="items-center justify-center h-6 w-6 hidden group-hover/sidebar-menu-item:flex hover:bg-surface-l1 rounded-lg text-muted-foreground hover:text-foreground transition-colors z-10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);
+                                            }}
+                                        >
+                                            <MoreHorizontalIcon className="size-3.5" />
+                                        </div>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
 
         {/* Footer */}

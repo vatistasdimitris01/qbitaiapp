@@ -170,7 +170,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
     const showSendButton = hasContent || isLoading;
 
-    // Custom Voice Icon based on user's exact specification
+    // Custom Voice Icon (unchanged - already perfect)
     const VoiceWaveButton = () => (
         <div className={`h-8 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-110' : 'ring-transparent'}`} style={{ cursor: 'crosshair' }}>
             <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
@@ -216,10 +216,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onSubmit={handleSubmit} 
                     className="relative flex items-center w-full bg-white dark:bg-[#18181b] p-1.5 shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden rounded-full group min-h-[56px]"
                 >
+                    {/* Attach Button: always white icon, no background, subtle hover */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-surface-l2 hover:text-foreground transition-colors shrink-0"
+                        className="flex items-center justify-center h-8 w-8 rounded-full text-white hover:bg-white/10 transition-colors shrink-0"
                         aria-label={t('chat.input.attach')}
                     >
                         <PaperclipIcon className="size-4" />
@@ -244,11 +245,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className="group flex items-center justify-center rounded-full focus:outline-none h-8 w-8 bg-foreground text-background transition-opacity hover:opacity-90" 
+                                className={`group flex items-center justify-center rounded-full h-8 w-8 transition-all duration-200 ${
+                                    hasContent 
+                                        ? 'bg-white text-black hover:opacity-90' 
+                                        : 'bg-[#333333] text-[#888888] hover:bg-[#444444]'
+                                }`}
                                 aria-label={isLoading ? "Stop" : "Submit"}
                             >
                                 {isLoading ? (
-                                    <div className="h-2 w-2 bg-background rounded-[1px]" />
+                                    <div className="h-2 w-2 bg-black rounded-[1px]" />
                                 ) : (
                                     <ArrowUpIcon className="size-4" />
                                 )}

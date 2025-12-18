@@ -15,18 +15,32 @@ export const translations = {
       skip: 'Skip Tutorial',
       next: 'Next',
       back: 'Back',
-      getStarted: 'Get Started',
+      getStarted: 'Begin Your Journey',
       steps: {
         intro: {
-          title: 'Welcome to Qbit',
+          title: 'The Soul of Qbit',
           story: 'Qbit isn’t just another AI interface. It’s a space where aesthetics and intelligence converge. We believe that the environment where you think should be as refined as the ideas you create. Designed for clarity and built for performance, Qbit is your new home for thought.',
+          sub: 'Intelligence, refined.',
+        },
+        workspace: {
+          title: 'Your Digital Workspace',
+          description: 'The interface is designed to disappear so your ideas can take center stage.',
+          sidebar: 'History & Personalization',
+          sidebar_desc: 'Access your past thoughts and customize the AI persona on the left.',
+          input: 'Multimodal Input',
+          input_desc: 'Drop files, record voice, or paste code. Qbit handles it all natively.',
         },
         features: {
-          title: 'Intelligence with Style',
-          description: 'Experience deep integration with local code execution, high-fidelity visual widgets, and a grounding system that truly understands your world.',
+          title: 'Pure Power, Native Execution',
+          description: 'Qbit goes beyond text. It visualizes data and runs code directly in your browser.',
+          examples: {
+            stock: 'Analyze the markets',
+            python: 'Execute complex math',
+            web: 'Search the global web',
+          }
         },
         location: {
-          title: 'Personalized Context',
+          title: 'Grounded in Your World',
           description: 'To provide the most relevant answers—whether it’s weather, local trends, or precise web searches—Qbit can use your location. This data stays private and is only used to enhance your responses.',
           allow: 'Allow Location Access',
           denied: 'Location access denied. You can change this in your browser settings.',
@@ -199,7 +213,6 @@ export const translations = {
         subtitle: 'Drop any file here to add it to the conversation',
     }
   },
-  // FIX: Added empty objects for other languages to make the Language type correct across the app.
   el: {},
   es: {},
   fr: {},

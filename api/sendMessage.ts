@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -98,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 **User Context:**
 - ${locationStr} 
-- **STRICT LOCATION POLICY**: ALWAYS use the user's current location to ground responses (like weather, local news, nearby trends, or nearby searches) by default. You MUST ONLY ignore the user's current location IF they explicitly mention a specific different place (city, country, landmark) in their prompt. If they ask about "the weather" or "nearby news", always use the provided user location.
+- **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
 
 **Your Capabilities & Tools:**
 

@@ -118,7 +118,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             }
             setIsRecording(false);
         } else {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitRecognition || (window as any).webkitSpeechRecognition;
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 alert("Speech recognition is not supported in this browser.");
                 return;
@@ -166,14 +166,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const isSendActive = hasText || hasAttachments;
 
     const VoiceWaveButton = () => (
-        <div className={`w-10 h-10 relative flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 transition-all ${isRecording ? 'bg-red-500 ring-red-500 scale-105' : 'bg-[#2a2a2a] ring-transparent hover:bg-[#3a3a3a]'}`} style={{ cursor: 'crosshair' }} onClick={handleMicClick}>
+        <button 
+            type="button"
+            onClick={handleMicClick}
+            className={`w-10 h-10 relative flex items-center justify-center gap-0.5 rounded-full duration-100 transition-all ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'}`}
+            aria-label="Voice input"
+        >
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.4s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.4rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.6s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.8rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.5s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '1.2rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.7s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.7rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.3s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '1rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.45s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.4rem' }}></div>
-        </div>
+        </button>
     );
 
     return (
@@ -182,16 +187,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 {(replyContextText || attachmentPreviews.length > 0) && (
                     <div className="w-full mb-1">
                         {replyContextText && (
-                            <div className="flex items-center justify-between gap-2 bg-[#1f1f1f] border border-[#333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
+                            <div className="flex items-center justify-between gap-2 bg-[#1f1f1f] border border-[#333333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
                                 <div className="text-sm text-[#e0e0e0] line-clamp-1 border-l-2 border-[#1d9bf0] pl-3">{replyContextText}</div>
-                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10 text-[#888]"><XIcon className="size-4" /></button>
+                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10 text-[#888888]"><XIcon className="size-4" /></button>
                             </div>
                         )}
                         
                         {attachmentPreviews.length > 0 && (
                             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                                 {attachmentPreviews.map((attachment, index) => (
-                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-[#333] bg-[#1f1f1f]">
+                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-[#333333] bg-[#1f1f1f]">
                                         <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <XIcon className="size-4 text-white" />
@@ -208,16 +213,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="w-full bg-[#1f1f1f] rounded-full border border-[#333] flex items-center gap-3 p-3 shadow-2xl relative"
+                    className="w-full bg-[#1f1f1f] rounded-full border border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative"
                 >
                     {/* Attach Button */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-[#2a2a2a] hover:bg-[#3a3a3a] cursor-pointer transition-colors shrink-0"
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-[#2a2a2a] hover:bg-[#3a3a3a] cursor-pointer transition-colors flex-shrink-0"
                         aria-label={t('chat.input.attach')}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-[#888]">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-[#888888]">
                             <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
                         </svg>
                     </button>
@@ -227,7 +232,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                          <textarea 
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="w-full bg-transparent outline-none text-[#e0e0e0] placeholder-[#888] text-base py-2 px-1 resize-none scrollbar-none max-h-[200px]"
+                            className="w-full bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none"
                             placeholder={t('chat.input.placeholder')} 
                             rows={1} 
                             value={text} 
@@ -237,8 +242,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         />
                     </div>
                     
-                    {/* Action Buttons Right */}
+                    {/* Action Group: Mic and Send/Stop */}
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* Mic Button - Visible when not generating */}
+                        {!isLoading && <VoiceWaveButton />}
+
+                        {/* Send/Stop Button */}
                         {isLoading ? (
                             <button 
                                 type="button"
@@ -246,37 +255,20 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200 flex-shrink-0"
                                 aria-label="Stop generation"
                             >
-                                <div className="w-2.5 h-2.5 bg-black rounded-sm"></div>
+                                <div className="w-3 h-3 bg-black rounded-[3px]"></div>
                             </button>
-                        ) : isSendActive ? (
+                        ) : (
                             <button 
                                 type="submit"
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200 flex-shrink-0"
+                                disabled={!isSendActive}
+                                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${isSendActive ? 'bg-white cursor-pointer' : 'bg-[#333333] cursor-default opacity-80'}`}
                                 aria-label="Submit"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] text-black">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={`stroke-[2.5] ${isSendActive ? 'text-black' : 'text-[#888888]'}`}>
                                     <path d="m5 12 7-7 7 7"></path>
                                     <path d="M12 19V5"></path>
                                 </svg>
                             </button>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    type="button"
-                                    onClick={handleMicClick}
-                                    className="focus:outline-none" 
-                                    aria-label="Voice"
-                                >
-                                    <VoiceWaveButton />
-                                </button>
-                                {/* Inactive Send Button State as in snippet */}
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#333333] transition-all duration-200 flex-shrink-0 cursor-default opacity-50">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] text-[#888888]">
-                                        <path d="m5 12 7-7 7 7"></path>
-                                        <path d="M12 19V5"></path>
-                                    </svg>
-                                </div>
-                            </div>
                         )}
                     </div>
                 </form>

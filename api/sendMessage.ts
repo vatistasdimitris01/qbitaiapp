@@ -97,7 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
 
 **User Context:**
-- ${locationStr} Use this information to personalize responses, searches, and weather requests whenever relevant without explicitly asking the user for it.
+- ${locationStr} 
+- **Location Usage Logic**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
 
 **Your Capabilities & Tools:**
 
@@ -116,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
 
 4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool. Use the user's location to improve the relevancy of the search results.
+    *   **How to do it:** Use the \`google_search\` tool. Use the user's location to improve the relevancy of the search results for local queries.
 
 **General Guidelines:**
 

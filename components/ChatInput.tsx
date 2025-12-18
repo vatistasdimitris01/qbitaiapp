@@ -40,7 +40,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            // Threshold for expanding layout
             const isMulti = newHeight > 30; 
             
             textarea.style.height = `${Math.max(24, newHeight)}px`;
@@ -171,9 +170,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
     const showSendButton = hasContent || isLoading;
 
-    // Custom Voice Icon based on user's request
+    // Custom Voice Icon based on user's exact specification
     const VoiceWaveButton = () => (
-        <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-105' : 'ring-transparent'}`}>
+        <div className={`h-8 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-110' : 'ring-transparent'}`} style={{ cursor: 'crosshair' }}>
             <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.6s_infinite]' : ''}`} style={{ height: '0.8rem' }}></div>
             <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.5s_infinite]' : ''}`} style={{ height: '1.2rem' }}></div>
@@ -215,13 +214,22 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className={`relative flex flex-col w-full bg-white dark:bg-[#18181b] shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden group rounded-full`}
+                    className="relative flex items-center w-full bg-white dark:bg-[#18181b] p-1.5 shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden rounded-full group min-h-[56px]"
                 >
-                    <div className={`relative w-full ${isMultiline ? 'min-h-[60px]' : 'h-14'} flex flex-col justify-center`}>
+                    <button 
+                        type="button"
+                        onClick={handleAttachClick}
+                        className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-surface-l2 hover:text-foreground transition-colors shrink-0"
+                        aria-label={t('chat.input.attach')}
+                    >
+                        <PaperclipIcon className="size-4" />
+                    </button>
+
+                    <div className="flex-1 flex flex-col justify-center px-1">
                         <textarea 
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-12 py-3.5 max-h-[400px] text-[16px] leading-relaxed resize-none scrollbar-none align-bottom"
+                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-2 py-2 max-h-[200px] text-[15px] leading-relaxed resize-none scrollbar-none"
                             placeholder={placeholder} 
                             rows={1} 
                             value={text} 
@@ -231,50 +239,30 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         />
                     </div>
                     
-                    {/* Bottom Toolbar: Absolute Buttons */}
-                    <div className="absolute inset-x-0 bottom-0 flex gap-1.5 p-2 items-end pointer-events-none">
-                        {/* Attach Button (Left) */}
-                        <div className="pointer-events-auto">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {showSendButton ? (
+                            <button 
+                                type={isLoading ? "button" : "submit"}
+                                onClick={isLoading ? onAbortGeneration : undefined}
+                                className="group flex items-center justify-center rounded-full focus:outline-none h-8 w-8 bg-foreground text-background transition-opacity hover:opacity-90" 
+                                aria-label={isLoading ? "Stop" : "Submit"}
+                            >
+                                {isLoading ? (
+                                    <div className="h-2 w-2 bg-background rounded-[1px]" />
+                                ) : (
+                                    <ArrowUpIcon className="size-4" />
+                                )}
+                            </button>
+                        ) : (
                             <button 
                                 type="button"
-                                onClick={handleAttachClick}
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 h-10 w-10 rounded-full"
-                                aria-label={t('chat.input.attach')}
+                                onClick={handleMicClick}
+                                className="focus:outline-none" 
+                                aria-label="Voice"
                             >
-                                <PaperclipIcon className="size-5" />
+                                <VoiceWaveButton />
                             </button>
-                        </div>
-
-                        <div className="grow" />
-
-                        {/* Right Action Button (Send or Voice) */}
-                        <div className="pointer-events-auto">
-                            {showSendButton ? (
-                                <button 
-                                    type={isLoading ? "button" : "submit"}
-                                    onClick={isLoading ? onAbortGeneration : undefined}
-                                    className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                    aria-label={isLoading ? "Stop" : "Submit"}
-                                >
-                                    <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full transition-colors duration-100 ${isLoading ? 'bg-foreground text-background' : 'bg-foreground text-background hover:opacity-90'}`}>
-                                        {isLoading ? (
-                                            <div className="h-2.5 w-2.5 bg-background rounded-[1px]" />
-                                        ) : (
-                                            <ArrowUpIcon className="size-5" />
-                                        )}
-                                    </div>
-                                </button>
-                            ) : (
-                                <button 
-                                    type="button"
-                                    onClick={handleMicClick}
-                                    className="group flex flex-col justify-center rounded-full focus:outline-none" 
-                                    aria-label="Voice"
-                                >
-                                    <VoiceWaveButton />
-                                </button>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </form>
             </div>

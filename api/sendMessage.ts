@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
 
 4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries to ensure high relevance.
+    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries to ensure high relevance. ALWAYS MAKE IT USE GOOGLE ENGINGE API AND ID FOR WEB SEARCH.
 
 **General Guidelines:**
 

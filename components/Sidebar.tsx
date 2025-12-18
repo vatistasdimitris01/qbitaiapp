@@ -21,19 +21,15 @@ interface SidebarProps {
   t: (key: string) => string;
 }
 
-// --- Icons from Design ---
-
+// --- Logo Component ---
 const LogoIcon = () => (
-  <img 
-    src="/logo.png" 
-    alt="Qbit Logo" 
-    className="w-8 h-8 object-contain"
-    onError={(e) => {
-      // Fallback in case local file isn't found during dev
-      const target = e.target as HTMLImageElement;
-      target.src = 'https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png';
-    }}
-  />
+  <div className="flex items-center justify-center size-8">
+    <img 
+      src="/logo.png" 
+      alt="Qbit Logo" 
+      className="w-full h-full object-contain pointer-events-none"
+    />
+  </div>
 );
 
 const ChatIcon = () => (

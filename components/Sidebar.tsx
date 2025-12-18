@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Conversation } from '../types';
 import {
@@ -105,9 +104,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         border-r border-border
         ${isOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full lg:translate-x-0 lg:w-[60px]'}
       `}>
-        {/* Header (Logo) */}
-        <div className="h-[3.5rem] flex flex-row items-center shrink-0 px-2">
-            <button onClick={onNewChat} className="block w-fit p-1 mx-0.5 shrink-0 hover:bg-surface-l2 rounded-xl transition-colors" aria-label="Home">
+        {/* Header (Logo) - Centered */}
+        <div className="h-[4rem] flex items-center justify-center shrink-0">
+            <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors" aria-label="Home">
                 <LogoIcon />
             </button>
         </div>

@@ -10,6 +10,29 @@ export const translations = {
       text: 'A new version is available!',
       button: 'Refresh',
     },
+    // Welcome Onboarding
+    welcome: {
+      skip: 'Skip Tutorial',
+      next: 'Next',
+      back: 'Back',
+      getStarted: 'Get Started',
+      steps: {
+        intro: {
+          title: 'Welcome to Qbit',
+          story: 'Qbit isn’t just another AI interface. It’s a space where aesthetics and intelligence converge. We believe that the environment where you think should be as refined as the ideas you create. Designed for clarity and built for performance, Qbit is your new home for thought.',
+        },
+        features: {
+          title: 'Intelligence with Style',
+          description: 'Experience deep integration with local code execution, high-fidelity visual widgets, and a grounding system that truly understands your world.',
+        },
+        location: {
+          title: 'Personalized Context',
+          description: 'To provide the most relevant answers—whether it’s weather, local trends, or precise web searches—Qbit can use your location. This data stays private and is only used to enhance your responses.',
+          allow: 'Allow Location Access',
+          denied: 'Location access denied. You can change this in your browser settings.',
+        }
+      }
+    },
     // Sidebar
     sidebar: {
       header: 'Qbit',

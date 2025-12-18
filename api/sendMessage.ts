@@ -1,5 +1,4 @@
 
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
@@ -68,7 +67,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.toolCalls && msg.toolCalls.length > 0) {
                      msg.toolCalls.forEach(tc => {
                          parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         // Simplified response for history to save tokens
                          parts.push({ functionResponse: { name: tc.name, response: { content: "UI Rendered" } } }); 
                      });
                 }
@@ -94,7 +92,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
+        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (${location.latitude}, ${location.longitude}).` : 'Location unknown.';
+
         const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
+
+**User Context:**
+- ${locationStr} Use this information to personalize responses, searches, and weather requests whenever relevant without explicitly asking the user for it.
 
 **Your Capabilities & Tools:**
 
@@ -113,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
 
 4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool.
+    *   **How to do it:** Use the \`google_search\` tool. Use the user's location to improve the relevancy of the search results.
 
 **General Guidelines:**
 
@@ -234,7 +237,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                     }));
                                     write({ type: 'sources', payload: groundingChunks });
                                     
-                                    // Send search result count if available
                                     if (searchResults.searchInformation && searchResults.searchInformation.totalResults) {
                                         write({ type: 'search_result_count', payload: parseInt(searchResults.searchInformation.totalResults, 10) });
                                     }
@@ -255,7 +257,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         keepGoing = true;
 
                     } else {
-                        // Generic Tool Handling (render_stock_widget)
                         write({ 
                             type: 'tool_call', 
                             payload: { 
@@ -273,14 +274,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         keepGoing = true;
                     }
                 }
-            }
-
-            // Fallback: If absolutely nothing was sent (no text AND no tool), send a fallback message.
-            if (!hasSentText && !hasSentTool) {
-                 // But wait, if we did a search (keepGoing=true at least once), we might not have sent text yet if the model decided to be empty after search.
-                 // We should only force text if the stream ended completely empty from user perspective.
-                 // However, the frontend handles "no text but has sources" now. 
-                 // So we only send fallback if truly nothing happened.
             }
 
         } finally {

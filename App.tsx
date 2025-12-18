@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
@@ -7,7 +6,7 @@ import ChatInput, { ChatInputHandle } from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
-import LocationBanner from './components/LocationBanner';
+import WelcomeModal from './components/WelcomeModal';
 import CodeAnalysisModal from './components/CodeAnalysisModal';
 import SelectionPopup from './components/SelectionPopup';
 import DragDropOverlay from './components/DragDropOverlay';
@@ -102,9 +101,10 @@ const App: React.FC = () => {
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   
   // Sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default logic handled in useEffect
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
@@ -136,22 +136,23 @@ const App: React.FC = () => {
   const dragCounter = useRef(0);
   const { t, setLang, lang } = useTranslations(language);
 
-  // Set initial sidebar state based on screen width - default closed (rail) for desktop
+  // Set initial sidebar state based on screen width
   useEffect(() => {
-    // If user preference exists, could load here. Default to true (expanded) for desktop if space allows? 
-    // The prompt implied it starts "closed" as icons. Let's initialize false (collapsed rail) for desktop.
-    // For mobile, false means hidden.
     if (window.innerWidth >= 1024) {
-        setIsSidebarOpen(true); // Default open on large screens
+        setIsSidebarOpen(true); 
+    }
+    
+    // Check for welcome tutorial
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setIsWelcomeOpen(true);
     }
   }, []);
 
   const checkPythonReady = useCallback(() => {
     pythonExecutorReady().then(() => {
-        console.log('Python worker environment ready.');
         if (!isPythonReady) setIsPythonReady(true);
     }).catch(e => {
-        console.error('Failed to prepare Python worker environment:', e);
         if (isPythonReady) setIsPythonReady(false);
     });
   }, [isPythonReady]);
@@ -159,33 +160,6 @@ const App: React.FC = () => {
   useEffect(() => {
     checkPythonReady();
   }, [checkPythonReady]);
-
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-        const handleControllerChange = () => { window.location.reload(); };
-        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-        const registerServiceWorker = async () => {
-            try {
-                const registration = await navigator.serviceWorker.register('/sw.js');
-                registration.onupdatefound = () => {
-                    const installingWorker = registration.installing;
-                    if (installingWorker) {
-                        installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                installingWorker.postMessage({ type: 'SKIP_WAITING' });
-                            }
-                        };
-                    }
-                };
-            } catch (error) { console.error('Service worker registration failed:', error); }
-        };
-        window.addEventListener('load', registerServiceWorker);
-        return () => {
-            window.removeEventListener('load', registerServiceWorker);
-            navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        };
-    }
-  }, []);
 
   useEffect(() => {
     const handleResize = () => setAppHeight(window.innerHeight);
@@ -311,7 +285,6 @@ const App: React.FC = () => {
   const handleScroll = useCallback(() => {
       const main = mainContentRef.current;
       if (main) {
-          // Show if user has scrolled up more than 1000px from the bottom
           const distanceFromBottom = main.scrollHeight - main.scrollTop - main.clientHeight;
           setShowScrollToBottom(distanceFromBottom > 1000);
       }
@@ -337,7 +310,6 @@ const App: React.FC = () => {
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-    // Clean up status
     setAiStatus('idle');
     setIsLoading(false);
     if (abortControllerRef.current) {
@@ -399,7 +371,6 @@ const App: React.FC = () => {
         files: processedAttachments,
     };
 
-    // Update conversation with user message
     setConversations(prev => prev.map(c => {
         if (c.id === currentConvoId) {
             const title = (c.messages.length === 0 && c.title === t('sidebar.newChat')) 
@@ -454,7 +425,6 @@ const App: React.FC = () => {
                     } else if (update.type === 'usage') {
                         msg.usageMetadata = update.payload;
                     } else if (update.type === 'sources') {
-                         // Merge grounding chunks instead of overwriting, in case multiple searches occur
                          msg.groundingChunks = [...(msg.groundingChunks || []), ...update.payload];
                     } else if (update.type === 'searching') {
                         setAiStatus('searching');
@@ -462,7 +432,6 @@ const App: React.FC = () => {
                         if (!msg.toolCalls) msg.toolCalls = [];
                         msg.toolCalls.push(update.payload);
                     } else if (update.type === 'search_result_count') {
-                        // Accumulate the count
                          msg.searchResultCount = (msg.searchResultCount || 0) + update.payload;
                     }
                     
@@ -484,7 +453,6 @@ const App: React.FC = () => {
                          const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
                          const hasGrounding = msg.groundingChunks && msg.groundingChunks.length > 0;
                          
-                         // Safety check: if response is empty and no tools used and no sources found, flag as error
                          if (!contentStr && !hasTools && !hasGrounding) {
                              messages[msgIndex] = { ...msg, type: MessageType.ERROR, content: "Empty response from AI." };
                          } else {
@@ -551,8 +519,6 @@ const App: React.FC = () => {
             return c;
         }));
         
-        // We re-send the text. Re-attaching files is skipped for simplicity here, assuming they are processed in handleSendMessage context if provided.
-        // If files are needed, one would need to reconstruct File objects or adapt logic to reuse existing Attachment data URLs.
         handleSendMessage(text, []); 
     }
   }, [activeConversation, handleSendMessage, conversations]);
@@ -588,6 +554,11 @@ const App: React.FC = () => {
     handleSendMessage(prompt);
   }, [handleSendMessage]);
 
+  const handleWelcomeComplete = () => {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    setIsWelcomeOpen(false);
+  };
+
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-accent-blue/20 selection:text-foreground">
         <Sidebar
@@ -614,13 +585,6 @@ const App: React.FC = () => {
             onDragLeave={handleDragLeave as any} 
             onDrop={handleDrop as any}
         >
-            <LocationBanner onLocationUpdate={(loc, detectedLang) => {
-                setUserLocation(loc);
-                if (detectedLang && isLanguage(detectedLang) && language === 'en') {
-                     setLanguage(detectedLang);
-                }
-            }} t={t} />
-
             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-4 md:p-6 pb-48">
                 <div className="max-w-3xl mx-auto flex flex-col min-h-full">
                      {(!activeConversation || activeConversation.messages.length === 0) ? (
@@ -694,6 +658,19 @@ const App: React.FC = () => {
                 activeConversationId={activeConversationId}
                 t={t}
             />
+
+            {isWelcomeOpen && (
+              <WelcomeModal
+                onComplete={handleWelcomeComplete}
+                onLocationUpdate={(loc, detectedLang) => {
+                  setUserLocation(loc);
+                  if (detectedLang && isLanguage(detectedLang) && language === 'en') {
+                    setLanguage(detectedLang);
+                  }
+                }}
+                t={t}
+              />
+            )}
             
             {analysisModalContent && (
                 <CodeAnalysisModal

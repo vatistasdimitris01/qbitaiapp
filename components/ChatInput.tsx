@@ -161,15 +161,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
-    const hasText = text.trim().length > 0;
-    const hasAttachments = attachmentPreviews.length > 0;
-    const isSendActive = hasText || hasAttachments;
+    const isSendActive = text.trim().length > 0 || attachmentPreviews.length > 0;
 
     const VoiceWaveButton = () => (
         <button 
             type="button"
             onClick={handleMicClick}
-            className={`w-10 h-10 relative flex items-center justify-center gap-0.5 rounded-full duration-100 transition-all ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'}`}
+            className={`w-10 h-10 relative flex items-center justify-center gap-0.5 rounded-full duration-100 transition-all ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-white/10'}`}
             aria-label="Voice input"
         >
             <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.4s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.4rem' }}></div>
@@ -219,10 +217,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-[#2a2a2a] hover:bg-[#3a3a3a] cursor-pointer transition-colors flex-shrink-0"
+                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-colors flex-shrink-0 hover:bg-white/10"
                         aria-label={t('chat.input.attach')}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-[#888888]">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
                             <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
                         </svg>
                     </button>
@@ -232,7 +230,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                          <textarea 
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="w-full bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none"
+                            className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none"
                             placeholder={t('chat.input.placeholder')} 
                             rows={1} 
                             value={text} 
@@ -242,12 +240,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         />
                     </div>
                     
-                    {/* Action Group: Mic and Send/Stop */}
+                    {/* Action Buttons Group */}
                     <div className="flex items-center gap-2 shrink-0">
-                        {/* Mic Button - Visible when not generating */}
+                        {/* Voice Input Button */}
                         {!isLoading && <VoiceWaveButton />}
 
-                        {/* Send/Stop Button */}
+                        {/* Send / Stop Button */}
                         {isLoading ? (
                             <button 
                                 type="button"
@@ -255,13 +253,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200 flex-shrink-0"
                                 aria-label="Stop generation"
                             >
-                                <div className="w-3 h-3 bg-black rounded-[3px]"></div>
+                                <div className="w-2.5 h-2.5 bg-black rounded-sm"></div>
                             </button>
                         ) : (
                             <button 
                                 type="submit"
                                 disabled={!isSendActive}
-                                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${isSendActive ? 'bg-white cursor-pointer' : 'bg-[#333333] cursor-default opacity-80'}`}
+                                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${isSendActive ? 'bg-white cursor-pointer' : 'bg-[#333333] cursor-default'}`}
                                 aria-label="Submit"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={`stroke-[2.5] ${isSendActive ? 'text-black' : 'text-[#888888]'}`}>

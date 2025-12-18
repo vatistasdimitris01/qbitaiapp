@@ -21,49 +21,21 @@ interface SidebarProps {
   t: (key: string) => string;
 }
 
-// --- Logo Component (Inline SVG for reliability) ---
+// --- Logo Component ---
 const LogoIcon = () => (
-  <div className="flex items-center justify-center size-8 text-foreground">
-    <svg 
-      viewBox="0 0 100 100" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className="w-full h-full"
-    >
-      {/* Top Vertical Bar */}
-      <rect x="47" y="5" width="6" height="25" rx="3" fill="currentColor" />
-      {/* Bottom Vertical Bar */}
-      <rect x="47" y="70" width="6" height="25" rx="3" fill="currentColor" />
-      
-      {/* Left Arc / "C" Shape */}
-      <path 
-        d="M40 35 C 20 35, 20 65, 40 65" 
-        stroke="currentColor" 
-        strokeWidth="7" 
-        strokeLinecap="round" 
-        fill="none" 
-      />
-      
-      {/* Right Arc / Inverted "C" Shape */}
-      <path 
-        d="M60 35 C 80 35, 80 65, 60 65" 
-        stroke="currentColor" 
-        strokeWidth="7" 
-        strokeLinecap="round" 
-        fill="none" 
-      />
-      
-      {/* Connecting Horizontal Bars (Matching the image's interlocking look) */}
-      <rect x="40" y="32" width="20" height="6.5" rx="3" fill="currentColor" />
-      <rect x="40" y="61.5" width="20" height="6.5" rx="3" fill="currentColor" />
-    </svg>
+  <div className="flex items-center justify-center size-10">
+    <img 
+      src="https://i.ibb.co/3yWj2f1Q/Untitled-design-removebg-preview.png" 
+      alt="Qbit Logo" 
+      className="w-full h-full object-contain"
+    />
   </div>
 );
 
 const ChatIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="stroke-[2]" stroke="currentColor" strokeLinecap="square">
     <path d="M10 4V4C8.13623 4 7.20435 4 6.46927 4.30448C5.48915 4.71046 4.71046 5.48915 4.30448 6.46927C4 7.20435 4 8.13623 4 10V13.6C4 15.8402 4 16.9603 4.43597 17.816C4.81947 18.5686 5.43139 19.1805 6.18404 19.564C7.03968 20 8.15979 20 10.4 20H14C15.8638 20 16.7956 20 17.5307 19.6955C18.5108 19.2895 19.2895 18.5108 19.6955 17.5307C20 16.7956 20 15.8638 20 14V14" />
-    <path d="M12.4393 14.5607L19.5 7.5C20.3284 6.67157 20.3284 5.32843 19.5 4.5C18.6716 3.67157 17.3284 3.67157 16.5 4.5L9.43934 11.5607C9.15804 11.842 9 12.2235 9 12.6213V15H11.3787C11.7765 15 12.158 14.842 12.4393 14.5607Z" />
+    <path d="M12.4393 14.5607L19.5 7.5C20.3284 6.67157 20.3284 5.32843 19.5 4.5C18.6716 3.67157 17.3284 3.67157 16.5 4.5L9.43934 11.5607C9.15804 11.842 9 12.2235 9 12.2235V15H11.3787C11.7765 15 12.158 14.842 12.4393 14.5607Z" />
   </svg>
 );
 

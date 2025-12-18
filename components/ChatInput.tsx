@@ -170,12 +170,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             className={`w-10 h-10 relative flex items-center justify-center gap-0.5 rounded-full duration-100 transition-all ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-white/10'}`}
             aria-label="Voice input"
         >
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.4s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.4rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.6s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.8rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.5s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '1.2rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.7s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.7rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.3s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '1rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.45s_infinite]' : 'bg-[#e0e0e0]'}`} style={{ height: '0.4rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.4s_infinite]' : 'bg-white'}`} style={{ height: '0.4rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.6s_infinite]' : 'bg-white'}`} style={{ height: '0.8rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.5s_infinite]' : 'bg-white'}`} style={{ height: '1.2rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.7s_infinite]' : 'bg-white'}`} style={{ height: '0.7rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.3s_infinite]' : 'bg-white'}`} style={{ height: '1rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full transition-all ${isRecording ? 'bg-white animate-[pulse_0.45s_infinite]' : 'bg-white'}`} style={{ height: '0.4rem' }}></div>
         </button>
     );
 

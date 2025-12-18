@@ -20,13 +20,20 @@ interface SidebarProps {
   t: (key: string) => string;
 }
 
-// --- Logo Component ---
+// --- Logo Component (Theme-Aware) ---
 const LogoIcon = () => (
   <div className="flex items-center justify-center size-10">
+    {/* Dark logo for Light Mode */}
+    <img 
+      src="https://i.ibb.co/xSFyPCxH/Untitled-design-1-removebg-preview.png" 
+      alt="Qbit Logo" 
+      className="w-full h-full object-contain dark:hidden pointer-events-none"
+    />
+    {/* Light logo for Dark Mode */}
     <img 
       src="https://i.ibb.co/3yWj2f1Q/Untitled-design-removebg-preview.png" 
       alt="Qbit Logo" 
-      className="w-full h-full object-contain"
+      className="w-full h-full object-contain hidden dark:block pointer-events-none"
     />
   </div>
 );
@@ -106,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       `}>
         {/* Header (Logo) - Centered */}
         <div className="h-[4rem] flex items-center justify-center shrink-0">
-            <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors" aria-label="Home">
+            <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors focus:outline-none" aria-label="Home">
                 <LogoIcon />
             </button>
         </div>

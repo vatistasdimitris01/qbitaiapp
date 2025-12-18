@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, StopCircleIcon, MicIcon, XIcon } from './icons';
+import { XIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -29,20 +30,18 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext, language }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
-    const [isRecording, setIsRecording] = useState(false);
     const [isMultiline, setIsMultiline] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const recognitionRef = useRef<any>(null);
 
     const adjustTextareaHeight = useCallback(() => {
         const textarea = internalTextareaRef.current;
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            const isMulti = newHeight > 30; 
+            const isMulti = newHeight > 40; 
             
-            textarea.style.height = `${Math.max(24, newHeight)}px`;
+            textarea.style.height = `${Math.max(40, newHeight)}px`;
             setIsMultiline(isMulti);
         }
     }, []);
@@ -95,8 +94,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         const hasContent = text.trim() || attachmentPreviews.length > 0 || replyContextText;
         if (hasContent && !isLoading) {
             onSendMessage(text.trim(), attachmentPreviews.map(p => p.file));
@@ -110,94 +109,31 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e as unknown as React.FormEvent);
+            handleSubmit();
         }
     };
     
     const handleAttachClick = () => fileInputRef.current?.click();
 
-    const handleMicClick = () => {
-        if (isRecording) {
-            if (recognitionRef.current) {
-                recognitionRef.current.abort();
-            }
-            setIsRecording(false);
-        } else {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                alert("Speech recognition is not supported in this browser.");
-                return;
-            }
-
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = language;
-
-            let initialText = text;
-            if (initialText.length > 0 && !/\s$/.test(initialText)) {
-                initialText += ' ';
-            }
-
-            recognition.onstart = () => {
-                setIsRecording(true);
-            };
-
-            recognition.onresult = (event: any) => {
-                let transcript = '';
-                for (let i = 0; i < event.results.length; ++i) {
-                   transcript += event.results[i][0].transcript;
-                }
-                onTextChange(initialText + transcript);
-            };
-
-            recognition.onerror = (event: any) => {
-                console.error("Speech recognition error", event.error);
-                setIsRecording(false);
-            };
-
-            recognition.onend = () => {
-                setIsRecording(false);
-                recognitionRef.current = null;
-            };
-
-            recognitionRef.current = recognition;
-            recognition.start();
-        }
-    };
-
-    const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
+    const placeholder = t('chat.input.placeholder') || "Ask anything...";
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
-    const showSendButton = hasContent || isLoading;
-
-    // Custom Voice Icon (unchanged - already perfect)
-    const VoiceWaveButton = () => (
-        <div className={`h-8 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-110' : 'ring-transparent'}`} style={{ cursor: 'crosshair' }}>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.6s_infinite]' : ''}`} style={{ height: '0.8rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.5s_infinite]' : ''}`} style={{ height: '1.2rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.7s_infinite]' : ''}`} style={{ height: '0.7rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.3s_infinite]' : ''}`} style={{ height: '1rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.45s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
-        </div>
-    );
 
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-2">
-             <div className="w-full max-w-[44rem] px-4 animate-fade-in-up">
+             <div className="w-full max-w-4xl px-4 animate-fade-in-up">
                 {(replyContextText || attachmentPreviews.length > 0) && (
-                    <div className="w-full mb-1">
+                    <div className="w-full mb-2">
                         {replyContextText && (
-                            <div className="flex items-center justify-between gap-2 bg-surface-l2 border border-border p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
-                                <div className="text-sm text-foreground line-clamp-1 border-l-2 border-accent-blue pl-3">{replyContextText}</div>
-                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-muted-foreground"><XIcon className="size-4" /></button>
+                            <div className="flex items-center justify-between gap-2 bg-[#1f1f1f] border border-[#333333] p-3 rounded-2xl mb-2 shadow-sm max-w-2xl">
+                                <div className="text-sm text-[#e0e0e0] line-clamp-1 border-l-2 border-accent-blue pl-3">{replyContextText}</div>
+                                <button onClick={onClearReplyContext} className="p-1 rounded-full hover:bg-white/10 text-muted-foreground"><XIcon className="size-4" /></button>
                             </div>
                         )}
                         
                         {attachmentPreviews.length > 0 && (
                             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                                 {attachmentPreviews.map((attachment, index) => (
-                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-border bg-surface-l2">
+                                    <div key={index} className="relative group shrink-0 size-14 rounded-xl overflow-hidden border border-[#333333] bg-[#1f1f1f]">
                                         <img alt={attachment.file.name} className="h-full w-full object-cover" src={attachment.previewUrl} />
                                         <button onClick={() => handleRemoveFile(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <XIcon className="size-4 text-white" />
@@ -210,65 +146,67 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 )}
             </div>
             
-            <div className="w-full max-w-[44rem] px-2 md:px-0 relative">
+            <div className="w-full max-w-4xl px-2 md:px-0 relative">
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
+                
+                {/* Grok-like Fully Rounded Input Bar */}
                 <form 
-                    onSubmit={handleSubmit} 
-                    className="relative flex items-center w-full bg-white dark:bg-[#18181b] p-1.5 shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden rounded-full group min-h-[56px]"
+                    onSubmit={handleSubmit}
+                    className="bg-[#1f1f1f] rounded-full border border-[#333333] flex items-center gap-3 p-3 shadow-2xl transition-all duration-200"
                 >
-                    {/* Attach Button: always white icon, no background, subtle hover */}
+                    {/* Attach Button */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center h-8 w-8 rounded-full text-white hover:bg-white/10 transition-colors shrink-0"
+                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-colors flex-shrink-0 hover:bg-white/10"
                         aria-label={t('chat.input.attach')}
                     >
-                        <PaperclipIcon className="size-4" />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
+                            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
+                        </svg>
                     </button>
 
-                    <div className="flex-1 flex flex-col justify-center px-1">
-                        <textarea 
-                            ref={internalTextareaRef} 
-                            dir="auto" 
-                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-2 py-2 max-h-[200px] text-[15px] leading-relaxed resize-none scrollbar-none"
-                            placeholder={placeholder} 
-                            rows={1} 
-                            value={text} 
-                            onChange={handleInputChange} 
-                            onKeyDown={handleKeyDown} 
-                            onPaste={handlePaste}
-                        />
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        {showSendButton ? (
-                            <button 
-                                type={isLoading ? "button" : "submit"}
-                                onClick={isLoading ? onAbortGeneration : undefined}
-                                className={`group flex items-center justify-center rounded-full h-8 w-8 transition-all duration-200 ${
-                                    hasContent 
-                                        ? 'bg-white text-black hover:opacity-90' 
-                                        : 'bg-[#333333] text-[#888888] hover:bg-[#444444]'
-                                }`}
-                                aria-label={isLoading ? "Stop" : "Submit"}
-                            >
-                                {isLoading ? (
-                                    <div className="h-2 w-2 bg-black rounded-[1px]" />
-                                ) : (
-                                    <ArrowUpIcon className="size-4" />
-                                )}
-                            </button>
+                    {/* Text Input */}
+                    <textarea 
+                        ref={internalTextareaRef}
+                        id="messageInput"
+                        placeholder={placeholder}
+                        value={text}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        rows={1}
+                        className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none overflow-y-hidden"
+                        style={{ minHeight: '40px', maxHeight: '200px' }}
+                    />
+
+                    {/* Send / Stop Button */}
+                    <button 
+                        type={isLoading ? "button" : "submit"}
+                        onClick={isLoading ? onAbortGeneration : undefined}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-all duration-200 flex-shrink-0 ${
+                            isLoading || hasContent 
+                                ? 'bg-white' 
+                                : 'bg-[#333333]'
+                        }`}
+                        aria-label={isLoading ? "Stop" : "Submit"}
+                    >
+                        {isLoading ? (
+                            <div className="w-3.5 h-3.5 bg-black rounded-[1px]" />
                         ) : (
-                            <button 
-                                type="button"
-                                onClick={handleMicClick}
-                                className="focus:outline-none" 
-                                aria-label="Voice"
+                            <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className={`stroke-[2.5] ${hasContent ? 'text-black' : 'text-[#888888]'}`}
                             >
-                                <VoiceWaveButton />
-                            </button>
+                                <path d="m5 12 7-7 7 7"></path>
+                                <path d="M12 19V5"></path>
+                            </svg>
                         )}
-                    </div>
+                    </button>
                 </form>
             </div>
         </div>

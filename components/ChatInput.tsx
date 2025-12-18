@@ -163,6 +163,29 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const isSendActive = text.trim().length > 0 || attachmentPreviews.length > 0;
 
+    const VoiceButton = () => (
+        <button 
+            type="button"
+            onClick={handleMicClick}
+            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-white/10'}`}
+            aria-label="Voice input"
+        >
+             {isRecording ? (
+                <div className="flex gap-0.5 items-center">
+                    <div className="w-0.5 h-2 bg-white animate-pulse"></div>
+                    <div className="w-0.5 h-4 bg-white animate-pulse delay-75"></div>
+                    <div className="w-0.5 h-3 bg-white animate-pulse delay-150"></div>
+                </div>
+             ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor"></path>
+                    <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor"></line>
+                </svg>
+             )}
+        </button>
+    );
+
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-2">
              <div className="w-full max-w-[44rem] px-4 animate-fade-in-up">
@@ -197,59 +220,51 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onSubmit={handleSubmit} 
                     className="w-full bg-[#1f1f1f] rounded-full border border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative"
                 >
-                    {/* Attach Button - White icon, no background */}
+                    {/* Attach Button - Exactly like code provided */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-white/10 transition-colors flex-shrink-0"
+                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-colors flex-shrink-0 hover:bg-white/10"
                         aria-label={t('chat.input.attach')}
                     >
-                        <svg 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            className="stroke-[2] text-white"
-                        >
-                            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
+                            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
                         </svg>
                     </button>
 
-                    {/* Text Input Area */}
+                    {/* Text Input Area - Exactly like code provided */}
                     <div className="flex-1 flex items-center relative h-full">
                          <textarea 
                             id="messageInput"
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none overflow-hidden"
+                            className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none"
                             placeholder={t('chat.input.placeholder')} 
                             rows={1} 
                             value={text} 
                             onChange={handleInputChange} 
                             onKeyDown={handleKeyDown} 
                             onPaste={handlePaste}
-                            style={{ minHeight: '40px', maxHeight: '200px' }}
                         />
                     </div>
                     
-                    {/* Right-side Action Button - Now exactly matches our Grok design */}
-                    <div className="flex-shrink-0">
+                    {/* Action Button - Switches between Voice, Send (Active), and Abort */}
+                    <div className="flex items-center gap-2 shrink-0">
                         {isLoading ? (
-                            // Abort: White circle with black stop square
+                            // Abort Button: White circle with black square
                             <button 
                                 type="button"
                                 onClick={onAbortGeneration}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200"
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200 flex-shrink-0"
                                 aria-label="Stop generation"
                             >
                                 <div className="w-3 h-3 bg-black rounded-sm"></div>
                             </button>
                         ) : isSendActive ? (
-                            // Active Send: White circle with black upward arrow
+                            // Active Send Button: White circle with black arrow
                             <button 
                                 type="submit"
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200"
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200 flex-shrink-0"
                                 aria-label="Submit"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] text-black">
@@ -258,19 +273,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 </svg>
                             </button>
                         ) : (
-                            // Idle: Grey circle with white mic icon
-                            <button 
-                                type="button"
-                                onClick={handleMicClick}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#333333] hover:bg-[#444444] cursor-pointer transition-all duration-200"
-                                aria-label="Voice input"
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor"></path>
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor"></path>
-                                    <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor"></line>
-                                </svg>
-                            </button>
+                            // Idle State: Show Voice button
+                            <VoiceButton />
                         )}
                     </div>
                 </form>

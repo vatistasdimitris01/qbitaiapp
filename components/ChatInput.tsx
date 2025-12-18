@@ -163,29 +163,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const isSendActive = text.trim().length > 0 || attachmentPreviews.length > 0;
 
-    const VoiceButton = () => (
-        <button 
-            type="button"
-            onClick={handleMicClick}
-            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${isRecording ? 'bg-red-500 scale-105' : 'bg-[#2a2a2a] hover:bg-white/10'}`}
-            aria-label="Voice input"
-        >
-             {isRecording ? (
-                <div className="flex gap-0.5 items-center">
-                    <div className="w-0.5 h-2 bg-white animate-pulse"></div>
-                    <div className="w-0.5 h-4 bg-white animate-pulse delay-75"></div>
-                    <div className="w-0.5 h-3 bg-white animate-pulse delay-150"></div>
-                </div>
-             ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor"></path>
-                    <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor"></line>
-                </svg>
-             )}
-        </button>
-    );
-
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-2">
              <div className="w-full max-w-[44rem] px-4 animate-fade-in-up">
@@ -220,7 +197,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onSubmit={handleSubmit} 
                     className="w-full bg-[#1f1f1f] rounded-full border border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative"
                 >
-                    {/* Attach Button - Now exactly like our Grok-style: white icon, no background, subtle hover */}
+                    {/* Attach Button - White icon, no background */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
@@ -256,21 +233,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         />
                     </div>
                     
-                    {/* Action Button - Unchanged logic and appearance */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Right-side Action Button - Now exactly matches our Grok design */}
+                    <div className="flex-shrink-0">
                         {isLoading ? (
+                            // Abort: White circle with black stop square
                             <button 
                                 type="button"
                                 onClick={onAbortGeneration}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200 flex-shrink-0"
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white transition-all duration-200"
                                 aria-label="Stop generation"
                             >
                                 <div className="w-3 h-3 bg-black rounded-sm"></div>
                             </button>
                         ) : isSendActive ? (
+                            // Active Send: White circle with black upward arrow
                             <button 
                                 type="submit"
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200 flex-shrink-0"
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200"
                                 aria-label="Submit"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] text-black">
@@ -279,7 +258,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 </svg>
                             </button>
                         ) : (
-                            <VoiceButton />
+                            // Idle: Grey circle with white mic icon
+                            <button 
+                                type="button"
+                                onClick={handleMicClick}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#333333] hover:bg-[#444444] cursor-pointer transition-all duration-200"
+                                aria-label="Voice input"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor"></path>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor"></path>
+                                    <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor"></line>
+                                </svg>
+                            </button>
                         )}
                     </div>
                 </form>

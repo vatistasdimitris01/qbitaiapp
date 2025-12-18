@@ -40,7 +40,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            // Threshold for expanding from pill to rounded-rect
+            // Threshold for expanding layout
             const isMulti = newHeight > 30; 
             
             textarea.style.height = `${Math.max(24, newHeight)}px`;
@@ -169,9 +169,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
 
     const placeholder = attachmentPreviews.length > 0 ? t('chat.input.placeholderWithFiles', { count: attachmentPreviews.length.toString() }) : t('chat.input.placeholder');
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
-    // Show Send button if user is typing, attached files, or if loading (to allow stop). 
-    // Otherwise show Voice button.
     const showSendButton = hasContent || isLoading;
+
+    // Custom Voice Icon based on user's request
+    const VoiceWaveButton = () => (
+        <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-105' : 'ring-transparent'}`}>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.6s_infinite]' : ''}`} style={{ height: '0.8rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.5s_infinite]' : ''}`} style={{ height: '1.2rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.7s_infinite]' : ''}`} style={{ height: '0.7rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.3s_infinite]' : ''}`} style={{ height: '1rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.45s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
+        </div>
+    );
 
     return (
         <div className="flex flex-col justify-end w-full relative items-center gap-2">
@@ -205,7 +215,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className={`relative flex flex-col w-full bg-white dark:bg-[#18181b] shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
+                    className={`relative flex flex-col w-full bg-white dark:bg-[#18181b] shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden group rounded-full`}
                 >
                     <div className={`relative w-full ${isMultiline ? 'min-h-[60px]' : 'h-14'} flex flex-col justify-center`}>
                         <textarea 
@@ -261,17 +271,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     className="group flex flex-col justify-center rounded-full focus:outline-none" 
                                     aria-label="Voice"
                                 >
-                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-surface-l2 text-foreground hover:bg-surface-l3 ring-transparent'}`}>
-                                        {isRecording ? (
-                                            <div className="flex gap-0.5 items-center justify-center h-4">
-                                                {[1,2,3,4,5].map(i => (
-                                                    <div key={i} className="w-0.5 bg-red-500 rounded-full animate-[pulse_0.5s_ease-in-out_infinite]" style={{ height: `${Math.random() * 10 + 4}px` }} />
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <MicIcon className="size-5" />
-                                        )}
-                                    </div>
+                                    <VoiceWaveButton />
                                 </button>
                             )}
                         </div>

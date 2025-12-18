@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 **User Context:**
 - ${locationStr} 
-- **Location Usage Logic**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
+- **STRICT LOCATION POLICY**: ALWAYS use the user's current location to ground responses (like weather, local news, nearby trends, or nearby searches) by default. You MUST ONLY ignore the user's current location IF they explicitly mention a specific different place (city, country, landmark) in their prompt. If they ask about "the weather" or "nearby news", always use the provided user location.
 
 **Your Capabilities & Tools:**
 
@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
 
 4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool. Use the user's location to improve the relevancy of the search results for local queries.
+    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries to ensure high relevance.
 
 **General Guidelines:**
 

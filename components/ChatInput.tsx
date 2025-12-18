@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PaperclipIcon, ArrowUpIcon, StopCircleIcon, MicIcon, XIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon } from './icons';
 
 interface ChatInputProps {
     text: string;
@@ -30,7 +30,6 @@ const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextChange, onSendMessage, isLoading, t, onAbortGeneration, replyContextText, onClearReplyContext, language }, ref) => {
     const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
     const [isRecording, setIsRecording] = useState(false);
-    const [isMultiline, setIsMultiline] = useState(false);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recognitionRef = useRef<any>(null);
@@ -40,10 +39,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
         if (textarea) {
             textarea.style.height = 'auto'; 
             const newHeight = Math.min(textarea.scrollHeight, 200); 
-            const isMulti = newHeight > 30; 
-            
             textarea.style.height = `${Math.max(24, newHeight)}px`;
-            setIsMultiline(isMulti);
         }
     }, []);
 
@@ -103,7 +99,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
             onTextChange('');
             setAttachmentPreviews([]);
             if (internalTextareaRef.current) internalTextareaRef.current.style.height = 'auto';
-            setIsMultiline(false);
         }
     };
     
@@ -170,15 +165,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
     const hasContent = text.trim().length > 0 || attachmentPreviews.length > 0;
     const showSendButton = hasContent || isLoading;
 
-    // Custom Voice Icon based on user's exact specification
+    // Custom Voice Icon scaled for the new design
     const VoiceWaveButton = () => (
-        <div className={`h-8 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-110' : 'ring-transparent'}`} style={{ cursor: 'crosshair' }}>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.6s_infinite]' : ''}`} style={{ height: '0.8rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.5s_infinite]' : ''}`} style={{ height: '1.2rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.7s_infinite]' : ''}`} style={{ height: '0.7rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.3s_infinite]' : ''}`} style={{ height: '1rem' }}></div>
-            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.45s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
+        <div className={`size-6 relative flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 bg-foreground text-background transition-all ${isRecording ? 'ring-red-500 scale-110' : 'ring-transparent'}`} style={{ cursor: 'crosshair' }}>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.4s_infinite]' : ''}`} style={{ height: '0.2rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.6s_infinite]' : ''}`} style={{ height: '0.4rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.5s_infinite]' : ''}`} style={{ height: '0.6rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.7s_infinite]' : ''}`} style={{ height: '0.35rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.3s_infinite]' : ''}`} style={{ height: '0.5rem' }}></div>
+            <div className={`w-0.5 relative z-10 rounded-full bg-background transition-all ${isRecording ? 'animate-[pulse_0.45s_infinite]' : ''}`} style={{ height: '0.2rem' }}></div>
         </div>
     );
 
@@ -214,7 +209,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className="relative flex items-center w-full bg-white dark:bg-[#18181b] p-1.5 shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden rounded-full group min-h-[56px]"
+                    className="w-full p-2 bg-surface-l1 rounded-full border border-border flex items-center gap-2 shadow-sm relative min-h-[52px]"
+                    style={{ cursor: 'crosshair' }}
                 >
                     <button 
                         type="button"
@@ -222,14 +218,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                         className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:bg-surface-l2 hover:text-foreground transition-colors shrink-0"
                         aria-label={t('chat.input.attach')}
                     >
-                        <PaperclipIcon className="size-4" />
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 text-muted-foreground">
+                            <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                        </svg>
                     </button>
 
-                    <div className="flex-1 flex flex-col justify-center px-1">
-                        <textarea 
+                    <div className="flex-1 flex items-center relative h-full">
+                         <textarea 
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-2 py-2 max-h-[200px] text-[15px] leading-relaxed resize-none scrollbar-none"
+                            className="w-full bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-2 py-2 max-h-[200px] text-[15px] leading-relaxed resize-none scrollbar-none z-10"
                             placeholder={placeholder} 
                             rows={1} 
                             value={text} 
@@ -237,20 +235,29 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             onKeyDown={handleKeyDown} 
                             onPaste={handlePaste}
                         />
+                        {/* The background line effect requested in the mockup */}
+                        {!text && (
+                            <div className="absolute left-2 right-4 h-2 bg-surface-l2 rounded-full pointer-events-none" />
+                        )}
                     </div>
                     
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 px-1">
                         {showSendButton ? (
                             <button 
                                 type={isLoading ? "button" : "submit"}
                                 onClick={isLoading ? onAbortGeneration : undefined}
-                                className="group flex items-center justify-center rounded-full focus:outline-none h-8 w-8 bg-foreground text-background transition-opacity hover:opacity-90" 
+                                className="group flex items-center justify-center rounded-full focus:outline-none size-6 bg-foreground text-background transition-all hover:opacity-90 active:scale-95" 
                                 aria-label={isLoading ? "Stop" : "Submit"}
                             >
                                 {isLoading ? (
-                                    <div className="h-2 w-2 bg-background rounded-[1px]" />
+                                    /* Abort button design: Black rounded square on white circle */
+                                    <div className="size-2.5 bg-background rounded-sm" />
                                 ) : (
-                                    <ArrowUpIcon className="size-4" />
+                                    /* Send button design: Arrow Up */
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-background">
+                                        <path d="m5 12 7-7 7 7"></path>
+                                        <path d="M12 19V5"></path>
+                                    </svg>
                                 )}
                             </button>
                         ) : (

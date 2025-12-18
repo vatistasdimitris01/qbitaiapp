@@ -235,10 +235,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             onKeyDown={handleKeyDown} 
                             onPaste={handlePaste}
                         />
-                        {/* The background line effect requested in the mockup */}
-                        {!text && (
-                            <div className="absolute left-2 right-4 h-2 bg-surface-l2 rounded-full pointer-events-none" />
-                        )}
                     </div>
                     
                     <div className="flex items-center gap-1.5 shrink-0 px-1">

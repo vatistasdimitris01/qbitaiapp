@@ -21,14 +21,42 @@ interface SidebarProps {
   t: (key: string) => string;
 }
 
-// --- Logo Component ---
+// --- Logo Component (Inline SVG for reliability) ---
 const LogoIcon = () => (
-  <div className="flex items-center justify-center size-8">
-    <img 
-      src="/logo.png" 
-      alt="Qbit Logo" 
-      className="w-full h-full object-contain pointer-events-none"
-    />
+  <div className="flex items-center justify-center size-8 text-foreground">
+    <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className="w-full h-full"
+    >
+      {/* Top Vertical Bar */}
+      <rect x="47" y="5" width="6" height="25" rx="3" fill="currentColor" />
+      {/* Bottom Vertical Bar */}
+      <rect x="47" y="70" width="6" height="25" rx="3" fill="currentColor" />
+      
+      {/* Left Arc / "C" Shape */}
+      <path 
+        d="M40 35 C 20 35, 20 65, 40 65" 
+        stroke="currentColor" 
+        strokeWidth="7" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+      
+      {/* Right Arc / Inverted "C" Shape */}
+      <path 
+        d="M60 35 C 80 35, 80 65, 60 65" 
+        stroke="currentColor" 
+        strokeWidth="7" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+      
+      {/* Connecting Horizontal Bars (Matching the image's interlocking look) */}
+      <rect x="40" y="32" width="20" height="6.5" rx="3" fill="currentColor" />
+      <rect x="40" y="61.5" width="20" height="6.5" rx="3" fill="currentColor" />
+    </svg>
   </div>
 );
 

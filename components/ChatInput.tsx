@@ -220,38 +220,45 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                     onSubmit={handleSubmit} 
                     className="w-full bg-[#1f1f1f] rounded-full border border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative"
                 >
-                    {/* Attach Button - Exactly like code provided */}
+                    {/* Attach Button - Now exactly like our Grok-style: white icon, no background, subtle hover */}
                     <button 
                         type="button"
                         onClick={handleAttachClick}
-                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-colors flex-shrink-0 hover:bg-white/10"
+                        className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-white/10 transition-colors flex-shrink-0"
                         aria-label={t('chat.input.attach')}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-white">
-                            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
+                        <svg 
+                            width="20" 
+                            height="20" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="stroke-[2] text-white"
+                        >
+                            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"/>
                         </svg>
                     </button>
 
-                    {/* Text Input Area - Exactly like code provided */}
+                    {/* Text Input Area */}
                     <div className="flex-1 flex items-center relative h-full">
                          <textarea 
                             id="messageInput"
                             ref={internalTextareaRef} 
                             dir="auto" 
-                            className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none"
+                            className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2 px-1 resize-none scrollbar-none overflow-hidden"
                             placeholder={t('chat.input.placeholder')} 
                             rows={1} 
                             value={text} 
                             onChange={handleInputChange} 
                             onKeyDown={handleKeyDown} 
                             onPaste={handlePaste}
+                            style={{ minHeight: '40px', maxHeight: '200px' }}
                         />
                     </div>
                     
-                    {/* Action Button - Switches between Voice, Send (Active), and Abort */}
+                    {/* Action Button - Unchanged logic and appearance */}
                     <div className="flex items-center gap-2 shrink-0">
                         {isLoading ? (
-                            // Abort Button: White circle with black square
                             <button 
                                 type="button"
                                 onClick={onAbortGeneration}
@@ -261,7 +268,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 <div className="w-3 h-3 bg-black rounded-sm"></div>
                             </button>
                         ) : isSendActive ? (
-                            // Active Send Button: White circle with black arrow
                             <button 
                                 type="submit"
                                 className="flex items-center justify-center w-10 h-10 rounded-full bg-white cursor-pointer transition-all duration-200 flex-shrink-0"
@@ -273,7 +279,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                 </svg>
                             </button>
                         ) : (
-                            // Idle State: Show Voice button
                             <VoiceButton />
                         )}
                     </div>

@@ -205,7 +205,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                 <input ref={fileInputRef} className="hidden" multiple type="file" onChange={handleFileChange} />
                 <form 
                     onSubmit={handleSubmit} 
-                    className={`relative flex flex-col w-full bg-[#18181b] shadow-sm ring-1 ring-white/10 focus-within:ring-white/20 transition-all duration-200 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
+                    className={`relative flex flex-col w-full bg-white dark:bg-[#18181b] shadow-sm ring-1 ring-border focus-within:ring-accent-blue/20 transition-all duration-200 overflow-hidden group ${isMultiline ? 'rounded-[26px]' : 'rounded-full'}`}
                 >
                     <div className={`relative w-full ${isMultiline ? 'min-h-[60px]' : 'h-14'} flex flex-col justify-center`}>
                         <textarea 
@@ -228,7 +228,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                             <button 
                                 type="button"
                                 onClick={handleAttachClick}
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-foreground/80 hover:bg-white/10 h-10 w-10 rounded-full"
+                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-100 select-none text-muted-foreground hover:bg-surface-l2 h-10 w-10 rounded-full"
                                 aria-label={t('chat.input.attach')}
                             >
                                 <PaperclipIcon className="size-5" />
@@ -246,9 +246,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     className="group flex flex-col justify-center rounded-full focus:outline-none" 
                                     aria-label={isLoading ? "Stop" : "Submit"}
                                 >
-                                    <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full transition-colors duration-100 ${isLoading ? 'bg-white text-black' : 'bg-white text-black hover:opacity-90'}`}>
+                                    <div className={`h-10 relative aspect-square flex flex-col items-center justify-center rounded-full transition-colors duration-100 ${isLoading ? 'bg-foreground text-background' : 'bg-foreground text-background hover:opacity-90'}`}>
                                         {isLoading ? (
-                                            <div className="h-2.5 w-2.5 bg-black rounded-[1px]" />
+                                            <div className="h-2.5 w-2.5 bg-background rounded-[1px]" />
                                         ) : (
                                             <ArrowUpIcon className="size-5" />
                                         )}
@@ -261,7 +261,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ text, onTextCha
                                     className="group flex flex-col justify-center rounded-full focus:outline-none" 
                                     aria-label="Voice"
                                 >
-                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-white/10 text-foreground hover:bg-white/20 ring-transparent'}`}>
+                                    <div className={`h-10 relative aspect-square flex items-center justify-center gap-0.5 rounded-full ring-1 ring-inset duration-100 ${isRecording ? 'bg-red-500/20 ring-red-500' : 'bg-surface-l2 text-foreground hover:bg-surface-l3 ring-transparent'}`}>
                                         {isRecording ? (
                                             <div className="flex gap-0.5 items-center justify-center h-4">
                                                 {[1,2,3,4,5].map(i => (

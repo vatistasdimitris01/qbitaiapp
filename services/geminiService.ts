@@ -18,6 +18,7 @@ export const streamMessageToAI = async (
     onFinish: (duration: number) => void,
     onError: (error: string) => void
 ): Promise<void> => {
+    console.log("[GeminiService] Starting stream...", { messageLength: message.length, attachmentCount: attachments?.length });
     const startTime = Date.now();
     let fullResponseAccumulator = "";
     let toolCallsMade: string[] = [];
@@ -55,11 +56,14 @@ export const streamMessageToAI = async (
             }
         }
 
+        console.log("[GeminiService] Fetching /api/sendMessage...");
         const response = await fetch('/api/sendMessage', {
             method: 'POST',
             body: formData,
             signal,
         });
+
+        console.log("[GeminiService] Response status:", response.status);
 
         if (!response.ok) {
             let errorMessage = `API request failed with status ${response.status}`;
@@ -96,9 +100,11 @@ export const streamMessageToAI = async (
                         fullResponseAccumulator += (update.payload || "");
                     } else if (update.type === 'tool_call') {
                         toolCallsMade.push(update.payload.name);
+                        console.log("[GeminiService] Tool Call detected:", update.payload.name);
                     } else if (update.type === 'error') {
                         throw new Error(update.payload);
                     } else if (update.type === 'end') {
+                        console.log("[GeminiService] Stream ended cleanly.");
                         onUpdate(update); // Send end signal
                         return; // Exit normally
                     }
@@ -106,10 +112,9 @@ export const streamMessageToAI = async (
                     onUpdate(update);
                 } catch (e) {
                     if (e instanceof Error && e.message.includes("Unexpected end of JSON input")) {
-                        // This technically shouldn't happen with the line splitting logic, 
-                        // but if it does, it's safe to ignore for that specific malformed line
-                        console.warn("Malformed JSON line in stream:", line);
+                        console.warn("Malformed JSON line in stream (ignoring):", line);
                     } else {
+                        console.error("JSON Parse Error:", e);
                         throw e;
                     }
                 }
@@ -117,15 +122,16 @@ export const streamMessageToAI = async (
         }
 
         const duration = Date.now() - startTime;
+        console.log("[GeminiService] Finished in", duration, "ms");
         onFinish(duration);
 
     } catch (error) {
         const duration = Date.now() - startTime;
         if (error instanceof Error && error.name === 'AbortError') {
-             // Abort silent
+             console.log("[GeminiService] Request aborted by user.");
         } else {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error("Stream Error:", errorMsg);
+            console.error("[GeminiService] Fatal Stream Error:", errorMsg);
             onError(errorMsg);
             onFinish(duration);
         }

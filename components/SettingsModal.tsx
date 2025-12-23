@@ -40,6 +40,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleClearCache = async () => {
+    if (confirm("Are you sure you want to clear the app cache? This will refresh the page.")) {
+      try {
+        localStorage.clear();
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        window.location.reload();
+      } catch (e) {
+        console.error("Failed to clear cache:", e);
+        window.location.reload();
+      }
+    }
+  };
+
   const Switch = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
     <button 
       type="button" 
@@ -175,6 +191,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                           <Text variant="body" className="font-bold text-red-500">{t('settings.buttons.delete')}</Text>
                           <Button variant="danger" size="sm" onClick={() => { if(confirm(t('sidebar.confirmDelete'))) setConversations([]); }}>
                             {t('settings.buttons.deleteAction')}
+                          </Button>
+                        </div>
+                      </Surface>
+
+                      <Surface className="bg-orange-500/5 border-orange-500/10 p-6">
+                        <div className="flex items-center justify-between">
+                          <Text variant="body" className="font-bold text-orange-600 dark:text-orange-400">{t('settings.buttons.clear')}</Text>
+                          <Button variant="secondary" size="sm" onClick={handleClearCache}>
+                            {t('settings.buttons.clearAction')}
                           </Button>
                         </div>
                       </Surface>

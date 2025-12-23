@@ -1,28 +1,19 @@
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Message, FileAttachment, Conversation, Persona, LocationInfo, AIStatus } from './types';
 import { MessageType } from './types';
 import ChatInput, { ChatInputHandle } from './components/ChatInput';
 import ChatMessage from './components/ChatMessage';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
-import WelcomeModal from './components/WelcomeModal';
-import CodeAnalysisModal from './components/CodeAnalysisModal';
-import SelectionPopup from './components/SelectionPopup';
-import DragDropOverlay from './components/DragDropOverlay';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
-import { pythonExecutorReady, stopPythonExecution } from './services/pythonExecutorService';
+import { stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { ChevronDownIcon } from './components/icons';
 
 type Language = keyof typeof translations;
-
-const isLanguage = (lang: any): lang is Language => {
-  return typeof lang === 'string' && lang in translations;
-};
 
 const initialPersonas: Persona[] = [
   { id: 'persona-doc', name: 'Doctor', instruction: 'You are a helpful medical assistant.' },
@@ -73,25 +64,20 @@ const App: React.FC = () => {
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
   const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [replyContextText, setReplyContextText] = useState<string | null>(null);
-  const [selectionPopup, setSelectionPopup] = useState<{ visible: boolean; x: number; y: number; text: string; } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [lightboxState, setLightboxState] = useState<{ images: any[]; startIndex: number; } | null>(null);
 
   const mainContentRef = useRef<HTMLElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const touchStartRef = useRef<number | null>(null);
-  const dragCounter = useRef(0);
-  const { t, setLang } = useTranslations(language);
+  const { t } = useTranslations(language);
 
   // Swipe Gesture Handling
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -102,7 +88,6 @@ const App: React.FC = () => {
     if (touchStartRef.current !== null) {
       const touchEnd = e.changedTouches[0].clientX;
       const diff = touchEnd - touchStartRef.current;
-      // Start from near left edge (< 60px) and swipe right (> 80px)
       if (touchStartRef.current < 60 && diff > 80 && !isSidebarOpen) {
         setIsSidebarOpen(true);
       }
@@ -112,12 +97,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
-    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-    if (!hasSeenWelcome) setIsWelcomeOpen(true);
-  }, []);
-
-  useEffect(() => {
-    pythonExecutorReady().then(() => setIsPythonReady(true)).catch(() => setIsPythonReady(false));
   }, []);
 
   useEffect(() => {
@@ -233,6 +212,17 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
+            {/* Mobile Sidebar Toggle Button - Glass Design */}
+            {!isSidebarOpen && (
+                <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="lg:hidden fixed top-4 left-4 z-40 size-10 rounded-full bg-white/10 dark:bg-black/20 backdrop-blur-md border border-gray-200/20 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                >
+                    <div className="w-4 h-[2px] bg-foreground rounded-full"></div>
+                    <div className="w-4 h-[2px] bg-foreground rounded-full"></div>
+                </button>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-48 scrollbar-none">
                 <div className="max-w-3xl mx-auto flex flex-col min-h-full">
                      {(!activeConversationId || conversations.find(c => c.id === activeConversationId)?.messages.length === 0) ? (

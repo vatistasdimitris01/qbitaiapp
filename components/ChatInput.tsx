@@ -100,9 +100,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                   ) : (
                     <img src={src} className="w-full h-full object-cover" alt="" />
                   )}
+                  {/* Always visible removal button for better mobile accessibility */}
                   <button 
                     onClick={() => removeFile(i)}
-                    className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 shadow-md transition-transform active:scale-90"
                   >
                     <XIcon className="size-3" />
                   </button>

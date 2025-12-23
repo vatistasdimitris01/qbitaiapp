@@ -107,6 +107,9 @@ export const translations = {
     dragDrop: {
         title: 'Add anything',
         subtitle: 'Drop any file here to add it to the conversation',
+    },
+    selectionPopup: {
+      ask: 'Ask Qbit'
     }
   },
   el: {
@@ -150,7 +153,7 @@ export const translations = {
           title: 'Γειωμένο στον Κόσμο σας',
           description: 'Για να παρέχει τις πιο σχετικές απαντήσεις, το Qbit μπορεί να χρησιμοποιήσει την τοποθεσία σας.',
           allow: 'Επιτρέψτε την Πρόσβαση',
-          denied: 'Η πρόσβαση στην τοποθεσία απορρίφθηκε.',
+          denied: 'Η πρόσβαση στην τοποθεσία απορρίφθηκε. Μπορείτε να το αλλάξετε στις ρυθμίσεις του περιηγητή σας.',
         }
       }
     },
@@ -216,6 +219,9 @@ export const translations = {
     dragDrop: {
         title: 'Προσθέστε οτιδήποτε',
         subtitle: 'Σύρετε οποιοδήποτε αρχείο εδώ για να το προσθέσετε στη συνομιλία',
+    },
+    selectionPopup: {
+      ask: 'Ρωτήστε το Qbit'
     }
   },
   es: {},

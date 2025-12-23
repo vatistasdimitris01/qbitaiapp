@@ -1,11 +1,10 @@
-import { useState, useCallback } from 'react';
+
+import { useCallback } from 'react';
 import { translations } from '../translations';
 
 type Language = keyof typeof translations;
 
-export const useTranslations = (initialLang: Language = 'en') => {
-  const [lang, setLang] = useState<Language>(initialLang);
-
+export const useTranslations = (lang: Language = 'en') => {
   const t = useCallback((key: string, params?: Record<string, string>): string => {
     const keys = key.split('.');
     let result: any = translations[lang] || translations.en;
@@ -37,5 +36,5 @@ export const useTranslations = (initialLang: Language = 'en') => {
     return template;
   }, [lang]);
 
-  return { t, setLang, lang };
+  return { t, lang };
 };

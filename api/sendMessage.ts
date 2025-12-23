@@ -1,4 +1,4 @@
-import { GoogleGenAI, Content, Part, GenerateContentConfig, Type, FunctionCallingConfigMode } from "@google/genai";
+import { GoogleGenAI, Content, Part, GenerateContentParameters, Type } from "@google/genai";
 
 export const config = {
   runtime: 'edge',
@@ -53,7 +53,6 @@ export default async function handler(req: Request) {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
                 
-                // Reconstruct parts from combined content (includes <thinking> tags if present)
                 if (content && content.includes('<thinking>')) {
                     const regex = /<thinking>([\s\S]*?)<\/thinking>/g;
                     let lastIdx = 0;
@@ -102,30 +101,39 @@ export default async function handler(req: Request) {
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const systemInstruction = `${personaInstruction || ''}
-You are Qbit, an AI that uses tools for real-time info.
-Today: ${new Date().toLocaleDateString()}. ${locationStr}
+You are Qbit, a world-class AI assistant.
+Current Date: ${new Date().toLocaleDateString()}.
+${locationStr}
 
-RULES:
-- For weather, news, or current events, ALWAYS use 'google_search'.
-- Do not state you cannot do something; use the tool.
-- Query format: 'weather in [City]'.
-- After tool results, provide a helpful summary.`;
+CRITICAL: You MUST use the 'google_search' tool for real-time info like weather, news, or recent events. 
+- For weather: Call 'google_search' with "weather in [City]".
+- For news: Call 'google_search' with the topic.
+- Use <thinking> tags to plan your search.
+- After receiving results, summarize them clearly for the user.`;
 
-        const genConfig: GenerateContentConfig = {
-            systemInstruction,
-            tools: [{ 
-                functionDeclarations: [{ 
-                    name: 'google_search', 
-                    description: 'Search the web for weather, news, and current info.', 
-                    parameters: { 
-                        type: Type.OBJECT, 
-                        properties: { query: { type: Type.STRING } }, 
-                        required: ['query'] 
+        const genParams: GenerateContentParameters = {
+            model: modelName,
+            contents,
+            config: {
+                systemInstruction,
+                tools: [{ 
+                    functionDeclarations: [{ 
+                        name: 'google_search', 
+                        description: 'Retrieves real-time data from the web (weather, news, stocks).', 
+                        parameters: { 
+                            type: Type.OBJECT, 
+                            properties: { query: { type: Type.STRING } }, 
+                            required: ['query'] 
+                        } 
+                    }] 
+                }],
+                toolConfig: { 
+                    functionCallingConfig: { 
+                        // Using string literal 'AUTO' to avoid import issues
+                        mode: 'AUTO' as any 
                     } 
-                }] 
-            }],
-            // Use FunctionCallingConfigMode instead of FunctionCallingMode
-            toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } }
+                }
+            },
         };
 
         const stream = new ReadableStream({
@@ -140,7 +148,7 @@ RULES:
                     const ai = new GoogleGenAI({ apiKey: activeKey });
                     
                     try {
-                        let currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
+                        let currentStream = await ai.models.generateContentStream(genParams);
                         let turnLoop = true;
 
                         while (turnLoop) {
@@ -170,7 +178,7 @@ RULES:
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
                                     const cseId = process.env.GOOGLE_CSE_ID;
-                                    let searchResult = "No data.";
+                                    let searchResult = "No search results available.";
 
                                     if (activeKey && cseId) {
                                         try {
@@ -180,15 +188,19 @@ RULES:
                                                 const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResult = sJson.items.map((i: any) => `Source: ${i.title}\nInfo: ${i.snippet}`).join('\n\n');
+                                                searchResult = "WEB SEARCH RESULTS:\n\n" + sJson.items.map((i: any) => `Source: ${i.title}\nSnippet: ${i.snippet}\nLink: ${i.link}`).join('\n\n');
                                             }
-                                        } catch (e) {}
+                                        } catch (e) {
+                                            searchResult = "Error performing web search.";
+                                        }
                                     }
                                     
                                     contents.push({ role: 'model', parts: turnPartsCaptured });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
                                     
-                                    currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
+                                    // Update params for next turn
+                                    genParams.contents = contents;
+                                    currentStream = await ai.models.generateContentStream(genParams);
                                     turnLoop = true;
                                 }
                             }
@@ -196,11 +208,12 @@ RULES:
                         enqueue({ type: 'end' });
                         attemptSuccess = true;
                     } catch (err: any) {
-                        if (currentKeyIndex < apiKeys.length - 1) {
+                        const errorMsg = String(err.message || err).toLowerCase();
+                        if ((errorMsg.includes("429") || errorMsg.includes("quota")) && currentKeyIndex < apiKeys.length - 1) {
                             currentKeyIndex++;
                             continue;
                         }
-                        enqueue({ type: 'error', payload: err.message });
+                        enqueue({ type: 'error', payload: err.message || "An unexpected error occurred." });
                         attemptSuccess = true;
                     }
                 }

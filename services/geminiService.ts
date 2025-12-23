@@ -19,6 +19,7 @@ export const streamMessageToAI = async (
     onError: (error: string) => void
 ): Promise<void> => {
     const startTime = Date.now();
+    let fullResponseAccumulator = "";
 
     const getTextFromMessageContent = (content: MessageContent): string => {
         if (typeof content === 'string') return content;
@@ -36,6 +37,7 @@ export const streamMessageToAI = async (
     }));
 
     try {
+        // Prepare request payload for API
         const payload = {
             history: historyForApi,
             message,
@@ -44,16 +46,16 @@ export const streamMessageToAI = async (
             language,
         };
 
-        // Hide sensitive info if any (though keys are server-side in this app)
-        // Log the full request to console for transparency
+        // Console Log: Request (Hide API key and Instructions)
         console.groupCollapsed("%c Qbit API Request ", "background: #1d9bf0; color: white; font-weight: bold; border-radius: 4px;");
         console.log("Endpoint: POST /api/sendMessage");
         console.log("Payload:", {
-            ...payload,
-            // Summarize history content in top-level log for readability
-            history: payload.history.map(h => ({ ...h, content: h.content.length > 100 ? h.content.substring(0, 100) + '...' : h.content }))
+            history: payload.history,
+            message: payload.message,
+            location: payload.location,
+            language: payload.language
+            // personaInstruction is excluded to hide internal prompt instructions
         });
-        console.log("Full Message:", message);
         console.groupEnd();
 
         const formData = new FormData();
@@ -101,6 +103,11 @@ export const streamMessageToAI = async (
                         const update: StreamUpdate = JSON.parse(line);
                         if (update.type === 'end') return;
                         if (update.type === 'error') throw new Error(update.payload);
+                        
+                        if (update.type === 'chunk') {
+                            fullResponseAccumulator += update.payload;
+                        }
+                        
                         onUpdate(update);
                     } catch (e) {
                         if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
@@ -112,11 +119,18 @@ export const streamMessageToAI = async (
         await processStream();
 
         const duration = Date.now() - startTime;
+        
+        // Console Log: Response
+        console.groupCollapsed("%c Qbit AI Response ", "background: #22c55e; color: white; font-weight: bold; border-radius: 4px;");
+        console.log("Duration:", (duration / 1000).toFixed(2), "s");
+        console.log("Content:", fullResponseAccumulator);
+        console.groupEnd();
+
         onFinish(duration);
 
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-             console.log("Stream aborted by user.");
+             // Abort is silent to maintain clean console
         } else {
             console.error("Error streaming message to AI:", error);
             onError(error instanceof Error ? error.message : String(error));

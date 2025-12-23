@@ -1,3 +1,4 @@
+
 const CACHE_NAME = 'qbit-cache-v3';
 // All local files and the main entry points
 const urlsToCache = [
@@ -11,7 +12,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
         // Use skipWaiting to ensure the new service worker activates immediately.
         self.skipWaiting(); 
         return cache.addAll(urlsToCache);

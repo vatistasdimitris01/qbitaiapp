@@ -62,6 +62,43 @@ const textToHtml = (text: string): string => {
     return html;
 };
 
+const GallerySearchLoader: React.FC<{ query: string, onOpenLightbox: (images: any[], index: number) => void }> = ({ query, onOpenLightbox }) => {
+    const [images, setImages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchImages = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageSearchQuery: query })
+                });
+                const data = await res.json();
+                if (data.images && Array.isArray(data.images)) {
+                    setImages(data.images.map((url: string) => ({ url, alt: query })));
+                }
+            } catch (e) {
+                // Silenced per instruction
+            } finally {
+                setLoading(false);
+            }
+        }
+        if (query) fetchImages();
+    }, [query]);
+
+    if (loading) return (
+         <div className="grid grid-cols-3 gap-1.5 my-2 max-w-xl">
+             {[1,2,3].map(i => <div key={i} className="aspect-square bg-surface-l2 animate-pulse rounded-lg" />)}
+         </div>
+    );
+    
+    if (images.length === 0) return null;
+
+    return <ImageGallery images={images} onImageClick={(i) => onOpenLightbox(images, i)} />;
+}
+
 const GlobeIcon: React.FC<{className?: string}> = ({className}) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <circle cx="12" cy="12" r="10"></circle>
@@ -92,6 +129,7 @@ const SearchCounter: React.FC<{ target: number }> = ({ target }) => {
 
     return <span>{count.toLocaleString()}</span>;
 };
+
 
 const SearchStatus: React.FC<{ sources?: GroundingChunk[], resultCount?: number }> = ({ sources, resultCount }) => {
     const [step, setStep] = useState(0); 
@@ -127,7 +165,8 @@ const SearchStatus: React.FC<{ sources?: GroundingChunk[], resultCount?: number 
     );
 };
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox, isLast, onSendSuggestion }) => {
+
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork, isLoading, aiStatus, onShowAnalysis, executionResults, onStoreExecutionResult, onFixRequest, onStopExecution, isPythonReady, t, onOpenLightbox, isLast, onSendSuggestion }) => {
     const isUser = message.type === MessageType.USER;
     const isError = message.type === MessageType.ERROR;
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
@@ -141,7 +180,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
     const { parsedThinkingText, parsedResponseText, hasThinkingTag, suggestions } = useMemo(() => {
         if (isUser) return { parsedThinkingText: null, parsedResponseText: messageText, hasThinkingTag: false, suggestions: [] };
-        
         let text = messageText || '';
         let extractedSuggestions: string[] = [];
         const suggestionsMatch = text.match(/<suggestions>(.*?)<\/suggestions>/s);
@@ -149,22 +187,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             try { extractedSuggestions = JSON.parse(suggestionsMatch[1]); } catch (e) { }
             text = text.replace(/<suggestions>.*?<\/suggestions>/s, '').trim();
         }
-
-        // Logic to split thinking vs response during streaming
+        
         const thinkingMatch = text.match(/<thinking>([\s\S]*?)(?:<\/thinking>|$)/);
         let thinking = null;
         let response = text;
         let hasTag = false;
-
+        
         if (text.includes('<thinking>')) {
             hasTag = true;
             if (thinkingMatch) {
                 thinking = thinkingMatch[1].trim();
-                // If the thinking tag is closed, the response is everything AFTER it.
                 if (text.includes('</thinking>')) {
                     response = text.split('</thinking>')[1]?.trim() || '';
                 } else {
-                    // Still generating thinking content
                     response = '';
                 }
             }
@@ -176,22 +211,30 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const renderableContent = useMemo(() => {
         const textToRender = parsedResponseText;
         if (!textToRender) return [];
-        
         const blockRegex = /(```[\w\s\S]*?```|!gallery\[".*?"\])/g;
         let finalParts: any[] = [];
         let partIndex = 0;
-        
         textToRender.split(blockRegex).filter(Boolean).forEach(part => {
             if (part.startsWith('```')) {
                 const codeMatch = /```([\w-]+)?(?:[^\n]*)?\n([\s\S]*?)```/.exec(part);
                 if (codeMatch) {
                     const lang = codeMatch[1] || 'plaintext';
                     const code = codeMatch[2];
-                    finalParts.push({ type: 'code', lang, code, partIndex: partIndex++ });
+                    if (lang === 'json-gallery') {
+                         try {
+                            const galleryData = JSON.parse(code);
+                            if (galleryData.type === 'image_gallery' && Array.isArray(galleryData.images)) {
+                                finalParts.push({ type: 'gallery', images: galleryData.images });
+                            }
+                        } catch (e) { }
+                    } else {
+                        finalParts.push({ type: 'code', lang, code, info: part.split('\n')[0].substring(3).trim(), partIndex: partIndex++ });
+                    }
                 }
-            } else {
-                finalParts.push({ type: 'text', content: part });
-            }
+            } else if (part.startsWith('!gallery')) {
+                const match = /!gallery\["(.*?)"\]/.exec(part);
+                 if (match && match[1]) finalParts.push({ type: 'gallery-search', query: match[1] });
+            } else { finalParts.push({ type: 'text', content: part }); }
         });
         return finalParts;
     }, [parsedResponseText]);
@@ -237,6 +280,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasText = !!parsedResponseText;
     const hasContent = hasText || hasToolCalls;
     const isActuallyLastLoading = isLast && isLoading;
+    const showSearchUI = (aiStatus === 'searching' && isActuallyLastLoading) || (message.groundingChunks && message.groundingChunks.length > 0 && isActuallyLastLoading && !hasContent);
 
     return (
         <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-start">
@@ -251,17 +295,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
             
-            {(aiStatus === 'searching' && isActuallyLastLoading) && <SearchStatus sources={message.groundingChunks} resultCount={message.searchResultCount} />}
+            {showSearchUI && <SearchStatus sources={message.groundingChunks} resultCount={message.searchResultCount} />}
 
             <div className={`message-bubble relative rounded-3xl text-foreground prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : 'min-h-7'}`}>
-                 {!hasContent && isActuallyLastLoading && !parsedThinkingText && (
+                 {!hasContent && isActuallyLastLoading && !parsedThinkingText && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
                         <GeneratingLoader />
                     </div>
                 )}
-                
                 {hasToolCalls && <div className="w-full mb-4 space-y-4">{message.toolCalls!.map((toolCall, idx) => <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />)}</div>}
-                
                 {renderableContent.map((part: any, index: number) => {
                     if (part.type === 'code') {
                          const resultKey = `${message.id}_${part.partIndex}`;
@@ -269,6 +311,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                          const isPython = part.lang === 'python';
                          return <div key={index} className="w-full my-4 not-prose"><CodeExecutor code={part.code} lang={part.lang} title={part.lang.toUpperCase()} isExecutable={['python', 'html'].includes(part.lang.toLowerCase())} autorun={isPython && !result} onExecutionComplete={(res) => onStoreExecutionResult(message.id, part.partIndex, res)} onFixRequest={(err) => onFixRequest(part.code, part.lang, err)} persistedResult={result} onStopExecution={onStopExecution} isPythonReady={isPythonReady} isLoading={isLoading} t={t} /></div>;
                     }
+                    if (part.type === 'gallery-search') return <GallerySearchLoader key={index} query={part.query} onOpenLightbox={onOpenLightbox} />;
+                    if (part.type === 'gallery') return <div key={index} className="my-4"><ImageGallery images={part.images.map((img: string) => ({ url: img, alt: 'Generated Image' }))} onImageClick={(i) => onOpenLightbox(part.images.map((img: string) => ({ url: img, alt: 'Generated Image' })), i)} /></div>;
                     return <div key={index} className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
                 })}
             </div>

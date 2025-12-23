@@ -127,10 +127,12 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Clear and print logo immediately
+    console.clear();
     console.log(`%c${ASCII_LOGO}`, 'color: #1d9bf0; font-weight: bold; font-family: monospace;');
+    
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
     
-    // Attempt to get location for grounding
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
           try {
@@ -145,7 +147,9 @@ const App: React.FC = () => {
                 });
               }
           } catch(e) {}
-      }
+      },
+      undefined,
+      { timeout: 5000 }
     );
   }, []);
 
@@ -180,7 +184,6 @@ const App: React.FC = () => {
     
     let currentConvoId = targetConvoId || activeConversationId;
     
-    // Process files first
     const processedFiles: FileAttachment[] = [];
     if (!isRegeneration) {
         for (const f of attachments) {
@@ -191,7 +194,6 @@ const App: React.FC = () => {
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
     const aiMsgId = (Date.now() + 1).toString();
 
-    // Prepare history and setup initial message state ATOMICALLY
     let historyToUse: Message[] = [];
 
     setConversations(prev => {
@@ -211,11 +213,9 @@ const App: React.FC = () => {
             setActiveConversationId(convo.id);
         }
 
-        // History for API excludes the current message
         historyToUse = [...convo.messages];
 
         if (isRegeneration) {
-            // Regeneration logic: find last user message and clear everything after it
             const lastUserIdx = [...convo.messages].reverse().findIndex(m => m.type === MessageType.USER);
             if (lastUserIdx !== -1) {
                 const actualIdx = convo.messages.length - 1 - lastUserIdx;
@@ -301,7 +301,6 @@ const App: React.FC = () => {
     const msgIdx = convo.messages.findIndex(m => m.id === messageId);
     if (msgIdx === -1) return;
 
-    // Find the nearest preceding user message
     let lastUserQuery = '';
     for (let i = msgIdx; i >= 0; i--) {
         if (convo.messages[i].type === MessageType.USER) {

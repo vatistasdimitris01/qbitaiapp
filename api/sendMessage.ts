@@ -36,7 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
-    // Helper to write to stream
     const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
     try {
@@ -94,92 +93,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (Lat: ${location.latitude}, Lon: ${location.longitude}).` : 'Location unknown.';
 
-        const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
+        const baseSystemInstruction = `You are Qbit, a highly intelligent AI assistant.
+${locationStr}
+NEVER claim you don't have access to location or web search.
 
-**User Context & Critical Policy:**
-- ${locationStr} 
-- **LOCATION CAPABILITY**: You HAVE full access to the user's location details provided above. NEVER claim you do not have access to their location. If asked for local info like weather, use these coordinates/city.
-- **WEB SEARCH CAPABILITY**: You HAVE real-time web access through the \`google_search\` tool. NEVER say you can't search the web or give outdated information when a search can resolve it.
+Capabilities:
+1. Stock Widget (render_stock_widget)
+2. Python/HTML code execution
+3. Google Search (google_search) - Use this for real-time info.
 
-**Your Capabilities & Tools:**
-
-1.  **Stock Market Widget**
-    *   **Tool:** \`render_stock_widget\`. Use it when users ask about price, charts, or history of ticker symbols.
-
-2.  **Web Applications (HTML/CSS/JS)**
-    *   **Output:** Standard HTML code blocks (\` \` \`html ... \` \` \`).
-
-3.  **Python Code Execution**
-    *   **Output:** Python code blocks.
-
-4.  **Google Search (API and ID Powered)**
-    *   **Tool:** \`google_search\`. Use this for ANY information that requires real-time facts, news, weather, or location-based trends. 
-    *   **Search Engine Config:** This tool uses Google Custom Search with a specific API Key and CX ID.
-
-**General Guidelines:**
-
-1.  **Language**: Respond in ${userLanguageName}.
-2.  **Suggestions**: Provide follow-up suggestions in JSON format <suggestions>["Next query"]</suggestions> at the end of relevant responses.`;
+Guidelines:
+1. Language: ${userLanguageName}.
+2. Suggestions: <suggestions>["Next query"]</suggestions>.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
-            description: 'Perform a web search to get real-time info, news, weather, or facts.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: { query: { type: Type.STRING, description: 'The search query string.' } },
-                required: ['query'],
-            },
+            description: 'Perform a web search for real-time info.',
+            parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] },
         };
 
         const renderStockWidgetTool: FunctionDeclaration = {
             name: 'render_stock_widget',
-            description: 'Render a rich stock card with chart.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    symbol: { type: Type.STRING, description: 'Stock symbol' },
-                    price: { type: Type.STRING, description: 'Price' },
-                    currency: { type: Type.STRING, description: 'Currency' },
-                    change: { type: Type.STRING, description: 'Change' },
-                    changePercent: { type: Type.STRING, description: 'Change %' },
-                    stats: { type: Type.OBJECT },
-                    chartData: { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
-                    history: { type: Type.OBJECT }
-                },
-                required: ['symbol', 'price', 'change', 'chartData']
-            }
+            description: 'Render a rich stock card.',
+            parameters: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.STRING }, change: { type: Type.STRING }, chartData: { type: Type.OBJECT } }, required: ['symbol', 'price', 'change', 'chartData'] }
         };
 
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ 
-                functionDeclarations: [
-                    googleSearchTool, 
-                    renderStockWidgetTool
-                ] 
-            }],
+            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
         };
 
         try {
-            const initialStream = await ai.models.generateContentStream({ model, contents, config });
-            
-            let currentStream = initialStream;
+            let currentStream = await ai.models.generateContentStream({ model, contents, config });
             let keepGoing = true;
+            let textGenerated = false;
 
             while (keepGoing) {
                 keepGoing = false;
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
+                    // Check for finish reason in the candidates
+                    if (chunk.candidates?.[0]?.finishReason) {
+                        const fr = chunk.candidates[0].finishReason;
+                        if (fr === 'MAX_TOKENS') write({ type: 'error', payload: 'Response reached maximum token limit.' });
+                        else if (fr === 'SAFETY') write({ type: 'error', payload: 'Response was blocked by safety filters.' });
+                    }
+
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
                     
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
-                    if (text) write({ type: 'chunk', payload: text });
+                    if (text) {
+                        textGenerated = true;
+                        write({ type: 'chunk', payload: text });
+                    }
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
@@ -190,23 +162,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const query = fc.args.query as string;
                         const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
-                        
                         let searchResultText = "Search failed.";
                         if (apiKey && cseId) {
                             try {
                                 const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
                                 const searchResults = await searchResponse.json();
                                 if (searchResults.items) {
-                                     const groundingChunks = searchResults.items.map((item: any) => ({
-                                        web: { uri: item.link, title: item.title },
-                                    }));
-                                    write({ type: 'sources', payload: groundingChunks });
-                                    if (searchResults.searchInformation?.totalResults) {
-                                        write({ type: 'search_result_count', payload: parseInt(searchResults.searchInformation.totalResults, 10) });
-                                    }
-                                    searchResultText = searchResults.items.map((item: any) => 
-                                        `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
-                                    ).join('\n\n---\n\n');
+                                     const groundingChunks = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
+                                     write({ type: 'sources', payload: groundingChunks });
+                                     searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`).join('\n\n---\n\n');
                                 }
                             } catch (e) { }
                         }
@@ -228,13 +192,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.end();
         }
     } catch (error) {
-        console.error("API Error:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) {
-            write({ type: 'error', payload: errorMessage });
-            res.end();
-        } else {
-            res.status(500).json({ error: { message: errorMessage } });
-        }
+        if (res.headersSent) { write({ type: 'error', payload: errorMessage }); res.end(); }
+        else res.status(500).json({ error: { message: errorMessage } });
     }
 }

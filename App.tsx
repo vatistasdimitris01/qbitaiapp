@@ -197,18 +197,18 @@ const App: React.FC = () => {
         <main 
             ref={mainContentRef}
             className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
-                ${isSidebarOpen ? 'lg:ml-[260px]' : 'ml-0'}
+                ${isSidebarOpen ? 'lg:ml-[320px]' : 'ml-0'}
                 bg-background w-full
             `}
         >
-            {/* 2-Line Toggle Trigger Button (=) - Styled after reference image */}
+            {/* Updated 2-Line Toggle Trigger Button (=) - Dark circle for both modes with white bars */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all text-foreground"
+                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-[#141414] dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
                 >
-                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
-                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2.5px] bg-white rounded-full"></div>
+                    <div className="w-5 h-[2.5px] bg-white rounded-full"></div>
                 </button>
             )}
 

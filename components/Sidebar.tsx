@@ -66,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       flex flex-col h-full bg-sidebar z-[100] fixed inset-y-0 left-0
       transform transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]
       border-r border-border
-      w-full lg:w-[260px]
+      w-full lg:w-[320px]
       ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
     `}>
       {/* Header Area */}

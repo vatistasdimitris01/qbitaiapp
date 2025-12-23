@@ -87,7 +87,6 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Standard desktop view starts with sidebar open
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
   }, []);
 
@@ -202,7 +201,7 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* Burger Trigger Button - Visible on all screens when sidebar is closed */}
+            {/* Burger Trigger Button (== -) - Glassy Design */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}

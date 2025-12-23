@@ -12,6 +12,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
+import { ChevronsRightIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -201,14 +202,13 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* Sidebar Toggle Button for Mobile - Glass Design */}
+            {/* Sidebar Toggle Button for Mobile - Replaced with Glassy Double Arrow (>>) */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="lg:hidden fixed top-4 left-4 z-[70] size-11 rounded-full bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-gray-200/20 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
+                    className="lg:hidden fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center shadow-2xl active:scale-95 transition-all text-foreground"
                 >
-                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
-                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
+                    <ChevronsRightIcon className="size-6 opacity-90" />
                 </button>
             )}
 

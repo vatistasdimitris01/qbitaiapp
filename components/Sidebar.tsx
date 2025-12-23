@@ -2,17 +2,26 @@
 import React, { useState } from 'react';
 import { Conversation } from '../types';
 import {
-  MoreHorizontalIcon,
   SearchIcon,
   ChevronLeftIcon,
-  ChevronRightIcon,
   SettingsIcon,
-  XIcon,
-  // Add missing Trash2Icon import
-  Trash2Icon
+  ChevronsRightIcon,
+  Trash2Icon,
+  SquarePenIcon
 } from './icons';
 
-// --- Logo Component (Theme-Aware) ---
+interface SidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  onNewChat: () => void;
+  onSelectConversation: (id: string) => void;
+  onDeleteConversation: (id: string) => void;
+  onOpenSettings: () => void;
+  t: (key: string) => string;
+}
+
 const LogoIcon = () => (
   <div className="flex items-center justify-center size-10">
     <img 
@@ -60,28 +69,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     convo.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSearchClick = () => {
-      if (isOpen) setIsSearchActive(true);
-      else {
-          toggleSidebar();
-          setTimeout(() => setIsSearchActive(true), 200);
-      }
-  };
-
-  const SidebarItem = ({ icon: Icon, label, onClick, isActive, shortcut }: any) => (
+  const SidebarItem = ({ icon: Icon, label, onClick, isActive }: any) => (
     <button 
         onClick={onClick}
-        className={`group flex items-center gap-2 w-full p-1.5 rounded-xl transition-colors text-left outline-none ${isActive ? 'bg-surface-l2 text-foreground' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
-        title={label}
+        className={`group flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left outline-none ${isActive ? 'bg-surface-l2 text-foreground font-bold shadow-sm' : 'text-muted-foreground hover:bg-surface-l1 hover:text-foreground'}`}
     >
-        <div className={`size-6 flex items-center justify-center shrink-0 transition-transform ${!isOpen && 'group-hover:scale-110'}`}>
+        <div className="size-6 flex items-center justify-center shrink-0">
             <Icon />
         </div>
         {isOpen && (
-            <span className="flex-1 text-sm font-medium truncate">{label}</span>
-        )}
-        {isOpen && shortcut && (
-            <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">{shortcut}</span>
+            <span className="flex-1 text-sm truncate">{label}</span>
         )}
     </button>
   );
@@ -93,86 +90,90 @@ const Sidebar: React.FC<SidebarProps> = ({
       border-r border-border
       ${isOpen ? 'translate-x-0 w-full lg:w-[260px]' : 'max-lg:-translate-x-full lg:translate-x-0 lg:w-[60px]'}
     `}>
-      {/* Header (Logo & Glassy Close Button for Mobile) */}
-      <div className="h-[5rem] flex items-center justify-between px-6 shrink-0">
-          <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors focus:outline-none" aria-label="Home">
-              <LogoIcon />
-          </button>
-          
-          {/* Glassy Close Button - Visible only on Mobile when Sidebar is Open */}
-          <button 
-              onClick={toggleSidebar}
-              className="lg:hidden size-11 rounded-full bg-white/5 dark:bg-white/10 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
-          >
-              <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
-              <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
-          </button>
+      {/* Header Area - Glassy Toggle and Actions */}
+      <div className="h-[6rem] flex flex-col justify-center px-4 shrink-0">
+          <div className="flex items-center justify-between w-full">
+              <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors focus:outline-none" aria-label="Home">
+                  <LogoIcon />
+              </button>
+              
+              {/* Mobile Close Button - Replaced with Glassy Double Arrow (>>) */}
+              <button 
+                  onClick={toggleSidebar}
+                  className="lg:hidden size-12 rounded-full bg-white/5 dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all text-foreground"
+              >
+                  <ChevronsRightIcon className="size-6" />
+              </button>
+          </div>
       </div>
 
-      {/* Content */}
-      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-4">
-          {/* Search */}
-          <div className={`relative w-full min-w-0 flex-col px-1.5 shrink-0 transition-all duration-200 py-2 ${isOpen ? 'h-[3rem]' : 'h-auto flex justify-center'}`}>
-              {isOpen ? (
-                  isSearchActive ? (
-                      <div className="flex items-center px-[10px] rounded-full border border-border bg-surface-l1 h-[2.5rem] w-full">
-                          <SearchIcon className="size-4 text-muted-foreground ml-2 mr-2" />
-                          <input 
-                              autoFocus
-                              type="text"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              onBlur={() => !searchTerm && setIsSearchActive(false)}
-                              placeholder={t('sidebar.search')}
-                              className="bg-transparent border-none outline-none text-sm text-foreground w-full h-full placeholder:text-muted-foreground"
-                          />
-                      </div>
-                  ) : (
-                      <button 
-                          onClick={handleSearchClick}
-                          className="flex items-center gap-2 text-left w-full hover:bg-surface-l2 text-sm hover:text-foreground flex-1 px-[10px] rounded-full border border-border bg-surface-l1 justify-start text-muted-foreground h-[2.5rem] transition-colors"
-                      >
-                          <div className="flex items-center justify-center size-6 shrink-0">
-                              <SearchIcon className="size-4" />
-                          </div>
-                          <span className="align-baseline truncate flex-1">Search</span>
-                      </button>
-                  )
-              ) : (
-                  <button onClick={handleSearchClick} className="flex items-center justify-center size-10 rounded-xl hover:bg-surface-l2 text-muted-foreground hover:text-foreground transition-colors">
-                      <SearchIcon className="size-4" />
-                  </button>
-              )}
-          </div>
+      {/* Main Action Group - Glassy Design Reference */}
+      {isOpen && (
+          <div className="px-5 mb-4 space-y-4">
+              <div className="flex items-center gap-2">
+                   {/* Glassy Pill Search Bar */}
+                   <div className="flex-1 relative flex items-center h-12 px-4 rounded-full bg-white/5 dark:bg-white/5 backdrop-blur-xl border border-white/10 text-muted-foreground focus-within:text-foreground focus-within:border-white/20 transition-all">
+                        <SearchIcon className="size-4 mr-2" />
+                        <input 
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search..."
+                            className="bg-transparent border-none outline-none text-sm w-full h-full placeholder:text-muted-foreground/60"
+                        />
+                   </div>
 
-          <div className="flex w-full min-w-0 flex-col py-2 shrink-0 gap-1">
+                   {/* Circular Glassy Settings Button */}
+                   <button 
+                        onClick={onOpenSettings}
+                        className="size-12 rounded-full bg-white/5 dark:bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all shadow-lg"
+                        title="Settings"
+                   >
+                        <SettingsIcon className="size-5" />
+                   </button>
+
+                   {/* Circular Glassy New Chat Button */}
+                   <button 
+                        onClick={onNewChat}
+                        className="size-12 rounded-full bg-white/5 dark:bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all shadow-lg"
+                        title="New Chat"
+                   >
+                        <SquarePenIcon className="size-5" />
+                   </button>
+              </div>
+          </div>
+      )}
+
+      {/* Content Area - No Dividers */}
+      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-4 space-y-1">
+          <div className="py-2 shrink-0">
               <SidebarItem icon={ChatIcon} label="Chat" onClick={onNewChat} isActive={!activeConversationId} />
           </div>
 
-          <div className="flex w-full min-w-0 flex-col py-2 shrink-0 mt-2 gap-1">
+          <div className="py-2 shrink-0 flex flex-col gap-1">
               <SidebarItem icon={HistoryIcon} label="History" onClick={() => {}} />
 
               {isOpen && (
-                  <div className="flex flex-col gap-1 mt-2">
+                  <div className="flex flex-col gap-1 mt-3">
                       {filteredConversations.length > 0 && (
-                          <div className="py-1 pl-3 text-xs text-muted-foreground font-semibold uppercase tracking-widest opacity-60">Recent</div>
+                          <div className="py-2 pl-3 text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] opacity-40">Recent History</div>
                       )}
                       
                       {filteredConversations.map(convo => (
                           <button
                               key={convo.id}
                               onClick={() => onSelectConversation(convo.id)}
-                              className={`flex items-center gap-3 rounded-2xl text-left w-full h-[48px] transition-all px-4 text-sm ${activeConversationId === convo.id ? 'bg-surface-l2 text-foreground font-bold' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
+                              className={`flex items-center gap-3 rounded-2xl text-left w-full h-[52px] transition-all px-4 text-sm ${activeConversationId === convo.id ? 'bg-surface-l1 text-foreground font-bold shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
                           >
                               <span className="flex-1 truncate select-none">{convo.title}</span>
                               <div 
-                                  className="size-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors"
+                                  className="size-8 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                   onClick={(e) => {
                                       e.stopPropagation();
                                       if (confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);
                                   }}
                               >
-                                  <Trash2Icon className="size-4 opacity-50" />
+                                  <Trash2Icon className="size-4" />
                               </div>
                           </button>
                       ))}
@@ -181,22 +182,24 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
       </div>
 
-      {/* Footer */}
-      <div className={`mt-auto p-6 ${isOpen ? 'h-auto' : 'h-[96px]'} border-t border-border/50`}>
+      {/* Footer Area - No Dividers */}
+      <div className={`mt-auto p-6 ${isOpen ? 'h-auto' : 'h-[80px]'}`}>
           <div className={`flex items-center ${isOpen ? 'justify-between' : 'justify-center flex-col gap-4'}`}>
-              <button 
-                  onClick={onOpenSettings}
-                  className="flex items-center justify-center size-10 rounded-xl hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground"
-              >
-                  <SettingsIcon className="size-5" />
-              </button>
+              {!isOpen && (
+                  <button 
+                      onClick={onOpenSettings}
+                      className="size-10 rounded-full hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
+                  >
+                      <SettingsIcon className="size-5" />
+                  </button>
+              )}
               
               {/* Desktop Toggle Button */}
               <button 
                   onClick={toggleSidebar}
-                  className={`hidden lg:flex items-center justify-center size-10 rounded-xl hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground`}
+                  className={`hidden lg:flex items-center justify-center size-10 rounded-full hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground`}
               >
-                  {isOpen ? <ChevronLeftIcon className="size-5" /> : <ChevronRightIcon className="size-5" />}
+                  <ChevronLeftIcon className={`size-5 transition-transform ${!isOpen && 'rotate-180'}`} />
               </button>
           </div>
       </div>

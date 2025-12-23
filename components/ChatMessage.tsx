@@ -291,7 +291,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             <div className={`message-bubble relative rounded-3xl text-foreground prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : 'min-h-7'}`}>
                  {!hasContent && isActuallyLastLoading && !parsedThinkingText && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
-                        {(aiStatus === 'generating' || aiStatus === 'thinking') && <GeneratingLoader />}
+                        <GeneratingLoader />
                     </div>
                 )}
                 {hasToolCalls && <div className="w-full mb-4 space-y-4">{message.toolCalls!.map((toolCall, idx) => <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />)}</div>}

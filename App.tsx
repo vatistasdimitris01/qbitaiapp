@@ -104,7 +104,9 @@ const App: React.FC = () => {
                 });
               }
           } catch(e) {}
-      }
+      },
+      () => {},
+      { enableHighAccuracy: true }
     );
   }, []);
 
@@ -134,10 +136,10 @@ const App: React.FC = () => {
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   }, []);
 
-  const handleSendMessage = useCallback(async (text: string, attachments: File[] = []) => {
+  const handleSendMessage = useCallback(async (text: string, attachments: File[] = [], isRegeneration = false, targetConvoId?: string) => {
     if (!text.trim() && attachments.length === 0) return;
     
-    let currentConvoId = activeConversationId;
+    let currentConvoId = targetConvoId || activeConversationId;
     let updatedConversations = [...conversations];
 
     if (!currentConvoId) {
@@ -155,18 +157,33 @@ const App: React.FC = () => {
     }
 
     const processedFiles: FileAttachment[] = [];
-    for (const f of attachments) {
-        processedFiles.push({ name: f.name, type: f.type, size: f.size, dataUrl: await fileToDataURL(f) });
+    if (!isRegeneration) {
+        for (const f of attachments) {
+            processedFiles.push({ name: f.name, type: f.type, size: f.size, dataUrl: await fileToDataURL(f) });
+        }
     }
 
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
     const aiMsgId = (Date.now() + 1).toString();
 
-    // Immutable update to trigger re-render
-    setConversations(prev => prev.map(c => c.id === currentConvoId ? { 
-        ...c, 
-        messages: [...c.messages, newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }] 
-    } : c));
+    // If regeneration, we might be stripping the last AI message first
+    setConversations(prev => prev.map(c => {
+        if (c.id === currentConvoId) {
+            let messages = [...c.messages];
+            if (isRegeneration) {
+                // Find index of the last user message and remove everything after it
+                const lastUserIdx = [...messages].reverse().findIndex(m => m.type === MessageType.USER);
+                if (lastUserIdx !== -1) {
+                    messages = messages.slice(0, messages.length - lastUserIdx);
+                }
+            } else {
+                messages.push(newUserMsg);
+            }
+            messages.push({ id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
+            return { ...c, messages };
+        }
+        return c;
+    }));
     
     setIsLoading(true);
     setAiStatus('thinking');
@@ -175,12 +192,13 @@ const App: React.FC = () => {
     abortControllerRef.current = abort;
 
     const currentConvo = updatedConversations.find(c => c.id === currentConvoId);
-    const history = currentConvo ? currentConvo.messages : [];
+    // Use the potentially cleaned history if regenerating
+    const history = currentConvo ? (isRegeneration ? currentConvo.messages.slice(0, -1) : currentConvo.messages) : [];
 
     await streamMessageToAI(
         history,
         text,
-        attachments,
+        isRegeneration ? [] : attachments,
         undefined,
         userLocation,
         language,
@@ -204,6 +222,9 @@ const App: React.FC = () => {
                         }
                         else if (update.type === 'search_result_count') {
                             targetMsg.searchResultCount = update.payload;
+                        }
+                        else if (update.type === 'tool_call') {
+                            targetMsg.toolCalls = [...(targetMsg.toolCalls || []), update.payload];
                         }
                         messages[idx] = targetMsg;
                     }
@@ -230,6 +251,48 @@ const App: React.FC = () => {
         (err) => { setIsLoading(false); setAiStatus('error'); }
     );
   }, [activeConversationId, conversations, userLocation, language]);
+
+  const handleRegenerate = useCallback((messageId: string) => {
+    if (isLoading) return;
+    const convo = conversations.find(c => c.id === activeConversationId);
+    if (!convo) return;
+    
+    const msgIdx = convo.messages.findIndex(m => m.id === messageId);
+    if (msgIdx === -1) return;
+
+    // Find the nearest preceding user message
+    let lastUserQuery = '';
+    for (let i = msgIdx; i >= 0; i--) {
+        if (convo.messages[i].type === MessageType.USER) {
+            lastUserQuery = convo.messages[i].content as string;
+            break;
+        }
+    }
+
+    if (lastUserQuery) {
+        handleSendMessage(lastUserQuery, [], true, activeConversationId!);
+    }
+  }, [conversations, activeConversationId, handleSendMessage, isLoading]);
+
+  const handleFork = useCallback((messageId: string) => {
+    const convo = conversations.find(c => c.id === activeConversationId);
+    if (!convo) return;
+    
+    const msgIdx = convo.messages.findIndex(m => m.id === messageId);
+    if (msgIdx === -1) return;
+
+    const newMessages = convo.messages.slice(0, msgIdx + 1);
+    const newConvo: Conversation = {
+        id: Date.now().toString(),
+        title: t('sidebar.forkedChatTitle', { oldTitle: convo.title }),
+        messages: newMessages,
+        createdAt: new Date().toISOString(),
+        greeting: convo.greeting
+    };
+
+    setConversations(prev => [newConvo, ...prev]);
+    setActiveConversationId(newConvo.id);
+  }, [conversations, activeConversationId, t]);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
@@ -282,8 +345,8 @@ const App: React.FC = () => {
                              <ChatMessage
                                  key={msg.id}
                                  message={msg}
-                                 onRegenerate={() => {}}
-                                 onFork={() => {}}
+                                 onRegenerate={handleRegenerate}
+                                 onFork={handleFork}
                                  isLoading={isLoading && index === activeConversation.messages.length - 1}
                                  aiStatus={aiStatus}
                                  onShowAnalysis={(code, lang) => {}}

@@ -32,10 +32,10 @@ type SettingsTab = 'Appearance' | 'Behavior' | 'Data Controls';
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
-  // On mobile, start with null so menu list shows. On desktop, default to Appearance.
+  // Mobile: Start with null for menu list. Desktop: Default to Appearance.
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(window.innerWidth >= 1024 ? 'Appearance' : null);
 
-  // Behavior states (Simulated logic for UI toggles)
+  // Behavior states
   const [autoScroll, setAutoScroll] = useState(true);
   const [sidebarEditor, setSidebarEditor] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
@@ -90,7 +90,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         `}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header - Fixed on mobile, Sidebar top on Desktop */}
+        {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12 shrink-0 bg-background/50 backdrop-blur-md z-10 border-b border-gray-100 dark:border-white/5">
             {activeTab ? (
                  <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 font-extrabold text-black dark:text-white">

@@ -92,40 +92,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (${location.latitude}, ${location.longitude}).` : 'Location unknown.';
+        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (Lat: ${location.latitude}, Lon: ${location.longitude}).` : 'Location unknown.';
 
         const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
 
-**User Context:**
+**User Context & Critical Policy:**
 - ${locationStr} 
-- **STRICT LOCATION POLICY**: You HAVE full access to the user's current location provided above. NEVER tell the user you don't have access to their location. If the user asks for weather or local info, use the provided city and coordinates.
+- **LOCATION CAPABILITY**: You HAVE full access to the user's location details provided above. NEVER claim you do not have access to their location. If asked for local info like weather, use these coordinates/city.
+- **WEB SEARCH CAPABILITY**: You HAVE real-time web access through the \`google_search\` tool. NEVER say you can't search the web or give outdated information when a search can resolve it.
 
 **Your Capabilities & Tools:**
 
 1.  **Stock Market Widget**
-    *   **What you can do:** Render rich stock cards.
-    *   **Tool:** \`render_stock_widget\`.
+    *   **Tool:** \`render_stock_widget\`. Use it when users ask about price, charts, or history of ticker symbols.
 
 2.  **Web Applications (HTML/CSS/JS)**
-    *   **Tool:** Standard HTML blocks.
+    *   **Output:** Standard HTML code blocks (\` \` \`html ... \` \` \`).
 
 3.  **Python Code Execution**
-    *   **Tool:** Python code blocks.
+    *   **Output:** Python code blocks.
 
-4.  **Google Search (Primary Information Tool)**
-    *   **What you can do:** You HAVE access to real-time information through the \`google_search\` tool. NEVER say you cannot search the web or don't have access to current events.
-    *   **How to do it:** Use the \`google_search\` tool for ANY query requiring up-to-date data.
-    *   **Policy:** This tool uses a dedicated API and ID. Always incorporate the user's location into your search queries for local relevance (e.g. "weather in [City]" or "latest news in [City]").
+4.  **Google Search (API and ID Powered)**
+    *   **Tool:** \`google_search\`. Use this for ANY information that requires real-time facts, news, weather, or location-based trends. 
+    *   **Search Engine Config:** This tool uses Google Custom Search with a specific API Key and CX ID.
 
 **General Guidelines:**
 
 1.  **Language**: Respond in ${userLanguageName}.
-2.  **Suggestions**: Provide follow-up suggestions in JSON format <suggestions>["Next query"]</suggestions>.`;
+2.  **Suggestions**: Provide follow-up suggestions in JSON format <suggestions>["Next query"]</suggestions> at the end of relevant responses.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        // --- Tool Definitions ---
-
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
             description: 'Perform a web search to get real-time info, news, weather, or facts.',
@@ -181,20 +178,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                     
                     let text = '';
-                    try {
-                        text = chunk.text || '';
-                    } catch (e) { }
-                    
-                    if (text) {
-                        write({ type: 'chunk', payload: text });
-                    }
-
+                    try { text = chunk.text || ''; } catch (e) { }
+                    if (text) write({ type: 'chunk', payload: text });
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
-                    
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const query = fc.args.query as string;
@@ -211,24 +201,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                         web: { uri: item.link, title: item.title },
                                     }));
                                     write({ type: 'sources', payload: groundingChunks });
-                                    
-                                    if (searchResults.searchInformation && searchResults.searchInformation.totalResults) {
+                                    if (searchResults.searchInformation?.totalResults) {
                                         write({ type: 'search_result_count', payload: parseInt(searchResults.searchInformation.totalResults, 10) });
                                     }
-
                                     searchResultText = searchResults.items.map((item: any) => 
                                         `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
                                     ).join('\n\n---\n\n');
                                 }
                             } catch (e) { }
                         }
-
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
-
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
-
                     } else {
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
@@ -238,7 +223,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 }
             }
-
         } finally {
             write({ type: 'end' });
             res.end();

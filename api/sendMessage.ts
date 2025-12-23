@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, Content, Part, GenerateContentConfig, Type, FunctionCallingMode } from "@google/genai";
+import { GoogleGenAI, Content, Part, GenerateContentConfig, Type, FunctionCallingConfigMode } from "@google/genai";
 
 export const config = {
   runtime: 'edge',
@@ -40,7 +39,7 @@ export default async function handler(req: Request) {
 
         if (apiKeys.length === 0) throw new Error("No API keys found.");
 
-        // 2. Prepare History with part preservation
+        // 2. Prepare History
         const geminiHistory: Content[] = [];
         for (const msg of history) {
             if (msg.type === 'USER') {
@@ -54,15 +53,21 @@ export default async function handler(req: Request) {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
                 
+                // Reconstruct parts from combined content (includes <thinking> tags if present)
                 if (content && content.includes('<thinking>')) {
-                    const rawParts = content.split(/<\/?thinking>/g);
-                    rawParts.forEach((p, i) => {
-                        if (i % 2 === 1) {
-                             parts.push({ thought: p.trim() } as any);
-                        } else if (p.trim()) {
-                             parts.push({ text: p.trim() });
+                    const regex = /<thinking>([\s\S]*?)<\/thinking>/g;
+                    let lastIdx = 0;
+                    let match;
+                    while ((match = regex.exec(content)) !== null) {
+                        if (match.index > lastIdx) {
+                            parts.push({ text: content.slice(lastIdx, match.index).trim() });
                         }
-                    });
+                        parts.push({ thought: match[1].trim() } as any);
+                        lastIdx = regex.lastIndex;
+                    }
+                    if (lastIdx < content.length) {
+                        parts.push({ text: content.slice(lastIdx).trim() });
+                    }
                 } else if (content) {
                     parts.push({ text: content });
                 }
@@ -93,47 +98,34 @@ export default async function handler(req: Request) {
         }
 
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
-        // Updated model name according to guidelines
         const modelName = 'gemini-flash-lite-latest';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const systemInstruction = `${personaInstruction || ''}
-You are Qbit, a helpful and highly intelligent AI. 
-Current Date: ${new Date().toLocaleDateString()}.
-${locationStr}
+You are Qbit, an AI that uses tools for real-time info.
+Today: ${new Date().toLocaleDateString()}. ${locationStr}
 
-CRITICAL OPERATIONAL PROTOCOL:
-1. You have NO ACCESS to real-time weather, news, or any information about the world as it exists today except through the 'google_search' tool.
-2. If the user asks for weather, time-sensitive news, or recent events, you MUST call 'google_search'.
-3. DO NOT try to guess or use your training data for current weather. 
-4. Call 'google_search' with a specific query like "current weather in Athens" or "Athens weather forecast".
-5. Use your internal <thinking> tags to plan the search, but ensure a 'functionCall' follows immediately.
-6. Once you get search results, summarize them thoroughly for the user.`;
+RULES:
+- For weather, news, or current events, ALWAYS use 'google_search'.
+- Do not state you cannot do something; use the tool.
+- Query format: 'weather in [City]'.
+- After tool results, provide a helpful summary.`;
 
         const genConfig: GenerateContentConfig = {
             systemInstruction,
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Accesses the live internet to retrieve current weather, news, sports scores, stock prices, and world events.', 
+                    description: 'Search the web for weather, news, and current info.', 
                     parameters: { 
                         type: Type.OBJECT, 
-                        properties: { 
-                            query: { 
-                                type: Type.STRING,
-                                description: 'The search query to perform (e.g., "weather in London tomorrow").'
-                            } 
-                        }, 
+                        properties: { query: { type: Type.STRING } }, 
                         required: ['query'] 
                     } 
                 }] 
             }],
-            toolConfig: {
-                functionCallingConfig: {
-                    // Fix: Use FunctionCallingMode.AUTO enum to resolve type mismatch with 'AUTO' string literal
-                    mode: FunctionCallingMode.AUTO
-                }
-            }
+            // Use FunctionCallingConfigMode instead of FunctionCallingMode
+            toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } }
         };
 
         const stream = new ReadableStream({
@@ -163,12 +155,8 @@ CRITICAL OPERATIONAL PROTOCOL:
                                 if (candidates?.[0]?.content?.parts) {
                                     for (const part of candidates[0].content.parts) {
                                         turnPartsCaptured.push(part);
-
                                         if ('thought' in part && (part as any).thought) {
                                             enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
-                                        }
-                                        if ('text' in part && part.text && !chunk.text) {
-                                            enqueue({ type: 'chunk', payload: part.text });
                                         }
                                         if ('functionCall' in part && part.functionCall) {
                                             activeFC = part.functionCall;
@@ -182,34 +170,24 @@ CRITICAL OPERATIONAL PROTOCOL:
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
                                     const cseId = process.env.GOOGLE_CSE_ID;
-                                    let searchResult = "Search API not configured or unavailable.";
+                                    let searchResult = "No data.";
 
                                     if (activeKey && cseId) {
                                         try {
-                                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=10`);
+                                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=8`);
                                             const sJson = await resS.json();
                                             if (sJson.items) {
                                                 const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResult = "Web Search Results:\n\n" + sJson.items.map((i: any, idx: number) => `[${idx+1}] Source: ${i.title}\nURL: ${i.link}\nSummary: ${i.snippet}`).join('\n\n');
-                                            } else {
-                                                searchResult = "No results found on the web for this query.";
+                                                searchResult = sJson.items.map((i: any) => `Source: ${i.title}\nInfo: ${i.snippet}`).join('\n\n');
                                             }
-                                        } catch (e) {
-                                            searchResult = "An error occurred while connecting to the search provider.";
-                                        }
+                                        } catch (e) {}
                                     }
                                     
                                     contents.push({ role: 'model', parts: turnPartsCaptured });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
                                     
-                                    currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                                    turnLoop = true;
-                                } else {
-                                    enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
-                                    contents.push({ role: 'model', parts: turnPartsCaptured });
-                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Operation Complete" } } }] });
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     turnLoop = true;
                                 }
@@ -218,12 +196,11 @@ CRITICAL OPERATIONAL PROTOCOL:
                         enqueue({ type: 'end' });
                         attemptSuccess = true;
                     } catch (err: any) {
-                        const errorMsg = String(err.message || err).toLowerCase();
-                        if ((errorMsg.includes("429") || errorMsg.includes("quota")) && currentKeyIndex < apiKeys.length - 1) {
+                        if (currentKeyIndex < apiKeys.length - 1) {
                             currentKeyIndex++;
                             continue;
                         }
-                        enqueue({ type: 'error', payload: err.message || "A generation error occurred." });
+                        enqueue({ type: 'error', payload: err.message });
                         attemptSuccess = true;
                     }
                 }
@@ -232,13 +209,10 @@ CRITICAL OPERATIONAL PROTOCOL:
         });
 
         return new Response(stream, {
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'X-Content-Type-Options': 'nosniff',
-            },
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
         });
 
     } catch (error: any) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
     }
 }

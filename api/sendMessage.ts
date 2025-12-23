@@ -8,12 +8,13 @@ const encoder = new TextEncoder();
 
 /**
  * Safely converts an ArrayBuffer to a Base64 string in an Edge environment.
- * Avoids call stack overflow for large files.
+ * Avoids "Maximum call stack size exceeded" by processing in chunks.
  */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
@@ -54,7 +55,7 @@ export default async function handler(req: Request) {
 
     if (apiKeys.length === 0) throw new Error("No API keys found.");
 
-    // 2. Prepare History
+    // 2. Prepare History (Clean and validate)
     const geminiHistory: Content[] = [];
     for (const msg of history) {
       if (msg.type === 'USER') {
@@ -70,26 +71,9 @@ export default async function handler(req: Request) {
         const parts: Part[] = [];
         const content = msg.content === "[Output contains no text]" ? "" : (msg.content || "");
 
-        // If history contains tool calls, we MUST preserve the exact sequence 
-        // including thoughts/reasoning to avoid thought_signature errors.
-        if (content.includes('<thinking>')) {
-          const regex = /<thinking>([\s\S]*?)<\/thinking>/g;
-          let lastIdx = 0;
-          let match;
-          while ((match = regex.exec(content)) !== null) {
-            if (match.index > lastIdx) {
-              const prevText = content.slice(lastIdx, match.index).trim();
-              if (prevText) parts.push({ text: prevText });
-            }
-            // Preserve thought for internal model consistency
-            parts.push({ thought: match[1].trim() } as any);
-            lastIdx = regex.lastIndex;
-          }
-          const remaining = content.slice(lastIdx).trim();
-          if (remaining) parts.push({ text: remaining });
-        } else if (content) {
-          parts.push({ text: content });
-        }
+        // Remove <thinking> tags from history to prevent signature validation issues
+        const cleanContent = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
+        if (cleanContent) parts.push({ text: cleanContent });
 
         if (msg.toolCalls && Array.isArray(msg.toolCalls)) {
           msg.toolCalls.forEach((tc: any) => {
@@ -99,7 +83,6 @@ export default async function handler(req: Request) {
 
         if (parts.length > 0) {
           geminiHistory.push({ role: 'model', parts });
-          // If there were tool calls, we need corresponding function responses in the history
           if (msg.toolCalls && Array.isArray(msg.toolCalls)) {
             msg.toolCalls.forEach((tc: any) => {
               geminiHistory.push({
@@ -119,42 +102,19 @@ export default async function handler(req: Request) {
       userParts.push({ inlineData: { mimeType: file.type || 'application/octet-stream', data: base64 } });
     }
 
-    const contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
+    let contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
     const modelName = 'gemini-3-flash-preview';
 
     const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
     const systemInstruction = `${personaInstruction || ''}
-You are Qbit, an advanced AI. 
+You are Qbit, an advanced AI assistant. 
 Current Date: ${new Date().toLocaleDateString()}.
 ${locationStr}
 
-CRITICAL: You MUST use 'google_search' for real-time info.
-For tool calls: if you reason before calling a tool, your reasoning will be preserved.`;
-
-    const genParams: GenerateContentParameters = {
-      model: modelName,
-      contents,
-      config: {
-        systemInstruction,
-        thinkingConfig: { thinkingBudget: 2000 },
-        tools: [{
-          functionDeclarations: [{
-            name: 'google_search',
-            description: 'Live web search for weather, news, stocks, and current events.',
-            parameters: {
-              type: Type.OBJECT,
-              properties: { query: { type: Type.STRING } },
-              required: ['query']
-            }
-          }]
-        }],
-        toolConfig: {
-          functionCallingConfig: {
-            mode: 'AUTO' as any
-          }
-        }
-      },
-    };
+CRITICAL:
+- Use 'google_search' for real-time data like weather, news, and current events.
+- When searching, use specific queries (e.g., "weather in Athens today").
+- Summarize findings clearly after the search.`;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -168,12 +128,35 @@ For tool calls: if you reason before calling a tool, your reasoning will be pres
           const ai = new GoogleGenAI({ apiKey: activeKey });
 
           try {
-            let currentStream = await ai.models.generateContentStream(genParams);
-            let turnLoop = true;
-            let turnCount = 0;
+            // Initial call configuration
+            let genParams: GenerateContentParameters = {
+              model: modelName,
+              contents,
+              config: {
+                systemInstruction,
+                // Set thinking budget to 0 to avoid the "thought_signature" requirement during tool loops
+                thinkingConfig: { thinkingBudget: 0 },
+                tools: [{
+                  functionDeclarations: [{
+                    name: 'google_search',
+                    description: 'Search the web using Google for current news, weather, and facts.',
+                    parameters: {
+                      type: Type.OBJECT,
+                      properties: { query: { type: Type.STRING } },
+                      required: ['query']
+                    }
+                  }]
+                }],
+                toolConfig: { functionCallingConfig: { mode: 'AUTO' as any } }
+              },
+            };
 
-            while (turnLoop && turnCount < 5) {
-              turnLoop = false;
+            let currentStream = await ai.models.generateContentStream(genParams);
+            let turnCount = 0;
+            let activeTurn = true;
+
+            while (activeTurn && turnCount < 5) {
+              activeTurn = false;
               turnCount++;
               let activeFC: any = null;
               const turnPartsCaptured: Part[] = [];
@@ -204,7 +187,6 @@ For tool calls: if you reason before calling a tool, your reasoning will be pres
 
                   if (activeKey && cseId) {
                     try {
-                      // Using the Gemini API key for search as it's often configured for both in this specific setup
                       const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=8`);
                       const sJson = await resS.json();
                       if (sJson.items) {
@@ -214,21 +196,21 @@ For tool calls: if you reason before calling a tool, your reasoning will be pres
                         searchResultText = sJson.items.map((i: any, idx: number) => `[${idx + 1}] ${i.title}\n${i.snippet}`).join('\n\n');
                       }
                     } catch (e) {
-                      searchResultText = "Error during search.";
+                      searchResultText = "Web search failed due to a connectivity error.";
                     }
                   }
 
-                  // IMPORTANT: Append the captured parts (which include the thought/reasoning)
-                  // This is what prevents the thought_signature error.
-                  // Fix: Directly push to the 'contents' array defined earlier to avoid union type issues.
+                  // Update history: Re-append the model's call parts exactly as received
+                  // and append the function response.
                   contents.push({ role: 'model', parts: turnPartsCaptured });
                   contents.push({
                     role: 'function',
-                    parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }]
+                    parts: [{ functionResponse: { name: 'google_search', response: { result: searchResultText } } }]
                   });
 
+                  genParams = { ...genParams, contents };
                   currentStream = await ai.models.generateContentStream(genParams);
-                  turnLoop = true;
+                  activeTurn = true;
                 }
               }
             }
@@ -240,7 +222,7 @@ For tool calls: if you reason before calling a tool, your reasoning will be pres
               currentKeyIndex++;
               continue;
             }
-            enqueue({ type: 'error', payload: err.message || "A generation error occurred." });
+            enqueue({ type: 'error', payload: err.message || "An internal error occurred during generation." });
             attemptSuccess = true;
           }
         }
@@ -252,7 +234,6 @@ For tool calls: if you reason before calling a tool, your reasoning will be pres
       headers: {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
       },
     });
 

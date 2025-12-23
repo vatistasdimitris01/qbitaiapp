@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { PaperclipIcon, ArrowUpIcon, StopCircleIcon, XIcon, ReplyIcon } from './icons';
+import { PaperclipIcon, ArrowUpIcon, XIcon, ReplyIcon } from './icons';
 
 interface ChatInputProps {
   text: string;
@@ -78,11 +78,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
   const hasText = text.trim().length > 0;
 
-  // Custom shadows for Grok-like elevation
-  const shadowStyle = {
-    boxShadow: 'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 -4px 12px rgba(0, 0, 0, 0.08)'
-  };
-
   return (
     <div className="w-full flex flex-col gap-2">
       {/* Previews for replies and files */}
@@ -117,7 +112,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
         className="bg-white dark:bg-[#1f1f1f] rounded-full border border-gray-200 dark:border-[#333333] flex items-center gap-3 p-3 relative transition-all duration-200 dark:[box-shadow:0_-8px_20px_rgba(0,0,0,0.4)]"
         style={{ 
           boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
-          // The inline shadow will be overridden by the dark: class above for dark mode
         }}
       >
         
@@ -151,9 +145,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {isLoading ? (
             <button
               onClick={onAbortGeneration}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
+              className="h-10 aspect-square flex flex-col items-center justify-center rounded-full ring-1 ring-inset bg-black text-white transition-opacity hover:opacity-90"
+              style={{ cursor: 'crosshair' }}
+              title={t('chat.input.stop')}
             >
-              <StopCircleIcon className="size-5" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2]">
+                <path d="M4 9.2v5.6c0 1.116 0 1.673.11 2.134a4 4 0 0 0 2.956 2.956c.46.11 1.018.11 2.134.11h5.6c1.116 0 1.673 0 2.134-.11a4 4 0 0 0 2.956-2.956c.11-.46.11-1.018.11-2.134V9.2c0-1.116 0-1.673-.11-2.134a4 4 0 0 0-2.956-2.955C16.474 4 15.916 4 14.8 4H9.2c-1.116 0-1.673 0-2.134.11a4 4 0 0 0-2.955 2.956C4 7.526 4 8.084 4 9.2Z" fill="currentColor"></path>
+              </svg>
             </button>
           ) : hasText || attachedFiles.length > 0 ? (
             <button

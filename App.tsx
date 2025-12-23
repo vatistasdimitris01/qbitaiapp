@@ -12,7 +12,6 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
-import { ChevronsRightIcon } from './components/icons';
 
 type Language = keyof typeof translations;
 
@@ -202,13 +201,15 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* Sidebar Toggle Button for Mobile - Replaced with Glassy Double Arrow (>>) */}
+            {/* Sidebar Trigger Button for Mobile - BURGER ICON (==-) */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="lg:hidden fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center shadow-2xl active:scale-95 transition-all text-foreground"
+                    className="lg:hidden fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all text-foreground"
                 >
-                    <ChevronsRightIcon className="size-6 opacity-90" />
+                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
+                    <div className="w-3.5 h-[2px] bg-foreground rounded-full self-start ml-[13px]"></div>
                 </button>
             )}
 

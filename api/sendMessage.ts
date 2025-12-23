@@ -52,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
 
+        // Correctly obtain API key exclusively from process.env.API_KEY
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
@@ -87,69 +88,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+        // Using gemini-3-flash-preview as recommended for general text tasks as per guidelines
+        const model = 'gemini-3-flash-preview';
         const langCode = (language as string) || 'en';
-        const userLanguageName = languageMap[langCode] || 'English';
         
         const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (Lat: ${location.latitude}, Lon: ${location.longitude}).` : 'Location unknown.';
 
-        const baseSystemInstruction = `You are Qbit, a highly intelligent AI assistant.
-${locationStr}
-NEVER claim you don't have access to location or web search.
-
-Capabilities:
-1. Stock Widget (render_stock_widget)
-2. Python/HTML code execution
-3. Google Search (google_search) - Use this for real-time info.
-
-Guidelines:
-1. Language: ${userLanguageName}.
-2. Suggestions: <suggestions>["Next query"]</suggestions>.`;
+        const baseSystemInstruction = `You are Qbit, an AI assistant.
+- User Context: ${locationStr}
+- Web access: Use 'google_search'.
+- Stock info: Use 'render_stock_widget'.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        const googleSearchTool: FunctionDeclaration = {
-            name: 'google_search',
-            description: 'Perform a web search for real-time info.',
-            parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] },
-        };
-
-        const renderStockWidgetTool: FunctionDeclaration = {
-            name: 'render_stock_widget',
-            description: 'Render a rich stock card.',
-            parameters: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.STRING }, change: { type: Type.STRING }, chartData: { type: Type.OBJECT } }, required: ['symbol', 'price', 'change', 'chartData'] }
-        };
-
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
+            tools: [{ 
+                functionDeclarations: [
+                    { name: 'google_search', description: 'Web search', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } },
+                    { name: 'render_stock_widget', description: 'Stock info', parameters: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.STRING }, change: { type: Type.STRING }, chartData: { type: Type.OBJECT } }, required: ['symbol', 'price', 'change', 'chartData'] } }
+                ] 
+            }],
         };
 
         try {
             let currentStream = await ai.models.generateContentStream({ model, contents, config });
             let keepGoing = true;
-            let textGenerated = false;
+            let totalChunks = 0;
+            // Declare functionCallToHandle outside the while loop to resolve the scope error on line 173
+            let functionCallToHandle: FunctionCall | null = null;
 
             while (keepGoing) {
                 keepGoing = false;
-                let functionCallToHandle: FunctionCall | null = null;
+                functionCallToHandle = null;
                 
                 for await (const chunk of currentStream) {
-                    // Check for finish reason in the candidates
                     if (chunk.candidates?.[0]?.finishReason) {
-                        const fr = chunk.candidates[0].finishReason;
-                        if (fr === 'MAX_TOKENS') write({ type: 'error', payload: 'Response reached maximum token limit.' });
-                        else if (fr === 'SAFETY') write({ type: 'error', payload: 'Response was blocked by safety filters.' });
+                        const reason = chunk.candidates[0].finishReason;
+                        if (reason === 'MAX_TOKENS') write({ type: 'error', payload: 'Token limit reached.' });
+                        if (reason === 'SAFETY') write({ type: 'error', payload: 'Response blocked by safety filters.' });
                     }
 
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
                     
-                    let text = '';
-                    try { text = chunk.text || ''; } catch (e) { }
+                    const text = chunk.text || '';
                     if (text) {
-                        textGenerated = true;
+                        totalChunks++;
                         write({ type: 'chunk', payload: text });
                     }
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
@@ -160,40 +146,44 @@ Guidelines:
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const query = fc.args.query as string;
-                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                        // Correctly obtain API key exclusively from process.env.API_KEY
+                        const apiKey = process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
+                        
                         let searchResultText = "Search failed.";
                         if (apiKey && cseId) {
-                            try {
-                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
-                                const searchResults = await searchResponse.json();
-                                if (searchResults.items) {
-                                     const groundingChunks = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                                     write({ type: 'sources', payload: groundingChunks });
-                                     searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`).join('\n\n---\n\n');
-                                }
-                            } catch (e) { }
+                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                            const sJson = await resS.json();
+                            if (sJson.items) {
+                                const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
+                                write({ type: 'sources', payload: chunks });
+                                if (sJson.searchInformation?.totalResults) write({ type: 'search_result_count', payload: parseInt(sJson.searchInformation.totalResults, 10) });
+                                searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nSnippet: ${i.snippet}`).join('\n\n');
+                            }
                         }
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
+                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36) } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered" } } }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Done" } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
                 }
+            }
+            if (totalChunks === 0 && !functionCallToHandle) {
+                write({ type: 'error', payload: 'API returned an empty response. This might be due to a token limit or restricted content.' });
             }
         } finally {
             write({ type: 'end' });
             res.end();
         }
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) { write({ type: 'error', payload: errorMessage }); res.end(); }
-        else res.status(500).json({ error: { message: errorMessage } });
+        const msg = error instanceof Error ? error.message : String(error);
+        if (res.headersSent) { write({ type: 'error', payload: msg }); res.end(); }
+        else res.status(500).json({ error: { message: msg } });
     }
 }

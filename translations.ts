@@ -48,7 +48,7 @@ export const translations = {
     sidebar: {
       header: 'Qbit',
       newChat: 'New Chat',
-      search: 'Search conversations',
+      search: 'Search...',
       recent: 'Recent History',
       settings: 'Settings',
       close: 'Close sidebar',
@@ -81,7 +81,6 @@ export const translations = {
     settings: {
       header: 'Settings',
       appearance: 'Appearance',
-      customize: 'Customize Qbit',
       behavior: 'Behavior',
       data: 'Data Controls',
       langTitle: 'Language / Γλώσσα',
@@ -191,7 +190,6 @@ export const translations = {
     settings: {
       header: 'Ρυθμίσεις',
       appearance: 'Εμφάνιση',
-      customize: 'Προσαρμογή Qbit',
       behavior: 'Συμπεριφορά',
       data: 'Δεδομένα',
       langTitle: 'Γλώσσα / Language',

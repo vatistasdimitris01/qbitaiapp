@@ -6,10 +6,8 @@ import {
   Trash2Icon, 
   SunIcon, 
   SettingsIcon, 
-  UserIcon, 
   TerminalIcon,
   CheckIcon,
-  InfoIcon,
   ChevronRightIcon,
   ChevronLeftIcon
 } from './icons';
@@ -29,15 +27,14 @@ interface SettingsModalProps {
   t: (key: string, params?: Record<string, string>) => string;
 }
 
-type SettingsTab = 'Appearance' | 'Data Controls' | 'Customize' | 'Behavior';
+type SettingsTab = 'Appearance' | 'Behavior' | 'Data Controls';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(null);
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  // Behavior states (local for UI demo, should be hooked to context in production)
+  // Behavior states (Simulated logic for UI toggles)
   const [autoScroll, setAutoScroll] = useState(true);
   const [sidebarEditor, setSidebarEditor] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
@@ -60,7 +57,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     </button>
   );
 
-  const ListItem = ({ label, icon, onClick, subtext }: { label: string, icon: React.ReactNode, onClick: () => void, subtext?: string }) => (
+  const ListItem = ({ label, icon, onClick }: { label: string, icon: React.ReactNode, onClick: () => void }) => (
     <button 
       onClick={onClick}
       className="flex items-center justify-between w-full p-4 bg-white dark:bg-[#1f1f1f] rounded-2xl border border-gray-100 dark:border-[#27272a] shadow-sm mb-2 active:scale-[0.98] transition-all"
@@ -69,19 +66,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="size-8 rounded-full bg-gray-50 dark:bg-[#292929] flex items-center justify-center text-muted-foreground">
           {icon}
         </div>
-        <div className="text-left">
-           <div className="text-sm font-bold text-black dark:text-white">{label}</div>
-           {subtext && <div className="text-[10px] text-muted-foreground">{subtext}</div>}
-        </div>
+        <div className="text-sm font-bold text-black dark:text-white">{label}</div>
       </div>
-      <div className="flex items-center gap-2">
-         <ChevronRightIcon className="size-4 text-muted-foreground opacity-50" />
-      </div>
+      <ChevronRightIcon className="size-4 text-muted-foreground opacity-50" />
     </button>
   );
 
   const OptionRow = ({ label, checked, onChange, id }: { label: string, checked: boolean, onChange: (v: boolean) => void, id: string }) => (
-    <div className="flex flex-row items-center justify-between w-full gap-4 px-3 py-2">
+    <div className="flex flex-row items-center justify-between w-full gap-4 px-3 py-1">
       <div className="text-sm font-medium text-black dark:text-white">{label}</div>
       <Switch checked={checked} onChange={onChange} id={id} />
     </div>
@@ -92,12 +84,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       <div 
         className={`
           bg-background w-full transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]
-          lg:max-w-4xl lg:h-[75vh] lg:flex lg:flex-row lg:rounded-[2.5rem] lg:border lg:border-gray-200 lg:dark:border-[#27272a] lg:shadow-2xl
+          lg:max-w-4xl lg:h-[70vh] lg:min-h-[500px] lg:flex lg:flex-row lg:rounded-[2.5rem] lg:border lg:border-gray-200 lg:dark:border-[#27272a] lg:shadow-2xl
           fixed inset-0 lg:relative h-full lg:h-auto overflow-hidden
         `}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header (Mobile Only) */}
+        {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12">
             {activeTab ? (
               <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 text-black dark:text-white font-bold">
@@ -115,19 +107,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
         </div>
 
-        {/* Desktop Sidebar Menu */}
-        <aside className="hidden lg:flex w-56 p-4 flex-shrink-0 border-r border-gray-100 dark:border-[#27272a] flex-col gap-1">
-          <div className="px-4 py-3 mb-2 font-bold text-lg dark:text-white">{t('settings.header')}</div>
+        {/* Desktop Sidebar Navigation */}
+        <aside className="hidden lg:flex w-56 p-4 flex-shrink-0 border-r border-gray-100 dark:border-[#27272a] flex-col gap-1 h-full">
+          <div className="px-4 py-3 mb-4 font-bold text-xl dark:text-white">{t('settings.header')}</div>
           {[
             { id: 'Appearance', label: t('settings.appearance'), icon: <SunIcon className="size-4" /> },
-            { id: 'Customize', label: t('settings.customize'), icon: <UserIcon className="size-4" /> },
             { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-4" /> },
             { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-4" /> }
           ].map(tab => (
             <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id as SettingsTab)}
-              className={`inline-flex items-center whitespace-nowrap text-sm font-medium transition-all duration-100 rounded-xl py-2 gap-3 px-4 justify-start h-10 min-w-40 border-none ${
+              className={`inline-flex items-center whitespace-nowrap text-sm font-medium transition-all duration-100 rounded-xl py-2 gap-3 px-4 justify-start h-10 border-none ${
                 activeTab === tab.id 
                   ? 'bg-gray-100 dark:bg-[#292929] text-black dark:text-white font-semibold' 
                   : 'text-gray-500 dark:text-[#a1a1aa] hover:bg-gray-50 dark:hover:bg-[#212121] hover:text-black dark:hover:text-white'
@@ -139,27 +130,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           ))}
         </aside>
 
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
-          
-          {/* Main List (Mobile Only) */}
+        {/* Desktop Main Content Area with Fixed Height Container to prevent "jumping" */}
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 h-full">
           {!activeTab && (
             <div className="lg:hidden animate-fade-in-up space-y-2">
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">General</div>
               <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
-              <ListItem label={t('settings.customize')} icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
               <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
               <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
             </div>
           )}
 
-          {/* Sub Pages */}
           {(activeTab || window.innerWidth >= 1024) && (
-            <div className="animate-fade-in-up h-full">
-              {/* Appearance Tab */}
+            <div className="animate-fade-in-up h-full flex flex-col gap-8">
               {activeTab === 'Appearance' && (
-                <div className="flex flex-col gap-8">
-                  <div className="flex items-stretch w-full gap-2 justify-stretch">
+                <div className="flex flex-col gap-8 h-full">
+                  <div className="grid grid-cols-3 w-full gap-2">
                     {(['light', 'dark', 'system'] as const).map(th => (
                       <button 
                         key={th}
@@ -192,89 +177,40 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                      </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <OptionRow label={t('settings.switches.starry')} checked={starryBg} onChange={setStarryBg} id="starry" />
+                  <div className="mt-auto pb-4">
+                     <OptionRow label={t('settings.switches.starry')} checked={starryBg} onChange={setStarryBg} id="starry" />
                   </div>
                 </div>
               )}
 
-              {/* Behavior Tab */}
               {activeTab === 'Behavior' && (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 h-full">
                   <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
                   <OptionRow label={t('settings.switches.docMode')} checked={sidebarEditor} onChange={setSidebarEditor} id="docmode" />
                   <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} id="haptics" />
+                  <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} id="wrapcode" />
+                  <OptionRow label={t('settings.switches.previews')} checked={showPreviews} onChange={setShowPreviews} id="previews" />
                 </div>
               )}
 
-              {/* Customize Tab */}
-              {activeTab === 'Customize' && (
-                <div className="flex flex-col gap-6">
-                  <p className="pl-4 pb-1 text-sm font-bold text-black dark:text-white uppercase tracking-widest text-[10px]">Persona Profiles</p>
-                  <div className="grid grid-cols-1 gap-3 px-1">
-                    <button 
-                        onClick={() => {
-                           if(activeConversationId) {
-                             setConversations(conversations.map(c => c.id === activeConversationId ? { ...c, personaId: undefined } : c));
-                           }
-                        }}
-                        className={`text-sm font-medium transition-all border rounded-2xl flex px-4 py-4 hover:bg-gray-50 dark:hover:bg-[#212121] text-left relative ${!activeConversation?.personaId ? 'bg-gray-50 dark:bg-[#292929] border-black/10 dark:border-white/20' : 'border-gray-100 dark:border-[#27272a]'}`}
-                      >
-                        <div className="w-full flex flex-col gap-1">
-                           <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-black dark:text-white">Default</p>
-                              {!activeConversation?.personaId && <CheckIcon className="size-4 text-blue-500" />}
-                           </div>
-                           <p className="text-xs text-muted-foreground leading-relaxed">Standard balanced AI assistant behavior.</p>
-                        </div>
-                    </button>
-                    {personas.map(p => (
-                      <button 
-                        key={p.id}
-                        onClick={() => {
-                           if(activeConversationId) {
-                             setConversations(conversations.map(c => c.id === activeConversationId ? { ...c, personaId: p.id } : c));
-                           }
-                        }}
-                        className={`text-sm font-medium transition-all border rounded-2xl flex px-4 py-4 hover:bg-gray-50 dark:hover:bg-[#212121] text-left relative ${activeConversation?.personaId === p.id ? 'bg-gray-50 dark:bg-[#292929] border-black/10 dark:border-white/20' : 'border-gray-100 dark:border-[#27272a]'}`}
-                      >
-                        <div className="w-full flex flex-col gap-1">
-                           <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-black dark:text-white">{p.name}</p>
-                              {activeConversation?.personaId === p.id && <CheckIcon className="size-4 text-blue-500" />}
-                           </div>
-                           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{p.instruction}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Data Controls Tab */}
               {activeTab === 'Data Controls' && (
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-col gap-2">
-                    <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} id="wrapcode" />
-                    <OptionRow label={t('settings.switches.previews')} checked={showPreviews} onChange={setShowPreviews} id="previews" />
-                  </div>
-
-                  <div className="flex flex-col gap-4 pt-4 border-t border-gray-100 dark:border-white/10">
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                      <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.delete')}</div>
+                <div className="flex flex-col gap-8 h-full">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3 py-2 bg-red-50 dark:bg-red-500/5 rounded-2xl border border-red-500/10">
+                      <div className="text-sm font-bold text-red-600 dark:text-red-400">{t('settings.buttons.delete')}</div>
                       <button 
                         onClick={() => { if(confirm('Delete all chats?')) setConversations([]); }}
-                        className="inline-flex items-center justify-center text-sm font-bold border border-red-500/20 text-red-500 hover:bg-red-500/5 h-10 rounded-xl px-6 transition-colors"
+                        className="inline-flex items-center justify-center text-xs font-bold bg-red-600 text-white h-8 rounded-lg px-4 hover:bg-red-700 transition-colors"
                       >
                         {t('settings.buttons.deleteAction')}
                       </button>
                     </div>
 
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
+                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3 py-4">
                       <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.clear')}</div>
                       <button 
                          onClick={() => { localStorage.clear(); window.location.reload(); }}
-                         className="inline-flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-white/10 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#292929] h-10 rounded-xl px-6 transition-colors"
+                         className="inline-flex items-center justify-center text-xs font-bold border border-gray-200 dark:border-white/10 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/5 h-8 rounded-lg px-4 transition-colors"
                       >
                         {t('settings.buttons.clearAction')}
                       </button>

@@ -69,7 +69,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       w-full lg:w-[320px]
       ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
     `}>
-      {/* Header Area */}
       <div className="h-[6rem] flex flex-col justify-center px-6 shrink-0">
           <div className="flex items-center justify-between w-full">
               <button 
@@ -79,7 +78,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <LogoIcon />
               </button>
               
-              {/* Close Button - Double Arrow (>>) - Styled after reference image (White Circle, Black arrows) */}
               <button 
                   onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
                   className="size-12 rounded-full bg-white dark:bg-white/10 backdrop-blur-2xl border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all text-black dark:text-white"
@@ -89,7 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
       </div>
 
-      {/* Action Strip - Search Bar expansion - Styled after reference (White background in Light Mode) */}
       <div className="px-6 mb-6 relative h-12 flex items-center">
           <div className="flex items-center gap-2 w-full relative">
                <div 
@@ -104,17 +101,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setIsSearchFocused(false)}
-                        placeholder="Search..."
+                        placeholder={t('sidebar.search')}
                         className="bg-transparent border-none outline-none text-sm w-full h-full placeholder:text-muted-foreground/60 font-medium text-black dark:text-white"
                     />
                </div>
 
-               {/* Action Icons - White backgrounds for Light Mode */}
                <div className={`flex items-center gap-2 transition-all duration-300 absolute right-0 ${isSearchFocused ? 'opacity-0 scale-75 pointer-events-none translate-x-4' : 'opacity-100 scale-100 translate-x-0'}`}>
                    <button 
                         onClick={(e) => { e.stopPropagation(); onOpenSettings(); }}
                         className="size-12 rounded-full bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-black dark:text-white hover:opacity-80 transition-all shadow-lg"
-                        title="Settings"
+                        title={t('sidebar.settings')}
                    >
                         <SettingsIcon className="size-5" />
                    </button>
@@ -122,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                    <button 
                         onClick={(e) => { e.stopPropagation(); onNewChat(); }}
                         className="size-12 rounded-full bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-black dark:text-white hover:opacity-80 transition-all shadow-lg"
-                        title="New Chat"
+                        title={t('sidebar.newChat')}
                    >
                         <SquarePenIcon className="size-5" />
                    </button>
@@ -130,7 +126,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
       </div>
 
-      {/* Navigation Area */}
       <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-6 space-y-1">
           <div className="py-2 shrink-0">
                <button 
@@ -139,13 +134,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="size-6 flex items-center justify-center shrink-0">
                         <HistoryIcon />
                     </div>
-                    <span className="flex-1 text-sm font-medium">History</span>
+                    <span className="flex-1 text-sm font-medium">{t('sidebar.history')}</span>
                 </button>
           </div>
 
           <div className="flex flex-col gap-1 mt-2">
               {filteredConversations.length > 0 && (
-                  <div className="py-2 pl-3 text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-40">Recent History</div>
+                  <div className="py-2 pl-3 text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-40">{t('sidebar.recent')}</div>
               )}
               
               {filteredConversations.map(convo => (
@@ -156,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   >
                       <span className="flex-1 truncate select-none">{convo.title}</span>
                       <div 
-                          className="size-8 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                          className="size-8 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-colors lg:opacity-0 group-hover:opacity-100 opacity-100"
                           onClick={(e) => {
                               e.stopPropagation();
                               if (confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);

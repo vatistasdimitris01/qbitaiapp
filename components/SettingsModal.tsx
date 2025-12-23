@@ -32,7 +32,7 @@ interface SettingsModalProps {
 type SettingsTab = 'Appearance' | 'Data Controls' | 'Customize' | 'Behavior';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen, onClose, theme, setTheme, personas, conversations, setConversations, activeConversationId, t
+  isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(null);
   const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -83,7 +83,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/40 dark:bg-black/80 z-[150] flex items-center justify-center backdrop-blur-sm" onClick={onClose}>
-      {/* Container - Modal on Desktop, Full Drawer on Mobile */}
       <div 
         className={`
           bg-background w-full transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]
@@ -92,15 +91,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         `}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header (Mobile Only) */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12">
             {activeTab ? (
               <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 text-black dark:text-white font-bold">
                 <ChevronLeftIcon className="size-6" />
-                <span>Settings</span>
+                <span>{t('settings.header')}</span>
               </button>
             ) : (
-              <h2 className="text-2xl font-extrabold text-black dark:text-white">Settings</h2>
+              <h2 className="text-2xl font-extrabold text-black dark:text-white">{t('settings.header')}</h2>
             )}
             <button 
               onClick={onClose} 
@@ -110,14 +108,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
         </div>
 
-        {/* Desktop Sidebar Menu */}
         <aside className="hidden lg:flex w-56 p-4 flex-shrink-0 border-r border-gray-100 dark:border-[#27272a] flex-col gap-1">
-          <div className="px-4 py-3 mb-2 font-bold text-lg dark:text-white">Settings</div>
+          <div className="px-4 py-3 mb-2 font-bold text-lg dark:text-white">{t('settings.header')}</div>
           {[
-            { id: 'Appearance', label: 'Appearance', icon: <SunIcon className="size-4" /> },
-            { id: 'Data Controls', label: 'Data Controls', icon: <TerminalIcon className="size-4" /> },
-            { id: 'Customize', label: 'Customize', icon: <UserIcon className="size-4" /> },
-            { id: 'Behavior', label: 'Behavior', icon: <SettingsIcon className="size-4" /> }
+            { id: 'Appearance', label: t('settings.appearance'), icon: <SunIcon className="size-4" /> },
+            { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-4" /> },
+            { id: 'Customize', label: t('settings.customize'), icon: <UserIcon className="size-4" /> },
+            { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-4" /> }
           ].map(tab => (
             <button 
               key={tab.id}
@@ -134,21 +131,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           ))}
         </aside>
 
-        {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
-          
-          {/* Main List (Mobile Only) */}
           {!activeTab && (
             <div className="lg:hidden animate-fade-in-up space-y-2">
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">General</div>
-              <ListItem label="Appearance" icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
-              <ListItem label="Customize Qbit" icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
-              <ListItem label="Behavior" icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
-              <ListItem label="Data Controls" icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
+              <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
+              <ListItem label={t('settings.customize')} icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
+              <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
+              <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
             </div>
           )}
 
-          {/* Sub Pages */}
           {(activeTab || window.innerWidth >= 1024) && (
             <div className="animate-fade-in-up h-full">
               {activeTab === 'Appearance' && (
@@ -163,23 +155,33 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         {th === 'light' && <SunIcon className="size-6 text-yellow-500" />}
                         {th === 'dark' && <SunIcon className="size-6 opacity-40" />}
                         {th === 'system' && <SettingsIcon className="size-6 text-blue-500" />}
-                        <p className="capitalize font-semibold">{th}</p>
+                        <p className="capitalize font-semibold">{t(`settings.themes.${th}`)}</p>
                       </button>
                     ))}
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                     <p className="pl-4 pb-1 text-sm font-bold text-black dark:text-white uppercase tracking-widest text-[10px]">{t('settings.langTitle')}</p>
+                     <div className="flex gap-2">
+                        <button 
+                          onClick={() => setLanguage('en')} 
+                          className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${language === 'en' ? 'bg-black dark:bg-white text-white dark:text-black border-transparent shadow-lg' : 'bg-white dark:bg-white/5 text-black dark:text-white border-gray-200 dark:border-white/10'}`}
+                        >
+                          English
+                        </button>
+                        <button 
+                          onClick={() => setLanguage('el')} 
+                          className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${language === 'el' ? 'bg-black dark:bg-white text-white dark:text-black border-transparent shadow-lg' : 'bg-white dark:bg-white/5 text-black dark:text-white border-gray-200 dark:border-white/10'}`}
+                        >
+                          Ελληνικά
+                        </button>
+                     </div>
                   </div>
 
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
                       <div className="text-sm font-medium text-black dark:text-white">Wrap Long Lines For Code</div>
                       <Switch checked={wrapCode} onChange={setWrapCode} id="wrap_code" />
-                    </div>
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                      <div className="text-sm font-medium text-black dark:text-white">Show Chat Previews</div>
-                      <Switch checked={showPreviews} onChange={setShowPreviews} id="previews" />
-                    </div>
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                      <div className="text-sm font-medium text-black dark:text-white">Enable Starry Background</div>
-                      <Switch checked={starryBg} onChange={setStarryBg} id="starry" />
                     </div>
                   </div>
                 </div>
@@ -190,25 +192,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
                     <div className="max-w-sm">
                       <div className="text-sm font-bold dark:text-white">Delete All Conversations</div>
-                      <div className="text-xs text-muted-foreground mt-1">Permanently remove all chats.</div>
                     </div>
                     <button 
                       onClick={() => { if(confirm('Delete all chats?')) setConversations([]); }}
                       className="inline-flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-[#27272a] text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#292929] h-10 rounded-xl px-6 transition-colors"
                     >
                       Delete
-                    </button>
-                  </div>
-                  <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                    <div className="max-w-sm">
-                      <div className="text-sm font-bold dark:text-white">Clear App Cache</div>
-                      <div className="text-xs text-muted-foreground mt-1">Reset application state on this device.</div>
-                    </div>
-                    <button 
-                       onClick={() => { localStorage.clear(); window.location.reload(); }}
-                       className="inline-flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-[#27272a] text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#292929] h-10 rounded-xl px-6 transition-colors"
-                    >
-                      Clear
                     </button>
                   </div>
                 </div>
@@ -218,7 +207,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex flex-col gap-6">
                   <p className="pl-4 pb-1 text-sm font-bold text-black dark:text-white uppercase tracking-widest text-[10px]">Persona Profiles</p>
                   <div className="grid grid-cols-1 gap-3 px-1">
-                    {/* Default Option */}
                     <button 
                         onClick={() => {
                            if(activeConversationId) {
@@ -235,7 +223,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                            <p className="text-xs text-muted-foreground leading-relaxed">Standard balanced AI assistant behavior.</p>
                         </div>
                     </button>
-
                     {personas.map(p => (
                       <button 
                         key={p.id}
@@ -264,14 +251,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
                     <div className="text-sm font-medium text-black dark:text-white">Enable Auto Scroll</div>
                     <Switch checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
-                  </div>
-                  <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                    <div className="text-sm font-medium text-black dark:text-white">Enable Document Mode</div>
-                    <Switch checked={sidebarEditor} onChange={setSidebarEditor} id="editor" />
-                  </div>
-                  <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                    <div className="text-sm font-medium text-black dark:text-white">Haptic Feedback</div>
-                    <Switch checked={notifyThink} onChange={setNotifyThink} id="notify" />
                   </div>
                 </div>
               )}

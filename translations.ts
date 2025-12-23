@@ -1,7 +1,6 @@
 
 export const translations = {
   en: {
-    // App-level
     loader: {
       text: 'Qbit',
       subtext: 'Preparing environment...',
@@ -10,7 +9,6 @@ export const translations = {
       text: 'A new version is available!',
       button: 'Refresh',
     },
-    // Welcome Onboarding
     welcome: {
       skip: 'Skip Tutorial',
       next: 'Next',
@@ -19,7 +17,7 @@ export const translations = {
       steps: {
         intro: {
           title: 'The Soul of Qbit',
-          story: 'Qbit isn’t just another AI interface. It’s a space where aesthetics and intelligence converge. We believe that the environment where you think should be as refined as the ideas you create. Designed for clarity and built for performance, Qbit is your new home for thought.',
+          story: 'Qbit isn’t just another AI interface. It’s a space where aesthetics and intelligence converge.',
           sub: 'Intelligence, refined.',
         },
         workspace: {
@@ -41,51 +39,35 @@ export const translations = {
         },
         location: {
           title: 'Grounded in Your World',
-          description: 'To provide the most relevant answers—whether it’s weather, local trends, or precise web searches—Qbit can use your location. This data stays private and is only used to enhance your responses.',
+          description: 'To provide the most relevant answers Qbit can use your location.',
           allow: 'Allow Location Access',
           denied: 'Location access denied. You can change this in your browser settings.',
         }
       }
     },
-    // Sidebar
     sidebar: {
       header: 'Qbit',
       newChat: 'New Chat',
       search: 'Search conversations',
-      recent: 'Recent Chats',
+      recent: 'Recent History',
       settings: 'Settings',
       close: 'Close sidebar',
       open: 'Open sidebar',
       remove: 'Remove chat',
       confirmDelete: 'Are you sure you want to delete this chat?',
       forkedChatTitle: 'Fork of "{oldTitle}"',
+      history: 'History'
     },
-    // Main Chat View
     chat: {
       placeholder: 'Start a conversation with Qbit.',
       scrollToBottom: 'Scroll to bottom',
       replyContext: 'In reference to the following text:\n"""\n{context}\n"""',
       input: {
-        placeholder: 'Ask Anything',
-        placeholderWithFiles: 'Describe {count} file(s)...',
-        messageWithFiles: 'Analyze the attached {count} file(s). Provide a summary or response based on their content.',
+        placeholder: 'Ask Qbit anything...',
         disclaimer: 'Qbit can make mistakes. Check important info.',
         attach: 'Attach',
         submit: 'Submit',
         stop: 'Stop generation',
-        removeFile: 'Remove {filename}',
-        clearReply: 'Clear reply',
-        fileTooLarge: 'File "{filename}" is too large. Max per file is {size}.',
-        totalSizeTooLarge: 'Total attachment size exceeds the limit of {size}.',
-        tooManyFiles: 'You can attach a maximum of {count} files.',
-        unsupportedFileType: 'Unsupported file type: {filename}. Please upload images, videos, audio, or text-based files.',
-        audioMessage: '[Audio Message]',
-        record: 'Record audio',
-        stopRecord: 'Stop recording',
-      },
-      audio: {
-        play: 'Play audio',
-        pause: 'Pause audio',
       },
       message: {
         thinking: 'Chain of Thought',
@@ -95,125 +77,121 @@ export const translations = {
         viewCode: 'View Code',
         fork: 'Fork conversation',
       },
-      status: {
-        thinking: 'Thinking...',
-        processing: 'Processing request...',
-        analyzing: 'Analyzing data...',
-        consulting: 'Consulting sources...',
-        searching: 'Searching the web...',
-        finding: 'Finding sources...',
-        consultingGoogle: 'Consulting Google...',
-        generating: 'Generating response...',
-        composing: 'Composing message...',
-        formatting: 'Formatting output...',
-      },
     },
-    // Code Executor
-    code: {
-      expand: 'Expand code',
-      collapse: 'Collapse code',
-      runAgain: 'Run Again',
-      run: 'Run code',
-      stop: 'Stop execution',
-      clear: 'Clear output',
-      notExecutable: 'Not executable',
-      copied: 'Copied!',
-      copy: 'Copy code',
-      loading: 'Loading environment...',
-      executing: 'Executing...',
-      stopped: 'Execution stopped by user.',
-      fileSuccess: "File '{filename}' created successfully.",
-      previewNewTab: 'Preview opened in a new tab.',
-      previewBlocked: 'Popup blocked. Use the button below to open the preview.',
-      downloadAgain: 'Download again',
-      openInNewTab: 'Open in new tab',
-      chartError: 'Failed to render interactive chart.',
-      langNotSupported: 'Language "{lang}" is not supported by the executor.',
-      reactSuccess: 'React component rendered.',
-      fixCode: 'Fix code',
-    },
-    // Code Analysis Modal
-    analysis: {
-      header: 'Analysis',
-      alwaysShow: 'Always show details',
-      copy: 'Copy code',
-      copied: 'Copied!',
-      close: 'Close analysis',
-    },
-    // Settings Modal
     settings: {
       header: 'Settings',
-      tabs: {
-        general: 'General',
-        personalization: 'Personalization',
-        usage: 'Usage',
-        api: 'API Access',
+      appearance: 'Appearance',
+      customize: 'Customize Qbit',
+      behavior: 'Behavior',
+      data: 'Data Controls',
+      langTitle: 'Language / Γλώσσα',
+      themes: {
+        light: 'Light',
+        dark: 'Dark',
+        system: 'System',
       },
-      general: {
-        title: 'General',
-        description: "Customize the application's appearance and language.",
-        theme: 'Theme',
-        themes: {
-          light: 'Light',
-          dark: 'Dark',
-          system: 'System',
-        },
-        language: 'Language',
-      },
-      personalization: {
-        title: 'Personalization',
-        description: "Tailor the AI's personality for this conversation.",
-        personas: 'Personas',
-        apply: 'Apply a persona to the current conversation.',
-        selectDefault: 'Select a Persona (Default)',
-        manage: 'Manage Personas',
-        edit: 'Edit',
-        delete: 'Delete',
-        add: 'Add New Persona',
-        confirmDelete: 'Are you sure you want to delete this persona?',
-      },
-      personaEditor: {
-        editTitle: 'Edit Persona',
-        addTitle: 'Add New Persona',
-        name: 'Persona Name',
-        instruction: 'System Instruction',
-        save: 'Save',
-        cancel: 'Cancel',
-      },
-      usage: {
-        title: 'Usage',
-        description: 'Usage statistics for the current conversation.',
-        tokenUsage: 'Token Usage',
-        input: 'Input',
-        output: 'Output',
-        totalCost: 'Total cost',
-      },
-      api: {
-        title: 'Developer API',
-        description: "Use our free API endpoint for AI queries. Customize behavior with your own instructions, provide tools for function calling, or use the default web search.",
-        endpoint: 'API Endpoint',
-        basicTitle: 'Basic Queries & Custom Instructions',
-        basicDescription: "Make a simple request or add a `userInstruction` to guide the AI's tone, style, or task. Your instruction is added on top of the base personality.",
-        toolsTitle: 'Advanced: Using Tools (Function Calling)',
-        toolsDescription: 'Provide custom tool definitions to have the AI return structured JSON for calling your own functions or APIs. This allows for powerful integrations, like fetching real-time data or interacting with external services.',
-        exampleResponse: 'Example Function Call Response',
-      },
-    },
-    // Location Banner
-    location: {
-      message: "Allow location access to automatically set the language to your region's default.",
-      allow: 'Allow',
-      dismiss: 'Dismiss',
-    },
-    selectionPopup: {
-      ask: 'Ask Qbit'
     },
     dragDrop: {
         title: 'Add anything',
         subtitle: 'Drop any file here to add it to the conversation',
     }
   },
-  el: {},
+  el: {
+    loader: {
+      text: 'Qbit',
+      subtext: 'Προετοιμασία περιβάλλοντος...',
+    },
+    updateBanner: {
+      text: 'Μια νέα έκδοση είναι διαθέσιμη!',
+      button: 'Ανανέωση',
+    },
+    welcome: {
+      skip: 'Παράλειψη Οδηγού',
+      next: 'Επόμενο',
+      back: 'Πίσω',
+      getStarted: 'Ξεκινήστε το Ταξίδι σας',
+      steps: {
+        intro: {
+          title: 'Η Ψυχή του Qbit',
+          story: 'Το Qbit δεν είναι απλώς μια διεπαφή AI. Είναι ένας χώρος όπου η αισθητική και η νοημοσύνη συγκλίνουν.',
+          sub: 'Νοημοσύνη, εκλεπτυσμένη.',
+        },
+        workspace: {
+          title: 'Ο Ψηφιακός σας Χώρος',
+          description: 'Η διεπαφή έχει σχεδιαστεί για να εξαφανίζεται, ώστε οι ιδέες σας να βρίσκονται στο επίκεντρο.',
+          sidebar: 'Ιστορικό & Εξατομίκευση',
+          sidebar_desc: 'Πρόσβαση στις προηγούμενες σκέψεις σας και προσαρμογή του AI στα αριστερά.',
+          input: 'Πολυτροπική Είσοδος',
+          input_desc: 'Σύρετε αρχεία, ηχογραφήστε φωνή ή επικολλήστε κώδικα. Το Qbit τα χειρίζεται όλα.',
+        },
+        features: {
+          title: 'Καθαρή Ισχύς, Τοπική Εκτέλεση',
+          description: 'Το Qbit προχωρά πέρα από το κείμενο. Οπτικοποιεί δεδομένα και εκτελεί κώδικα στον περιηγητή σας.',
+          examples: {
+            stock: 'Ανάλυση αγορών',
+            python: 'Εκτέλεση μαθηματικών',
+            web: 'Αναζήτηση στον ιστό',
+          }
+        },
+        location: {
+          title: 'Γειωμένο στον Κόσμο σας',
+          description: 'Για να παρέχει τις πιο σχετικές απαντήσεις, το Qbit μπορεί να χρησιμοποιήσει την τοποθεσία σας.',
+          allow: 'Επιτρέψτε την Πρόσβαση',
+          denied: 'Η πρόσβαση στην τοποθεσία απορρίφθηκε.',
+        }
+      }
+    },
+    sidebar: {
+      header: 'Qbit',
+      newChat: 'Νέα Συνομιλία',
+      search: 'Αναζήτηση...',
+      recent: 'Πρόσφατο Ιστορικό',
+      settings: 'Ρυθμίσεις',
+      close: 'Κλείσιμο πλευρικού μενού',
+      open: 'Άνοιγμα πλευρικού μενού',
+      remove: 'Διαγραφή συνομιλίας',
+      confirmDelete: 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη συνομιλία;',
+      forkedChatTitle: 'Αντίγραφο του "{oldTitle}"',
+      history: 'Ιστορικό'
+    },
+    chat: {
+      placeholder: 'Ξεκινήστε μια συζήτηση με το Qbit.',
+      scrollToBottom: 'Μετάβαση στο τέλος',
+      replyContext: 'Σε αναφορά στο παρακάτω κείμενο:\n"""\n{context}\n"""',
+      input: {
+        placeholder: 'Ρωτήστε το Qbit οτιδήποτε...',
+        disclaimer: 'Το Qbit μπορεί να κάνει λάθη. Ελέγξτε σημαντικές πληροφορίες.',
+        attach: 'Επισύναψη',
+        submit: 'Αποστολή',
+        stop: 'Διακοπή παραγωγής',
+      },
+      message: {
+        thinking: 'Αλυσίδα Σκέψης',
+        grounding: 'Χρησιμοποιήθηκε η Αναζήτηση Google και βρέθηκαν οι εξής πηγές:',
+        copy: 'Αντιγραφή μηνύματος',
+        regenerate: 'Επαναπαραγωγή απάντησης',
+        viewCode: 'Προβολή Κώδικα',
+        fork: 'Δημιουργία αντιγράφου',
+      },
+    },
+    settings: {
+      header: 'Ρυθμίσεις',
+      appearance: 'Εμφάνιση',
+      customize: 'Προσαρμογή Qbit',
+      behavior: 'Συμπεριφορά',
+      data: 'Έλεγχος Δεδομένων',
+      langTitle: 'Γλώσσα / Language',
+      themes: {
+        light: 'Φωτεινό',
+        dark: 'Σκοτεινό',
+        system: 'Σύστημα',
+      },
+    },
+    dragDrop: {
+        title: 'Προσθέστε οτιδήποτε',
+        subtitle: 'Σύρετε οποιοδήποτε αρχείο εδώ για να το προσθέσετε στη συνομιλία',
+    }
+  },
   es: {},
   fr: {},
   de: {},

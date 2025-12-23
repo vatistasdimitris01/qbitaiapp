@@ -12,6 +12,7 @@ import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { stopPythonExecution } from './services/pythonExecutorService';
 import { translations } from './translations';
+import { AppShell, ContentArea } from './components/DesignSystem';
 
 type Language = keyof typeof translations;
 
@@ -38,56 +39,6 @@ const getRandomGreeting = () => [
     "Ready when you are.",
 ][Math.floor(Math.random() * 5)];
 
-const sanitizeForStorage = (conversations: Conversation[]): Conversation[] => {
-    return conversations.map(convo => ({
-        ...convo,
-        messages: convo.messages.map(msg => ({
-            ...msg,
-            files: msg.files?.map(f => ({ ...f, dataUrl: f.dataUrl.length > 50000 ? '' : f.dataUrl }))
-        }))
-    }));
-};
-
-const ASCII_LOGO = `
-                                              +++++++                                               
-                                              +++++++                                               
-                                              +++++++                                               
-                                              +++++++-                                              
-                                              ++++++++                                              
-                                              +++++++++                                             
-                                              ++++++++++                                            
-                                              ++++++++++++                                          
-                                              ++++++++++++++++                                      
-                                              +++++++++++++++++-                                    
-                                              ++++++++++++++++++-                                   
-                                              +++++++++++++++++++×                                  
-                                              ++++++++++++++++++++                                  
-                                              ++++++++++++++++++++                                  
-                                              +++++++++++++++++++                                   
-                                              ++++++++++++++++++×                                   
-                                              +++++++++++++++++                                     
-                                             ++++++++++++++++-                                      
-                                            ++++++++++++-                                           
-                                        +++++++++++++++                                             
-                                     +++++++++++++++++                                              
-                                    +++++++++++++++++-                                              
-                                   ++++++++++++++++++                                               
-                                  +++++++++++++++++++                                               
-                                  +++++++++++++++++++                                               
-                                  +++++++++++++++++++                                               
-                                   ++++++++++++++++++                                               
-                                    +++++++++++++++++                                               
-                                     ++++++++++++++++                                               
-                                        -++++++++++++                                               
-                                          -++++++++++                                               
-                                            +++++++++                                               
-                                             ++++++++                                               
-                                             -+++++++                                               
-                                              +++++++                                               
-                                              +++++++                                               
-                                              +++++++
-`;
-
 const App: React.FC = () => {
   const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -108,64 +59,19 @@ const App: React.FC = () => {
   const mainContentRef = useRef<HTMLElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const touchStartRef = useRef<number | null>(null);
   const { t } = useTranslations(language);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartRef.current !== null) {
-      const touchEnd = e.changedTouches[0].clientX;
-      const diff = touchEnd - touchStartRef.current;
-      if (touchStartRef.current < 60 && diff > 80 && !isSidebarOpen) {
-        setIsSidebarOpen(true);
-      }
-      touchStartRef.current = null;
-    }
-  };
-
   useEffect(() => {
-    // Clear and print logo in BLACK as requested
-    console.clear();
-    console.log(`%c${ASCII_LOGO}`, 'color: black; font-weight: bold; font-family: monospace;');
-    
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
-    
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-          try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
-              const data = await res.json();
-              if (data.address) {
-                setUserLocation({
-                    city: data.address.city || data.address.town || 'Unknown',
-                    country: data.address.country || 'Unknown',
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude
-                });
-              }
-          } catch(e) {}
-      },
-      undefined,
-      { timeout: 5000 }
-    );
   }, []);
 
   useEffect(() => {
     try {
         const savedConvos = localStorage.getItem('conversations');
-        const savedActiveId = localStorage.getItem('activeConversationId');
         if (savedConvos) setConversations(JSON.parse(savedConvos));
-        if (savedActiveId) setActiveConversationId(savedActiveId);
         setPersonas(initialPersonas);
     } catch (e) {}
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('conversations', JSON.stringify(sanitizeForStorage(conversations)));
-  }, [conversations]);
 
   useEffect(() => {
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -175,173 +81,56 @@ const App: React.FC = () => {
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null);
     setChatInputText('');
-    setReplyContextText(null);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   }, []);
 
-  const handleSendMessage = useCallback(async (text: string, attachments: File[] = [], isRegeneration = false, targetConvoId?: string) => {
+  const handleSendMessage = useCallback(async (text: string, attachments: File[] = []) => {
     if (!text.trim() && attachments.length === 0) return;
     
-    let currentConvoId = targetConvoId || activeConversationId;
-    
-    const processedFiles: FileAttachment[] = [];
-    if (!isRegeneration) {
-        for (const f of attachments) {
-            processedFiles.push({ name: f.name, type: f.type, size: f.size, dataUrl: await fileToDataURL(f) });
-        }
-    }
-
-    const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
+    let currentConvoId = activeConversationId;
+    const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text };
     const aiMsgId = (Date.now() + 1).toString();
-
-    let historyToUse: Message[] = [];
 
     setConversations(prev => {
         let conversationsCopy = [...prev];
         let convo = conversationsCopy.find(c => c.id === currentConvoId);
-
         if (!convo) {
-            convo = { 
-                id: Date.now().toString(), 
-                title: text.slice(0, 40) || 'New Chat', 
-                messages: [], 
-                createdAt: new Date().toISOString(), 
-                greeting: getRandomGreeting() 
-            };
+            convo = { id: Date.now().toString(), title: text.slice(0, 40), messages: [], createdAt: new Date().toISOString() };
             conversationsCopy = [convo, ...conversationsCopy];
             currentConvoId = convo.id;
             setActiveConversationId(convo.id);
         }
-
-        historyToUse = [...convo.messages];
-
-        if (isRegeneration) {
-            const lastUserIdx = [...convo.messages].reverse().findIndex(m => m.type === MessageType.USER);
-            if (lastUserIdx !== -1) {
-                const actualIdx = convo.messages.length - 1 - lastUserIdx;
-                convo.messages = convo.messages.slice(0, actualIdx + 1);
-                historyToUse = convo.messages.slice(0, actualIdx);
-            }
-        } else {
-            convo.messages.push(newUserMsg);
-        }
-
-        convo.messages.push({ id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
+        convo.messages.push(newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
         return conversationsCopy;
     });
 
     setIsLoading(true);
     setAiStatus('thinking');
-
     const abort = new AbortController();
     abortControllerRef.current = abort;
 
-    await streamMessageToAI(
-        historyToUse,
-        text,
-        isRegeneration ? [] : attachments,
-        undefined,
-        userLocation,
-        language,
-        abort.signal,
-        (update) => {
-            setConversations(prev => prev.map(c => {
-                if (c.id === currentConvoId) {
-                    const messages = [...c.messages];
-                    const idx = messages.findIndex(m => m.id === aiMsgId);
-                    if (idx !== -1) {
-                        const targetMsg = { ...messages[idx] };
-                        if (update.type === 'chunk') { 
-                            setAiStatus('generating'); 
-                            targetMsg.content = (targetMsg.content as string) + update.payload;
-                        }
-                        else if (update.type === 'sources') { 
-                            targetMsg.groundingChunks = [...(targetMsg.groundingChunks || []), ...update.payload]; 
-                        }
-                        else if (update.type === 'searching') {
-                            setAiStatus('searching');
-                        }
-                        else if (update.type === 'search_result_count') {
-                            targetMsg.searchResultCount = update.payload;
-                        }
-                        else if (update.type === 'tool_call') {
-                            targetMsg.toolCalls = [...(targetMsg.toolCalls || []), update.payload];
-                        }
-                        messages[idx] = targetMsg;
-                    }
-                    return { ...c, messages };
+    await streamMessageToAI([], text, attachments, undefined, userLocation, language, abort.signal, (update) => {
+        setConversations(prev => prev.map(c => {
+            if (c.id === currentConvoId) {
+                const messages = [...c.messages];
+                const idx = messages.findIndex(m => m.id === aiMsgId);
+                if (idx !== -1) {
+                    if (update.type === 'chunk') { setAiStatus('generating'); messages[idx].content += update.payload; }
+                    else if (update.type === 'searching') setAiStatus('searching');
                 }
-                return c;
-            }));
-        },
-        (duration) => { 
-            setIsLoading(false); 
-            setAiStatus('idle'); 
-            setConversations(prev => prev.map(c => {
-                if (c.id === currentConvoId) {
-                    const messages = [...c.messages];
-                    const idx = messages.findIndex(m => m.id === aiMsgId);
-                    if (idx !== -1) {
-                        messages[idx] = { ...messages[idx], generationDuration: duration };
-                    }
-                    return { ...c, messages };
-                }
-                return c;
-            }));
-        },
-        (err) => { setIsLoading(false); setAiStatus('error'); }
-    );
+                return { ...c, messages };
+            }
+            return c;
+        }));
+    }, (duration) => { 
+        setIsLoading(false); setAiStatus('idle'); 
+    }, (err) => { setIsLoading(false); setAiStatus('error'); });
   }, [activeConversationId, userLocation, language]);
-
-  const handleRegenerate = useCallback((messageId: string) => {
-    if (isLoading) return;
-    const convo = conversations.find(c => c.id === activeConversationId);
-    if (!convo) return;
-    
-    const msgIdx = convo.messages.findIndex(m => m.id === messageId);
-    if (msgIdx === -1) return;
-
-    let lastUserQuery = '';
-    for (let i = msgIdx; i >= 0; i--) {
-        if (convo.messages[i].type === MessageType.USER) {
-            lastUserQuery = convo.messages[i].content as string;
-            break;
-        }
-    }
-
-    if (lastUserQuery) {
-        handleSendMessage(lastUserQuery, [], true, activeConversationId!);
-    }
-  }, [conversations, activeConversationId, handleSendMessage, isLoading]);
-
-  const handleFork = useCallback((messageId: string) => {
-    const convo = conversations.find(c => c.id === activeConversationId);
-    if (!convo) return;
-    
-    const msgIdx = convo.messages.findIndex(m => m.id === messageId);
-    if (msgIdx === -1) return;
-
-    const newMessages = convo.messages.slice(0, msgIdx + 1);
-    const newConvo: Conversation = {
-        id: Date.now().toString(),
-        title: t('sidebar.forkedChatTitle', { oldTitle: convo.title }),
-        messages: newMessages,
-        createdAt: new Date().toISOString(),
-        greeting: convo.greeting
-    };
-
-    setConversations(prev => [newConvo, ...prev]);
-    setActiveConversationId(newConvo.id);
-  }, [conversations, activeConversationId, t]);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   return (
-    <div 
-        className="flex h-screen bg-background text-foreground overflow-hidden font-sans relative"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-    >
+    <AppShell isSidebarOpen={isSidebarOpen}>
         <Sidebar
             isOpen={isSidebarOpen}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -349,28 +138,19 @@ const App: React.FC = () => {
             activeConversationId={activeConversationId}
             onNewChat={handleNewChat}
             onSelectConversation={(id) => { setActiveConversationId(id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
-            onDeleteConversation={(id) => {
-                setConversations(prev => prev.filter(c => c.id !== id));
-                if (activeConversationId === id) setActiveConversationId(null);
-            }}
+            onDeleteConversation={(id) => setConversations(prev => prev.filter(c => c.id !== id))}
             onOpenSettings={() => setIsSettingsOpen(true)}
             t={t}
         />
         
-        <main 
-            ref={mainContentRef}
-            className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
-                ${isSidebarOpen ? 'lg:ml-[320px]' : 'ml-0'}
-                bg-background w-full
-            `}
-        >
+        <ContentArea isPushed={isSidebarOpen}>
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-[#141414] dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
+                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-white dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl transition-all"
                 >
-                    <div className="w-5 h-[2.5px] bg-white rounded-full"></div>
-                    <div className="w-5 h-[2.5px] bg-white rounded-full"></div>
+                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
                 </button>
             )}
 
@@ -385,15 +165,13 @@ const App: React.FC = () => {
                              <ChatMessage
                                  key={msg.id}
                                  message={msg}
-                                 onRegenerate={handleRegenerate}
-                                 onFork={handleFork}
+                                 onRegenerate={() => {}}
+                                 onFork={() => {}}
                                  isLoading={isLoading && index === activeConversation.messages.length - 1}
                                  aiStatus={aiStatus}
-                                 onShowAnalysis={(code, lang) => {}}
+                                 onShowAnalysis={() => {}}
                                  executionResults={executionResults}
-                                 onStoreExecutionResult={(msgId, partIdx, res) => {
-                                     setExecutionResults(prev => ({ ...prev, [`${msgId}_${partIdx}`]: res }));
-                                 }}
+                                 onStoreExecutionResult={() => {}}
                                  onFixRequest={() => {}}
                                  onStopExecution={() => stopPythonExecution()}
                                  isPythonReady={isPythonReady}
@@ -426,8 +204,8 @@ const App: React.FC = () => {
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
             {lightboxState && <Lightbox images={lightboxState.images} startIndex={lightboxState.startIndex} onClose={() => setLightboxState(null)} />}
-        </main>
-    </div>
+        </ContentArea>
+    </AppShell>
   );
 };
 

@@ -85,6 +85,20 @@ export const translations = {
       behavior: 'Behavior',
       data: 'Data Controls',
       langTitle: 'Language / Γλώσσα',
+      switches: {
+        autoScroll: 'Enable Auto Scroll',
+        docMode: 'Enable Document Mode',
+        haptics: 'Haptic Feedback',
+        wrapCode: 'Wrap Long Lines For Code',
+        previews: 'Show Chat Previews',
+        starry: 'Enable Starry Background'
+      },
+      buttons: {
+        delete: 'Delete All Conversations',
+        clear: 'Clear App Cache',
+        deleteAction: 'Delete',
+        clearAction: 'Clear'
+      },
       themes: {
         light: 'Light',
         dark: 'Dark',
@@ -179,8 +193,22 @@ export const translations = {
       appearance: 'Εμφάνιση',
       customize: 'Προσαρμογή Qbit',
       behavior: 'Συμπεριφορά',
-      data: 'Έλεγχος Δεδομένων',
+      data: 'Δεδομένα',
       langTitle: 'Γλώσσα / Language',
+      switches: {
+        autoScroll: 'Αυτόματη Κύλιση',
+        docMode: 'Λειτουργία Εγγράφου',
+        haptics: 'Απτική Ανάδραση',
+        wrapCode: 'Αναδίπλωση Κώδικα',
+        previews: 'Προεπισκόπηση Συνομιλιών',
+        starry: 'Έναστρο Φόντο'
+      },
+      buttons: {
+        delete: 'Διαγραφή Όλων των Συνομιλιών',
+        clear: 'Εκκαθάριση Cache Εφαρμογής',
+        deleteAction: 'Διαγραφή',
+        clearAction: 'Εκκαθάριση'
+      },
       themes: {
         light: 'Φωτεινό',
         dark: 'Σκοτεινό',

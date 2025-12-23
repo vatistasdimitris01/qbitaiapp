@@ -37,10 +37,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(null);
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  // Behavior states
+  // Behavior states (local for UI demo, should be hooked to context in production)
   const [autoScroll, setAutoScroll] = useState(true);
   const [sidebarEditor, setSidebarEditor] = useState(true);
-  const [notifyThink, setNotifyThink] = useState(true);
+  const [hapticFeedback, setHapticFeedback] = useState(true);
   const [wrapCode, setWrapCode] = useState(true);
   const [showPreviews, setShowPreviews] = useState(true);
   const [starryBg, setStarryBg] = useState(true);
@@ -75,10 +75,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
       </div>
       <div className="flex items-center gap-2">
-         {subtext && <span className="text-xs text-muted-foreground">{subtext}</span>}
          <ChevronRightIcon className="size-4 text-muted-foreground opacity-50" />
       </div>
     </button>
+  );
+
+  const OptionRow = ({ label, checked, onChange, id }: { label: string, checked: boolean, onChange: (v: boolean) => void, id: string }) => (
+    <div className="flex flex-row items-center justify-between w-full gap-4 px-3 py-2">
+      <div className="text-sm font-medium text-black dark:text-white">{label}</div>
+      <Switch checked={checked} onChange={onChange} id={id} />
+    </div>
   );
 
   return (
@@ -91,6 +97,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         `}
         onClick={e => e.stopPropagation()}
       >
+        {/* Header (Mobile Only) */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12">
             {activeTab ? (
               <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 text-black dark:text-white font-bold">
@@ -108,13 +115,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
         </div>
 
+        {/* Desktop Sidebar Menu */}
         <aside className="hidden lg:flex w-56 p-4 flex-shrink-0 border-r border-gray-100 dark:border-[#27272a] flex-col gap-1">
           <div className="px-4 py-3 mb-2 font-bold text-lg dark:text-white">{t('settings.header')}</div>
           {[
             { id: 'Appearance', label: t('settings.appearance'), icon: <SunIcon className="size-4" /> },
-            { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-4" /> },
             { id: 'Customize', label: t('settings.customize'), icon: <UserIcon className="size-4" /> },
-            { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-4" /> }
+            { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-4" /> },
+            { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-4" /> }
           ].map(tab => (
             <button 
               key={tab.id}
@@ -131,9 +139,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           ))}
         </aside>
 
+        {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
+          
+          {/* Main List (Mobile Only) */}
           {!activeTab && (
             <div className="lg:hidden animate-fade-in-up space-y-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">General</div>
               <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
               <ListItem label={t('settings.customize')} icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
               <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
@@ -141,8 +153,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
+          {/* Sub Pages */}
           {(activeTab || window.innerWidth >= 1024) && (
             <div className="animate-fade-in-up h-full">
+              {/* Appearance Tab */}
               {activeTab === 'Appearance' && (
                 <div className="flex flex-col gap-8">
                   <div className="flex items-stretch w-full gap-2 justify-stretch">
@@ -178,31 +192,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                      </div>
                   </div>
 
-                  <div className="flex flex-col gap-6">
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                      <div className="text-sm font-medium text-black dark:text-white">Wrap Long Lines For Code</div>
-                      <Switch checked={wrapCode} onChange={setWrapCode} id="wrap_code" />
-                    </div>
+                  <div className="flex flex-col gap-2">
+                    <OptionRow label={t('settings.switches.starry')} checked={starryBg} onChange={setStarryBg} id="starry" />
                   </div>
                 </div>
               )}
 
-              {activeTab === 'Data Controls' && (
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                    <div className="max-w-sm">
-                      <div className="text-sm font-bold dark:text-white">Delete All Conversations</div>
-                    </div>
-                    <button 
-                      onClick={() => { if(confirm('Delete all chats?')) setConversations([]); }}
-                      className="inline-flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-[#27272a] text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#292929] h-10 rounded-xl px-6 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
+              {/* Behavior Tab */}
+              {activeTab === 'Behavior' && (
+                <div className="flex flex-col gap-4">
+                  <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
+                  <OptionRow label={t('settings.switches.docMode')} checked={sidebarEditor} onChange={setSidebarEditor} id="docmode" />
+                  <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} id="haptics" />
                 </div>
               )}
 
+              {/* Customize Tab */}
               {activeTab === 'Customize' && (
                 <div className="flex flex-col gap-6">
                   <p className="pl-4 pb-1 text-sm font-bold text-black dark:text-white uppercase tracking-widest text-[10px]">Persona Profiles</p>
@@ -246,11 +251,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
 
-              {activeTab === 'Behavior' && (
-                <div className="flex flex-col w-full gap-8">
-                  <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
-                    <div className="text-sm font-medium text-black dark:text-white">Enable Auto Scroll</div>
-                    <Switch checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
+              {/* Data Controls Tab */}
+              {activeTab === 'Data Controls' && (
+                <div className="flex flex-col gap-8">
+                  <div className="flex flex-col gap-2">
+                    <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} id="wrapcode" />
+                    <OptionRow label={t('settings.switches.previews')} checked={showPreviews} onChange={setShowPreviews} id="previews" />
+                  </div>
+
+                  <div className="flex flex-col gap-4 pt-4 border-t border-gray-100 dark:border-white/10">
+                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
+                      <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.delete')}</div>
+                      <button 
+                        onClick={() => { if(confirm('Delete all chats?')) setConversations([]); }}
+                        className="inline-flex items-center justify-center text-sm font-bold border border-red-500/20 text-red-500 hover:bg-red-500/5 h-10 rounded-xl px-6 transition-colors"
+                      >
+                        {t('settings.buttons.deleteAction')}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-row items-center justify-between w-full gap-4 px-3">
+                      <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.clear')}</div>
+                      <button 
+                         onClick={() => { localStorage.clear(); window.location.reload(); }}
+                         className="inline-flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-white/10 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#292929] h-10 rounded-xl px-6 transition-colors"
+                      >
+                        {t('settings.buttons.clearAction')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

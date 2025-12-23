@@ -151,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   >
                       <span className="flex-1 truncate select-none">{convo.title}</span>
                       <div 
-                          className="size-8 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-colors lg:opacity-0 group-hover:opacity-100 opacity-100"
+                          className="size-8 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-colors lg:opacity-0 opacity-100"
                           onClick={(e) => {
                               e.stopPropagation();
                               if (confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);

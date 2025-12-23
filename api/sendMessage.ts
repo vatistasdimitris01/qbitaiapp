@@ -58,8 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 geminiHistory.push({ role: 'user', parts });
             } else if (msg.type === 'AI_RESPONSE') {
                 const parts: Part[] = [];
-                // Check if content has thinking tags already and preserve them or handle raw text
-                if (msg.content) parts.push({ text: msg.content });
+                // Filter out the "Output contains no text" placeholder from history
+                const content = msg.content === "[Output contains no text]" ? "" : msg.content;
+                if (content) parts.push({ text: content });
                 if (msg.toolCalls) {
                     msg.toolCalls.forEach(tc => parts.push({ functionCall: { name: tc.name, args: tc.args } }));
                 }
@@ -92,11 +93,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const modelName = 'gemini-3-flash-preview';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
-        const baseSystemInstruction = `You are Qbit, an AI assistant.
-- Location: ${locationStr}
-- Web search: ALWAYS use 'google_search' tool for recent info or if the user asks for news.
-- Python: Use 'python_execution' for code and calculations.
-- Reasoning: If you need to think or plan, use your internal thinking process.`;
+        const baseSystemInstruction = `You are Qbit, a world-class AI assistant.
+- User Location: ${locationStr}
+- Web Search: You MUST use the 'google_search' tool for real-time information, news, current events, or when explicitly asked to search.
+- Reasoning: Use your internal thinking process to plan complex answers.
+- Response: Be helpful, accurate, and concise.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
@@ -128,26 +129,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    // Extract text parts
+                    // 1. Check for standard text via chunk.text (extracted by SDK)
                     const text = chunk.text;
                     if (text) {
                         write({ type: 'chunk', payload: text });
                     }
 
-                    // Handle Thinking/Thought parts for Gemini 3
-                    const candidate = chunk.candidates?.[0];
-                    if (candidate?.content?.parts) {
-                        for (const part of candidate.content.parts) {
-                            if ('thought' in part && (part as any).thought) {
-                                // Send thinking wrapped in tags for the frontend to handle
-                                write({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
+                    // 2. Iterate candidates/parts to catch thinking and other data
+                    const candidates = chunk.candidates;
+                    if (candidates && candidates.length > 0) {
+                        const parts = candidates[0].content?.parts;
+                        if (parts) {
+                            for (const part of parts) {
+                                // Explicitly handle reasoning part (thought)
+                                if ('thought' in part && (part as any).thought) {
+                                    write({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
+                                }
+                                // If chunk.text failed but there's a text part, send it
+                                if ('text' in part && part.text && !text) {
+                                    write({ type: 'chunk', payload: part.text });
+                                }
+                                // Check for tool calls
+                                if ('functionCall' in part && part.functionCall) {
+                                    functionCallToHandle = part.functionCall;
+                                }
                             }
                         }
-                    }
-
-                    // Check for function calls
-                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                        functionCallToHandle = chunk.functionCalls[0];
                     }
                 }
 
@@ -161,7 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         
                         console.log(`[Qbit] Performing Google Search: "${query}"`);
 
-                        let searchResultText = "Search unavailable.";
+                        let searchResultText = "Search results unavailable.";
                         if (apiKey && cseId) {
                             try {
                                 const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
@@ -169,15 +176,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 if (sJson.items) {
                                     const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                     write({ type: 'sources', payload: chunks });
-                                    write({ type: 'search_result_count', payload: sJson.searchInformation?.totalResults || sJson.items.length });
+                                    write({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
                                     searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
                                 } else {
                                     searchResultText = "No results found for this query.";
                                 }
                             } catch (e) {
                                 console.error("[Qbit] Search Error:", e);
-                                searchResultText = "Search failed due to an internal error.";
+                                searchResultText = "Search failed due to a network or configuration error.";
                             }
+                        } else {
+                            console.error("[Qbit] Missing Google Search credentials.");
                         }
                         
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
@@ -186,10 +195,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     } else {
-                        // For other tools like Generative UI ones
+                        // Handle other generic tool calls if any
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Success" } } }] });
                         currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     }
@@ -201,12 +210,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        console.error("[Qbit] API Handler Error:", msg);
-        if (res.headersSent) { 
-            write({ type: 'error', payload: msg }); 
-            res.end(); 
-        } else {
+        console.error("[Qbit] API Error:", msg);
+        if (!res.headersSent) {
             res.status(500).json({ error: { message: msg } });
+        } else {
+            write({ type: 'error', payload: msg });
+            res.end();
         }
     }
 }

@@ -78,6 +78,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
   const hasText = text.trim().length > 0;
 
+  // Custom shadows for Grok-like elevation
+  const shadowStyle = {
+    boxShadow: 'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 -4px 12px rgba(0, 0, 0, 0.08)'
+  };
+
   return (
     <div className="w-full flex flex-col gap-2">
       {/* Previews for replies and files */}
@@ -108,7 +113,13 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       )}
 
       {/* Main Input Bar */}
-      <div className="bg-white dark:bg-[#1f1f1f] rounded-full border border-gray-200 dark:border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative transition-colors duration-200">
+      <div 
+        className="bg-white dark:bg-[#1f1f1f] rounded-full border border-gray-200 dark:border-[#333333] flex items-center gap-3 p-3 relative transition-all duration-200 dark:[box-shadow:0_-8px_20px_rgba(0,0,0,0.4)]"
+        style={{ 
+          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
+          // The inline shadow will be overridden by the dark: class above for dark mode
+        }}
+      >
         
         {/* Attach Button */}
         <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0">

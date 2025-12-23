@@ -67,7 +67,6 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
-  const [analysisModalContent, setAnalysisModalContent] = useState<{ code: string; lang: string } | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
   const [chatInputText, setChatInputText] = useState('');
   const [replyContextText, setReplyContextText] = useState<string | null>(null);
@@ -189,10 +188,11 @@ const App: React.FC = () => {
 
   return (
     <div 
-        className="flex h-screen bg-background text-foreground overflow-hidden font-sans"
+        className="flex h-screen bg-background text-foreground overflow-hidden font-sans relative"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
     >
+        {/* Sidebar remains stationary on the left layer */}
         <Sidebar
             isOpen={isSidebarOpen}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -207,19 +207,28 @@ const App: React.FC = () => {
         
         <main 
             ref={mainContentRef}
-            className={`flex-1 flex flex-col h-full relative transition-all duration-200 ease-linear
+            className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
                 ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[60px]'}
+                ${isSidebarOpen ? 'max-lg:translate-x-[260px] max-lg:filter max-lg:brightness-[0.6] max-lg:pointer-events-none' : 'translate-x-0'}
                 bg-background w-full
             `}
         >
-            {/* Mobile Sidebar Toggle Button - Glass Design */}
+            {/* Overlay to close sidebar by tapping the chat on mobile */}
+            {isSidebarOpen && (
+                <div 
+                    className="lg:hidden absolute inset-0 z-[60] cursor-pointer" 
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            {/* Mobile Sidebar Toggle Button - Refined Glass Design */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="lg:hidden fixed top-4 left-4 z-40 size-10 rounded-full bg-white/10 dark:bg-black/20 backdrop-blur-md border border-gray-200/20 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                    className="lg:hidden fixed top-4 left-4 z-[70] size-11 rounded-full bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-gray-200/20 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
                 >
-                    <div className="w-4 h-[2px] bg-foreground rounded-full"></div>
-                    <div className="w-4 h-[2px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2px] bg-foreground rounded-full shadow-sm"></div>
+                    <div className="w-5 h-[2px] bg-foreground rounded-full shadow-sm"></div>
                 </button>
             )}
 
@@ -238,7 +247,7 @@ const App: React.FC = () => {
                                  onFork={() => {}}
                                  isLoading={isLoading && index === (conversations.find(c => c.id === activeConversationId)?.messages.length || 0) - 1}
                                  aiStatus={aiStatus}
-                                 onShowAnalysis={(code, lang) => setAnalysisModalContent({ code, lang })}
+                                 onShowAnalysis={(code, lang) => {}}
                                  executionResults={executionResults}
                                  onStoreExecutionResult={() => {}}
                                  onFixRequest={() => {}}

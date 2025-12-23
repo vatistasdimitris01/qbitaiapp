@@ -20,6 +20,7 @@ export const streamMessageToAI = async (
 ): Promise<void> => {
     const startTime = Date.now();
     let fullResponseAccumulator = "";
+    let toolCallsMade: string[] = [];
 
     const getTextFromMessageContent = (content: MessageContent): string => {
         if (typeof content === 'string') return content;
@@ -37,7 +38,6 @@ export const streamMessageToAI = async (
     }));
 
     try {
-        // Prepare request payload for API
         const payload = {
             history: historyForApi,
             message,
@@ -46,7 +46,7 @@ export const streamMessageToAI = async (
             language,
         };
 
-        // Console Log: Request (Hide sensitive internals as requested)
+        // Console Log: Request
         console.groupCollapsed("%c Qbit API Request ", "background: #1d9bf0; color: white; font-weight: bold; border-radius: 4px;");
         console.log("Endpoint: POST /api/sendMessage");
         console.log("Payload:", {
@@ -54,7 +54,6 @@ export const streamMessageToAI = async (
             message: payload.message,
             location: payload.location,
             language: payload.language
-            // personaInstruction is excluded to hide system instructions
         });
         console.groupEnd();
 
@@ -101,16 +100,21 @@ export const streamMessageToAI = async (
                     if (line.trim() === '') continue;
                     try {
                         const update: StreamUpdate = JSON.parse(line);
-                        if (update.type === 'end') return;
-                        if (update.type === 'error') throw new Error(update.payload);
                         
                         if (update.type === 'chunk') {
                             fullResponseAccumulator += update.payload;
+                        } else if (update.type === 'tool_call') {
+                            toolCallsMade.push(update.payload.name);
+                        } else if (update.type === 'error') {
+                            throw new Error(update.payload);
+                        } else if (update.type === 'end') {
+                            return;
                         }
                         
                         onUpdate(update);
                     } catch (e) {
-                        if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
+                        if (e instanceof Error && e.message.includes("Unexpected end of JSON input")) continue;
+                        throw e;
                     }
                 }
             }
@@ -123,18 +127,26 @@ export const streamMessageToAI = async (
         // Console Log: Response
         console.groupCollapsed("%c Qbit AI Response ", "background: #22c55e; color: white; font-weight: bold; border-radius: 4px;");
         console.log("Duration:", (duration / 1000).toFixed(2), "s");
-        console.log("Content:", fullResponseAccumulator);
+        if (toolCallsMade.length > 0) console.log("Tools Used:", toolCallsMade);
+        console.log("Content:", fullResponseAccumulator || "[Tool Call Only]");
         console.groupEnd();
 
         onFinish(duration);
 
     } catch (error) {
+        const duration = Date.now() - startTime;
         if (error instanceof Error && error.name === 'AbortError') {
-             // Abort is silent to maintain clean console
+             // Abort is silent
         } else {
-            console.error("Error streaming message to AI:", error);
-            onError(error instanceof Error ? error.message : String(error));
-            const duration = Date.now() - startTime;
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            
+            // Console Log: Error (Red Group)
+            console.groupCollapsed("%c Qbit Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
+            console.error("Message:", errorMsg);
+            console.log("Trace:", error);
+            console.groupEnd();
+
+            onError(errorMsg);
             onFinish(duration);
         }
     }

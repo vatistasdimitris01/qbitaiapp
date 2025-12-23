@@ -6,7 +6,7 @@ import fs from 'fs';
 
 interface ApiAttachment {
     mimeType: string;
-    data: string; // base64 encoded
+    data: string;
 }
 
 interface HistoryItem {
@@ -15,14 +15,6 @@ interface HistoryItem {
     files?: ApiAttachment[];
     toolCalls?: any[];
 }
-
-const languageMap: { [key: string]: string } = {
-    en: 'English',
-    el: 'Greek',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-};
 
 export const config = {
   api: {
@@ -47,12 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const payloadJSON = fields.payload?.[0];
-        if (!payloadJSON) throw new Error("Missing 'payload' in form data.");
+        if (!payloadJSON) throw new Error("Missing payload.");
         const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
         
         const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
 
-        if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
+        if (!process.env.API_KEY) throw new Error("API_KEY not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
         const geminiHistory: Content[] = (history as HistoryItem[])
@@ -66,13 +58,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.toolCalls && msg.toolCalls.length > 0) {
                      msg.toolCalls.forEach(tc => {
                          parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         parts.push({ functionResponse: { name: tc.name, response: { content: "UI Rendered" } } }); 
+                         parts.push({ functionResponse: { name: tc.name, response: { content: "Handled" } } }); 
                      });
                 }
-                return {
-                    role: msg.type === 'USER' ? 'user' : 'model',
-                    parts: parts
-                } as Content;
+                return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
             }).filter(c => c.parts.length > 0);
         
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -87,42 +76,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-3-flash-preview';
+        const modelName = 'gemini-3-flash-preview';
         
-        const locationStr = location ? `User's current location is ${location.city}, ${location.country}. ` : '';
-
+        const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const baseSystemInstruction = `You are Qbit, an AI assistant.
-- User Context: ${locationStr}When the user asks about local things (weather, places, news), prioritize their current location in your web search queries.
-- Web access: Use 'google_search'.
-- Stock info: Use 'render_stock_widget'.`;
+- Location: ${locationStr}
+- Web search: Use 'google_search'.
+- Python: Use 'python_execution'.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        const config: GenerateContentConfig = {
+        const genConfig: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
             tools: [{ 
                 functionDeclarations: [
-                    { name: 'google_search', description: 'Web search', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } },
-                    { name: 'render_stock_widget', description: 'Stock info', parameters: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.STRING }, change: { type: Type.STRING }, chartData: { type: Type.OBJECT } }, required: ['symbol', 'price', 'change', 'chartData'] } }
+                    { name: 'google_search', description: 'Search the web for up-to-date info.', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } }
                 ] 
             }],
         };
 
         try {
-            let currentStream = await ai.models.generateContentStream({ model, contents, config });
+            let currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
             let keepGoing = true;
-            let totalChunks = 0;
-            let functionCallToHandle: FunctionCall | null = null;
 
             while (keepGoing) {
                 keepGoing = false;
-                functionCallToHandle = null;
+                let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    if (chunk.candidates?.[0]?.finishReason) {
-                        const reason = chunk.candidates[0].finishReason;
-                        if (reason === 'MAX_TOKENS') write({ type: 'error', payload: 'Token limit reached.' });
-                        if (reason === 'SAFETY') write({ type: 'error', payload: 'Response blocked by safety filters.' });
+                    if (chunk.candidates?.[0]?.finishReason === 'SAFETY') {
+                        write({ type: 'error', payload: 'Blocked by safety filters.' });
                     }
 
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
@@ -131,10 +114,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     
                     const text = chunk.text || '';
                     if (text) {
-                        totalChunks++;
                         write({ type: 'chunk', payload: text });
                     }
-                    if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
                 if (functionCallToHandle) {
@@ -145,26 +126,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const apiKey = process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
-                        let searchResultText = "Search failed.";
+                        let searchResultText = "Search unavailable.";
                         if (apiKey && cseId) {
-                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
-                            const sJson = await resS.json();
-                            if (sJson.items) {
-                                const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
-                                write({ type: 'sources', payload: chunks });
-                                if (sJson.searchInformation?.totalResults) write({ type: 'search_result_count', payload: parseInt(sJson.searchInformation.totalResults, 10) });
-                                searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nSnippet: ${i.snippet}`).join('\n\n');
-                            }
+                            try {
+                                const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                                const sJson = await resS.json();
+                                if (sJson.items) {
+                                    const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
+                                    write({ type: 'sources', payload: chunks });
+                                    searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nSnippet: ${i.snippet}`).join('\n\n');
+                                }
+                            } catch (e) {}
                         }
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
+                        currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36) } });
+                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Done" } } }] });
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
+                        currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     }
                 }
@@ -175,7 +157,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) { write({ type: 'error', payload: msg }); res.end(); }
-        else res.status(500).json({ error: { message: msg } });
+        if (res.headersSent) { 
+            write({ type: 'error', payload: msg }); 
+            res.end(); 
+        } else {
+            res.status(500).json({ error: { message: msg } });
+        }
     }
 }

@@ -110,27 +110,32 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleNewChat = useCallback(() => {
-    const newConvo: Conversation = {
-        id: Date.now().toString(),
-        title: t('sidebar.newChat'),
-        messages: [],
-        createdAt: new Date().toISOString(),
-        greeting: getRandomGreeting(),
-    };
-    setConversations(prev => [newConvo, ...prev]);
-    setActiveConversationId(newConvo.id);
+    // Instead of creating a conversation immediately, we just reset the active ID.
+    // The homepage GreetingMessage will show when activeConversationId is null.
+    setActiveConversationId(null);
     setChatInputText('');
     setReplyContextText(null);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  }, [t]);
+  }, []);
 
   const handleSendMessage = useCallback(async (text: string, attachments: File[] = []) => {
     if (!text.trim() && attachments.length === 0) return;
+    
     let currentConvoId = activeConversationId;
+    let updatedConversations = [...conversations];
+
+    // If there's no active conversation, create one now (Lazy initialization)
     if (!currentConvoId) {
-        const newConvo: Conversation = { id: Date.now().toString(), title: text.slice(0, 30) || 'New Chat', messages: [], createdAt: new Date().toISOString(), greeting: getRandomGreeting() };
-        setConversations(prev => [newConvo, ...prev]);
+        const newConvo: Conversation = { 
+            id: Date.now().toString(), 
+            title: text.slice(0, 40) || 'New Chat', 
+            messages: [], 
+            createdAt: new Date().toISOString(), 
+            greeting: getRandomGreeting() 
+        };
+        updatedConversations = [newConvo, ...updatedConversations];
         currentConvoId = newConvo.id;
+        setConversations(updatedConversations);
         setActiveConversationId(newConvo.id);
     }
 
@@ -142,15 +147,22 @@ const App: React.FC = () => {
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
     const aiMsgId = (Date.now() + 1).toString();
 
-    setConversations(prev => prev.map(c => c.id === currentConvoId ? { ...c, messages: [...c.messages, newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }] } : c));
+    setConversations(prev => prev.map(c => c.id === currentConvoId ? { 
+        ...c, 
+        messages: [...c.messages, newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }] 
+    } : c));
+    
     setIsLoading(true);
     setAiStatus('thinking');
 
     const abort = new AbortController();
     abortControllerRef.current = abort;
 
+    const currentConvo = updatedConversations.find(c => c.id === currentConvoId);
+    const history = currentConvo ? currentConvo.messages : [];
+
     await streamMessageToAI(
-        conversations.find(c => c.id === currentConvoId)?.messages || [],
+        history,
         text,
         attachments,
         undefined,
@@ -163,8 +175,16 @@ const App: React.FC = () => {
                     const messages = [...c.messages];
                     const idx = messages.findIndex(m => m.id === aiMsgId);
                     if (idx !== -1) {
-                        if (update.type === 'chunk') { setAiStatus('generating'); messages[idx].content += update.payload; }
-                        else if (update.type === 'sources') { messages[idx].groundingChunks = [...(messages[idx].groundingChunks || []), ...update.payload]; }
+                        if (update.type === 'chunk') { 
+                            setAiStatus('generating'); 
+                            messages[idx].content += update.payload; 
+                        }
+                        else if (update.type === 'sources') { 
+                            messages[idx].groundingChunks = [...(messages[idx].groundingChunks || []), ...update.payload]; 
+                        }
+                        else if (update.type === 'searching') {
+                            setAiStatus('searching');
+                        }
                     }
                     return { ...c, messages };
                 }
@@ -175,6 +195,8 @@ const App: React.FC = () => {
         (err) => { setIsLoading(false); setAiStatus('error'); }
     );
   }, [activeConversationId, conversations, userLocation, language]);
+
+  const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   return (
     <div 
@@ -189,7 +211,10 @@ const App: React.FC = () => {
             activeConversationId={activeConversationId}
             onNewChat={handleNewChat}
             onSelectConversation={(id) => { setActiveConversationId(id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
-            onDeleteConversation={(id) => setConversations(prev => prev.filter(c => c.id !== id))}
+            onDeleteConversation={(id) => {
+                setConversations(prev => prev.filter(c => c.id !== id));
+                if (activeConversationId === id) setActiveConversationId(null);
+            }}
             onOpenSettings={() => setIsSettingsOpen(true)}
             t={t}
         />
@@ -214,28 +239,30 @@ const App: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-48 scrollbar-none">
                 <div className="max-w-3xl mx-auto flex flex-col min-h-full">
-                     {(!activeConversationId || conversations.find(c => c.id === activeConversationId)?.messages.length === 0) ? (
+                     {(!activeConversation || activeConversation.messages.length === 0) ? (
                         <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">
                             <GreetingMessage />
                         </div>
                      ) : (
-                         conversations.find(c => c.id === activeConversationId)?.messages.map((msg, index) => (
+                         activeConversation.messages.map((msg, index) => (
                              <ChatMessage
                                  key={msg.id}
                                  message={msg}
                                  onRegenerate={() => {}}
                                  onFork={() => {}}
-                                 isLoading={isLoading && index === (conversations.find(c => c.id === activeConversationId)?.messages.length || 0) - 1}
+                                 isLoading={isLoading && index === activeConversation.messages.length - 1}
                                  aiStatus={aiStatus}
                                  onShowAnalysis={(code, lang) => {}}
                                  executionResults={executionResults}
-                                 onStoreExecutionResult={() => {}}
+                                 onStoreExecutionResult={(msgId, partIdx, res) => {
+                                     setExecutionResults(prev => ({ ...prev, [`${msgId}_${partIdx}`]: res }));
+                                 }}
                                  onFixRequest={() => {}}
                                  onStopExecution={() => stopPythonExecution()}
                                  isPythonReady={isPythonReady}
                                  t={t}
                                  onOpenLightbox={(imgs, idx) => setLightboxState({ images: imgs, startIndex: idx })}
-                                 isLast={index === (conversations.find(c => c.id === activeConversationId)?.messages.length || 0) - 1}
+                                 isLast={index === activeConversation.messages.length - 1}
                                  onSendSuggestion={handleSendMessage}
                              />
                          ))

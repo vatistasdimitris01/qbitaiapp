@@ -87,6 +87,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Standard desktop view starts with sidebar open
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
   }, []);
 
@@ -197,15 +198,15 @@ const App: React.FC = () => {
         <main 
             ref={mainContentRef}
             className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
-                ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[60px]'}
+                ${isSidebarOpen ? 'lg:ml-[260px]' : 'ml-0'}
                 bg-background w-full
             `}
         >
-            {/* Sidebar Trigger Button for Mobile - BURGER ICON (==-) */}
+            {/* Burger Trigger Button - Visible on all screens when sidebar is closed */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="lg:hidden fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all text-foreground"
+                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all text-foreground"
                 >
                     <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
                     <div className="w-5 h-[2px] bg-foreground rounded-full"></div>

@@ -58,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 geminiHistory.push({ role: 'user', parts });
             } else if (msg.type === 'AI_RESPONSE') {
                 const parts: Part[] = [];
+                // Check if content has thinking tags already and preserve them or handle raw text
                 if (msg.content) parts.push({ text: msg.content });
                 if (msg.toolCalls) {
                     msg.toolCalls.forEach(tc => parts.push({ functionCall: { name: tc.name, args: tc.args } }));
@@ -93,8 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const baseSystemInstruction = `You are Qbit, an AI assistant.
 - Location: ${locationStr}
-- Web search: ALWAYS use 'google_search' tool for recent info.
-- Python: Use 'python_execution'.`;
+- Web search: ALWAYS use 'google_search' tool for recent info or if the user asks for news.
+- Python: Use 'python_execution' for code and calculations.
+- Reasoning: If you need to think or plan, use your internal thinking process.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
@@ -102,7 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             systemInstruction: finalSystemInstruction,
             tools: [{ 
                 functionDeclarations: [
-                    { name: 'google_search', description: 'Search the web for news, events, or general info.', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } }
+                    { 
+                        name: 'google_search', 
+                        description: 'Search the web using Google Search. Use this for current events, news, or general knowledge validation.', 
+                        parameters: { 
+                            type: Type.OBJECT, 
+                            properties: { 
+                                query: { type: Type.STRING, description: 'The search query.' } 
+                            }, 
+                            required: ['query'] 
+                        } 
+                    }
                 ] 
             }],
         };
@@ -116,10 +128,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
+                    // Extract text parts
                     const text = chunk.text;
                     if (text) {
                         write({ type: 'chunk', payload: text });
                     }
+
+                    // Handle Thinking/Thought parts for Gemini 3
+                    const candidate = chunk.candidates?.[0];
+                    if (candidate?.content?.parts) {
+                        for (const part of candidate.content.parts) {
+                            if ('thought' in part && (part as any).thought) {
+                                // Send thinking wrapped in tags for the frontend to handle
+                                write({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
+                            }
+                        }
+                    }
+
+                    // Check for function calls
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
@@ -133,6 +159,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const apiKey = process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
+                        console.log(`[Qbit] Performing Google Search: "${query}"`);
+
                         let searchResultText = "Search unavailable.";
                         if (apiKey && cseId) {
                             try {
@@ -141,10 +169,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 if (sJson.items) {
                                     const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                     write({ type: 'sources', payload: chunks });
-                                    searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nSnippet: ${i.snippet}`).join('\n\n');
+                                    write({ type: 'search_result_count', payload: sJson.searchInformation?.totalResults || sJson.items.length });
+                                    searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
+                                } else {
+                                    searchResultText = "No results found for this query.";
                                 }
                             } catch (e) {
-                                searchResultText = "Search failed.";
+                                console.error("[Qbit] Search Error:", e);
+                                searchResultText = "Search failed due to an internal error.";
                             }
                         }
                         
@@ -154,6 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     } else {
+                        // For other tools like Generative UI ones
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
@@ -168,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
+        console.error("[Qbit] API Handler Error:", msg);
         if (res.headersSent) { 
             write({ type: 'error', payload: msg }); 
             res.end(); 

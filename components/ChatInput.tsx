@@ -107,11 +107,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
         </div>
       )}
 
-      {/* Main Input Bar - Now responsive to Light/Dark Mode */}
-      <div className="bg-white dark:bg-[#1f1f1f] rounded-[28px] border border-gray-200 dark:border-[#333333] flex items-end gap-2 p-2 shadow-2xl relative transition-colors duration-200">
+      {/* Main Input Bar */}
+      <div className="bg-white dark:bg-[#1f1f1f] rounded-full border border-gray-200 dark:border-[#333333] flex items-center gap-3 p-3 shadow-2xl relative transition-colors duration-200">
         
         {/* Attach Button */}
-        <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0 mb-0.5">
+        <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -119,7 +119,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             className="hidden" 
             multiple 
           />
-          <PaperclipIcon className="size-5 text-black dark:text-white" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-black dark:text-white">
+            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
+          </svg>
         </label>
 
         {/* Textarea */}
@@ -128,18 +130,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('chat.input.placeholder')}
+          placeholder="Ask Grok anything..."
           rows={1}
-          className="flex-1 bg-transparent outline-none text-black dark:text-[#e0e0e0] placeholder-gray-500 dark:placeholder-[#888888] text-base py-2.5 px-1 resize-none min-h-[40px] max-h-[200px] overflow-y-auto scrollbar-none"
+          className="flex-1 bg-transparent outline-none text-black dark:text-[#e0e0e0] placeholder-gray-500 dark:placeholder-[#888888] text-base py-2 px-1 resize-none min-h-[40px] max-h-[200px] overflow-y-hidden"
         />
 
-        {/* Dynamic Right Button */}
-        <div className="flex items-center justify-center w-10 h-10 flex-shrink-0 mb-0.5">
+        {/* Dynamic Right Button Area */}
+        <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
           {isLoading ? (
             <button
               onClick={onAbortGeneration}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
-              title={t('chat.input.stop')}
             >
               <StopCircleIcon className="size-5" />
             </button>
@@ -147,9 +148,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             <button
               onClick={handleSend}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
-              title={t('chat.input.submit')}
             >
-              <ArrowUpIcon className="size-5" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] stroke-white dark:stroke-black">
+                <path d="m5 12 7-7 7 7"></path>
+                <path d="M12 19V5"></path>
+              </svg>
             </button>
           ) : (
             <div className="w-10 h-10 bg-black dark:bg-white rounded-full flex items-center justify-center gap-0.5 cursor-pointer hover:opacity-90 transition-all">

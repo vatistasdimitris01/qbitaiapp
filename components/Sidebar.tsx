@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Conversation } from '../types';
 import {
@@ -195,9 +196,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                                             {convo.title}
                                         </span>
                                         
-                                        {/* Hover Options */}
+                                        {/* Hover Options - Always visible on mobile, hover only on desktop */}
                                         <div 
-                                            className="items-center justify-center h-6 w-6 hidden group-hover/sidebar-menu-item:flex hover:bg-surface-l1 rounded-lg text-muted-foreground hover:text-foreground transition-colors z-10"
+                                            className="items-center justify-center h-6 w-6 flex lg:hidden lg:group-hover/sidebar-menu-item:flex hover:bg-surface-l1 rounded-lg text-muted-foreground hover:text-foreground transition-colors z-10"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (window.confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { Message, AIStatus, GroundingChunk } from '../types';
@@ -430,8 +429,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
 
-            {/* AI Action Icons Row */}
-            <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
+            {/* AI Action Icons Row - Always visible on mobile, hover only on desktop */}
+            <div className="flex items-center gap-1 mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
                 <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                     <MessageRefreshIcon className="size-4" />
                 </button>

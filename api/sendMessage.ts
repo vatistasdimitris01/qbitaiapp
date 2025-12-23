@@ -20,31 +20,30 @@ export default async function handler(req: Request) {
         const { history, message, personaInstruction, location } = JSON.parse(payloadJSON);
         const uploadedFiles = formData.getAll('file') as File[];
 
-        // Collect all potential API keys from environment
+        // 1. Collect all potential API keys
         const apiKeys: string[] = [];
         
-        // 1. Check primary API_KEY (can be comma-separated)
-        if (process.env.API_KEY) {
-            process.env.API_KEY.split(',').forEach(k => {
-                const trimmed = k.trim();
-                if (trimmed && !apiKeys.includes(trimmed)) apiKeys.push(trimmed);
-            });
-        }
-        
-        // 2. Check for indexed keys (API_KEY_2, API_KEY_3, ...)
+        // Add keys from API_KEY (handles comma-separated)
+        const primary = process.env.API_KEY || "";
+        primary.split(',').forEach(k => {
+            const t = k.trim();
+            if (t && !apiKeys.includes(t)) apiKeys.push(t);
+        });
+
+        // Add keys from API_KEY_2 up to API_KEY_10
         for (let i = 2; i <= 10; i++) {
-            const keyName = `API_KEY_${i}`;
-            const val = (process.env as any)[keyName];
+            const val = (process.env as any)[`API_KEY_${i}`];
             if (val) {
                 val.split(',').forEach((k: string) => {
-                    const trimmed = k.trim();
-                    if (trimmed && !apiKeys.includes(trimmed)) apiKeys.push(trimmed);
+                    const t = k.trim();
+                    if (t && !apiKeys.includes(t)) apiKeys.push(t);
                 });
             }
         }
 
-        if (apiKeys.length === 0) throw new Error("No API keys found in environment.");
+        if (apiKeys.length === 0) throw new Error("No API keys found. Please set API_KEY in environment.");
 
+        // 2. Prepare History for Gemini
         const geminiHistory: Content[] = [];
         for (const msg of history) {
             if (msg.type === 'USER') {
@@ -67,7 +66,7 @@ export default async function handler(req: Request) {
                         msg.toolCalls.forEach((tc: any) => {
                             geminiHistory.push({ 
                                 role: 'function', 
-                                parts: [{ functionResponse: { name: tc.name, response: { content: "Success" } } }] 
+                                parts: [{ functionResponse: { name: tc.name, response: { content: "Handled" } } }] 
                             });
                         });
                     }
@@ -93,7 +92,7 @@ export default async function handler(req: Request) {
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Search the web for current information.', 
+                    description: 'Search the web using Google.', 
                     parameters: { 
                         type: Type.OBJECT, 
                         properties: { query: { type: Type.STRING } }, 
@@ -108,104 +107,95 @@ export default async function handler(req: Request) {
                 const enqueue = (obj: object) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
 
                 let currentKeyIndex = 0;
-                let success = false;
+                let attemptSuccess = false;
 
-                while (!success && currentKeyIndex < apiKeys.length) {
+                while (!attemptSuccess && currentKeyIndex < apiKeys.length) {
                     const activeKey = apiKeys[currentKeyIndex];
                     const ai = new GoogleGenAI({ apiKey: activeKey });
                     
                     try {
                         let currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                        let keepGoing = true;
+                        let toolLoop = true;
 
-                        while (keepGoing) {
-                            keepGoing = false;
-                            let functionCallToHandle: any = null;
+                        while (toolLoop) {
+                            toolLoop = false;
+                            let fc: any = null;
 
                             for await (const chunk of currentStream) {
-                                if (chunk.text) {
-                                    enqueue({ type: 'chunk', payload: chunk.text });
-                                }
+                                if (chunk.text) enqueue({ type: 'chunk', payload: chunk.text });
 
                                 const candidates = chunk.candidates;
-                                if (candidates && candidates.length > 0) {
-                                    const parts = candidates[0].content?.parts;
-                                    if (parts) {
-                                        for (const part of parts) {
-                                            if ('thought' in part && (part as any).thought) {
-                                                enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
-                                            }
-                                            if ('text' in part && part.text && !chunk.text) {
-                                                enqueue({ type: 'chunk', payload: part.text });
-                                            }
-                                            if ('functionCall' in part && part.functionCall) {
-                                                functionCallToHandle = part.functionCall;
-                                            }
+                                if (candidates?.[0]?.content?.parts) {
+                                    for (const part of candidates[0].content.parts) {
+                                        if ('thought' in part && (part as any).thought) {
+                                            enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
+                                        }
+                                        if ('text' in part && part.text && !chunk.text) {
+                                            enqueue({ type: 'chunk', payload: part.text });
+                                        }
+                                        if ('functionCall' in part && part.functionCall) {
+                                            fc = part.functionCall;
                                         }
                                     }
                                 }
                             }
 
-                            if (functionCallToHandle) {
-                                const fc = functionCallToHandle;
+                            if (fc) {
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
-                                    const query = fc.args.query as string;
                                     const cseId = process.env.GOOGLE_CSE_ID;
+                                    let searchResult = "Search unavailable.";
 
-                                    let searchResultText = "Search unavailable.";
                                     if (activeKey && cseId) {
                                         try {
-                                            // Using activeKey for the search tool as well
-                                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                                            const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=10`);
                                             const sJson = await resS.json();
                                             if (sJson.items) {
                                                 const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: chunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
+                                                searchResult = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
                                             } else {
-                                                searchResultText = "No results found.";
+                                                searchResult = "No results found.";
                                             }
                                         } catch (e) {
-                                            searchResultText = "Search error.";
+                                            searchResult = "Search error occurred.";
                                         }
                                     }
                                     
                                     contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
-                                    
+                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                                    keepGoing = true;
+                                    toolLoop = true;
                                 } else {
                                     enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
                                     contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                                    keepGoing = true;
+                                    toolLoop = true;
                                 }
                             }
                         }
                         enqueue({ type: 'end' });
-                        success = true;
+                        attemptSuccess = true;
                     } catch (err: any) {
-                        const errorStr = String(err.message || err);
+                        const errorStr = String(err.message || err).toLowerCase();
                         const isRateLimit = errorStr.includes("429") || 
-                                           errorStr.includes("Too Many Requests") || 
-                                           errorStr.includes("RESOURCE_EXHAUSTED") ||
+                                           errorStr.includes("too many requests") || 
+                                           errorStr.includes("resource_exhausted") || 
                                            errorStr.includes("quota");
 
-                        if (isRateLimit) {
+                        if (isRateLimit && currentKeyIndex < apiKeys.length - 1) {
+                            console.warn(`Key ${currentKeyIndex + 1} exhausted. Rotating...`);
                             currentKeyIndex++;
-                            if (currentKeyIndex < apiKeys.length) {
-                                // Transparently retry with next key
-                                continue;
-                            }
+                            // Clear history of current partial stream if we already sent chunks
+                            // but actually, we can't "un-send" chunks. 
+                            // However, Gemini errors usually happen at the START of the stream.
+                            continue;
                         }
                         
-                        // If we're here, either it's not a rate limit error or we ran out of keys
                         enqueue({ type: 'error', payload: err.message || "An unexpected error occurred." });
-                        success = true;
+                        attemptSuccess = true;
                     }
                 }
                 controller.close();

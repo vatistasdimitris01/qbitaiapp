@@ -1,6 +1,6 @@
 
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { PaperclipIcon, ArrowUpIcon, XIcon, ReplyIcon } from './icons';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import { PaperclipIcon, XIcon, ReplyIcon } from './icons';
 
 interface ChatInputProps {
   text: string;
@@ -31,20 +31,30 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [attachedFiles, setAttachedFiles] = React.useState<File[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
 
   useImperativeHandle(ref, () => ({
     focus: () => textareaRef.current?.focus(),
     handleFiles: (files: FileList) => {
         const newFiles = Array.from(files);
         setAttachedFiles(prev => [...prev, ...newFiles]);
+        newFiles.forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => setPreviews(prev => [...prev, e.target?.result as string]);
+                reader.readAsDataURL(file);
+            } else {
+                setPreviews(prev => [...prev, 'file']);
+            }
+        });
     }
   }));
 
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [text]);
 
@@ -53,38 +63,25 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       onSendMessage(text, attachedFiles);
       onTextChange('');
       setAttachedFiles([]);
+      setPreviews([]);
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setAttachedFiles(prev => [...prev, ...newFiles]);
-      e.target.value = '';
     }
   };
 
   const removeFile = (index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const hasText = text.trim().length > 0;
+  const hasContent = text.trim().length > 0 || attachedFiles.length > 0;
 
   return (
     <div className="w-full flex flex-col gap-2">
-      {/* Previews for replies and files */}
-      {(replyContextText || attachedFiles.length > 0) && (
-        <div className="flex flex-col gap-2 px-4 mb-2">
+      {/* Reply and File Previews Container */}
+      {(replyContextText || previews.length > 0) && (
+        <div className="flex flex-col gap-2 px-2 mb-1">
           {replyContextText && (
-            <div className="flex items-center gap-2 bg-surface-l1 border border-border p-2 rounded-xl text-xs text-muted-foreground animate-fade-in-up">
+            <div className="flex items-center gap-2 bg-surface-l1 dark:bg-[#111] border border-border p-2 rounded-xl text-xs text-muted-foreground animate-fade-in-up shadow-sm">
               <ReplyIcon className="size-3 shrink-0" />
               <span className="truncate flex-1">{replyContextText}</span>
               <button onClick={onClearReplyContext} className="p-1 hover:bg-surface-l2 rounded-full">
@@ -92,12 +89,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               </button>
             </div>
           )}
-          {attachedFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {attachedFiles.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 bg-surface-l1 border border-border pl-2 pr-1 py-1 rounded-lg text-xs animate-fade-in-up">
-                  <span className="truncate max-w-[120px]">{file.name}</span>
-                  <button onClick={() => removeFile(i)} className="p-1 hover:bg-surface-l2 rounded-full">
+          {previews.length > 0 && (
+            <div className="flex flex-wrap gap-2 animate-fade-in-up">
+              {previews.map((src, i) => (
+                <div key={i} className="relative group size-16 rounded-xl border border-border overflow-hidden bg-surface-l1 shadow-sm">
+                  {src === 'file' ? (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] p-1 text-center truncate">
+                        {attachedFiles[i]?.name}
+                    </div>
+                  ) : (
+                    <img src={src} className="w-full h-full object-cover" alt="" />
+                  )}
+                  <button 
+                    onClick={() => removeFile(i)}
+                    className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     <XIcon className="size-3" />
                   </button>
                 </div>
@@ -109,80 +115,54 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
       {/* Main Input Bar */}
       <div 
-        className="bg-white dark:bg-[#1f1f1f] rounded-full border border-gray-200 dark:border-[#333333] flex items-center gap-3 p-3 relative transition-all duration-200 dark:[box-shadow:0_-8px_20px_rgba(0,0,0,0.4)]"
-        style={{ 
-          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
-        }}
+        className="bg-white dark:bg-[#1f1f1f] lg:dark:bg-[#1f1f1f] dark:bg-surface-l1 rounded-[1.75rem] border border-gray-200 dark:border-[#27272a] flex items-end gap-2 p-2 relative shadow-lg"
       >
-        
-        {/* Attach Button */}
-        <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0">
+        <label className="flex items-center justify-center size-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0 mb-0.5">
           <input 
             type="file" 
             ref={fileInputRef} 
-            onChange={onFileChange} 
+            onChange={(e) => e.target.files && (ref as any).current?.handleFiles(e.target.files)} 
             className="hidden" 
             multiple 
           />
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2] text-black dark:text-white">
-            <path d="M10 9V15C10 16.1046 10.8954 17 12 17V17C13.1046 17 14 16.1046 14 15V7C14 4.79086 12.2091 3 10 3V3C7.79086 3 6 4.79086 6 7V15C6 18.3137 8.68629 21 12 21V21C15.3137 21 18 18.3137 18 15V8" stroke="currentColor"></path>
-          </svg>
+          <PaperclipIcon className="size-5 text-muted-foreground" />
         </label>
 
-        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
           placeholder="Ask Grok anything..."
+          className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-[16px] py-2.5 px-1 resize-none max-h-[200px]"
           rows={1}
-          className="flex-1 bg-transparent outline-none text-black dark:text-[#e0e0e0] placeholder-gray-500 dark:placeholder-[#888888] text-base py-2 px-1 resize-none min-h-[40px] max-h-[200px] overflow-y-hidden"
         />
 
-        {/* Dynamic Right Button Area */}
-        <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
+        <div className="flex items-center justify-center size-10 flex-shrink-0 mb-0.5">
           {isLoading ? (
             <button
               onClick={onAbortGeneration}
-              className="h-10 aspect-square flex flex-col items-center justify-center rounded-full ring-1 ring-inset bg-black text-white transition-opacity hover:opacity-90 cursor-pointer"
-              title={t('chat.input.stop')}
+              className="size-8 flex items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-90"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2]">
-                <path d="M4 9.2v5.6c0 1.116 0 1.673.11 2.134a4 4 0 0 0 2.956 2.956c.46.11 1.018.11 2.134.11h5.6c1.116 0 1.673 0 2.134-.11a4 4 0 0 0 2.956-2.956c.11-.46.11-1.018.11-2.134V9.2c0-1.116 0-1.673-.11-2.134a4 4 0 0 0-2.956-2.955C16.474 4 15.916 4 14.8 4H9.2c-1.116 0-1.673 0-2.134.11a4 4 0 0 0-2.955 2.956C4 7.526 4 8.084 4 9.2Z" fill="currentColor"></path>
-              </svg>
-            </button>
-          ) : hasText || attachedFiles.length > 0 ? (
-            <button
-              onClick={handleSend}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5] stroke-white dark:stroke-black">
-                <path d="m5 12 7-7 7 7"></path>
-                <path d="M12 19V5"></path>
-              </svg>
+              <div className="size-3 bg-current rounded-sm"></div>
             </button>
           ) : (
-            <div className="w-10 h-10 bg-black dark:bg-white rounded-full flex items-center justify-center gap-0.5 cursor-pointer hover:opacity-90 transition-all">
-                <div className="w-0.5 bg-white dark:bg-black rounded-full" style={{ height: '0.4rem' }}></div>
-                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '0.8rem' }}></div>
-                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '1.2rem', animationDelay: '0.1s' }}></div>
-                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '0.7rem', animationDelay: '0.2s' }}></div>
-                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '1rem', animationDelay: '0.3s' }}></div>
-                <div className="w-0.5 bg-white dark:bg-black rounded-full" style={{ height: '0.4rem' }}></div>
-            </div>
+            <button
+              onClick={handleSend}
+              disabled={!hasContent}
+              className={`flex items-center justify-center size-8 rounded-full transition-all ${hasContent ? 'bg-foreground text-background scale-110' : 'bg-transparent text-muted-foreground opacity-30 cursor-default'}`}
+            >
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2.5]">
+                <path d="m5 12 7-7 7 7" stroke="currentColor"></path>
+                <path d="M12 19V5" stroke="currentColor"></path>
+              </svg>
+            </button>
           )}
         </div>
       </div>
-      
-      {/* Disclaimer */}
-      <p className="text-[10px] text-gray-500 dark:text-[#888888] text-center mt-1 px-4">
-        {t('chat.input.disclaimer')}
-      </p>
     </div>
   );
 });
 
 ChatInput.displayName = 'ChatInput';
-
 export default ChatInput;

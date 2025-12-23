@@ -13,8 +13,7 @@ const encoder = new TextEncoder();
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
@@ -35,16 +34,20 @@ export default async function handler(req: Request) {
     const { message, personaInstruction, location } = parsed;
     const uploadedFiles = formData.getAll('file') as File[];
 
+    // Access environment variables safely for Edge
+    const ENV = process.env;
+    const GOOGLE_CSE_ID = ENV.GOOGLE_CSE_ID;
+
     // 1. Gather API keys for rotation
     const apiKeys: string[] = [];
-    const primary = process.env.API_KEY || "";
+    const primary = ENV.API_KEY || "";
     primary.split(',').forEach(k => {
       const t = k.trim();
       if (t && !apiKeys.includes(t)) apiKeys.push(t);
     });
 
     for (let i = 2; i <= 10; i++) {
-      const val = (process.env as any)[`API_KEY_${i}`];
+      const val = (ENV as any)[`API_KEY_${i}`];
       if (val) {
         val.split(',').forEach((k: string) => {
           const t = k.trim();
@@ -55,7 +58,7 @@ export default async function handler(req: Request) {
 
     if (apiKeys.length === 0) throw new Error("No API keys found.");
 
-    // 2. Prepare History (Clean and validate)
+    // 2. Prepare History
     const geminiHistory: Content[] = [];
     for (const msg of history) {
       if (msg.type === 'USER') {
@@ -71,9 +74,9 @@ export default async function handler(req: Request) {
         const parts: Part[] = [];
         const content = msg.content === "[Output contains no text]" ? "" : (msg.content || "");
 
-        // Remove <thinking> tags from history to prevent signature validation issues
-        const cleanContent = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-        if (cleanContent) parts.push({ text: cleanContent });
+        // Remove <thinking> tags to avoid signature conflicts in reconstructed history
+        const cleanText = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
+        if (cleanText) parts.push({ text: cleanText });
 
         if (msg.toolCalls && Array.isArray(msg.toolCalls)) {
           msg.toolCalls.forEach((tc: any) => {
@@ -102,7 +105,7 @@ export default async function handler(req: Request) {
       userParts.push({ inlineData: { mimeType: file.type || 'application/octet-stream', data: base64 } });
     }
 
-    let contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
+    const contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
     const modelName = 'gemini-3-flash-preview';
 
     const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
@@ -113,8 +116,7 @@ ${locationStr}
 
 CRITICAL:
 - Use 'google_search' for real-time data like weather, news, and current events.
-- When searching, use specific queries (e.g., "weather in Athens today").
-- Summarize findings clearly after the search.`;
+- Summarize search results concisely.`;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -128,18 +130,17 @@ CRITICAL:
           const ai = new GoogleGenAI({ apiKey: activeKey });
 
           try {
-            // Initial call configuration
             let genParams: GenerateContentParameters = {
               model: modelName,
               contents,
               config: {
                 systemInstruction,
-                // Set thinking budget to 0 to avoid the "thought_signature" requirement during tool loops
+                // Setting thinkingBudget to 0 prevents the 'thought_signature' requirement for tool calls
                 thinkingConfig: { thinkingBudget: 0 },
                 tools: [{
                   functionDeclarations: [{
                     name: 'google_search',
-                    description: 'Search the web using Google for current news, weather, and facts.',
+                    description: 'Live web search for weather, news, stocks, and current events.',
                     parameters: {
                       type: Type.OBJECT,
                       properties: { query: { type: Type.STRING } },
@@ -147,7 +148,11 @@ CRITICAL:
                     }
                   }]
                 }],
-                toolConfig: { functionCallingConfig: { mode: 'AUTO' as any } }
+                toolConfig: {
+                  functionCallingConfig: {
+                    mode: 'AUTO' as any
+                  }
+                }
               },
             };
 
@@ -155,7 +160,7 @@ CRITICAL:
             let turnCount = 0;
             let activeTurn = true;
 
-            while (activeTurn && turnCount < 5) {
+            while (activeTurn && turnCount < 4) {
               activeTurn = false;
               turnCount++;
               let activeFC: any = null;
@@ -168,9 +173,6 @@ CRITICAL:
                 if (candidates?.[0]?.content?.parts) {
                   for (const part of candidates[0].content.parts) {
                     turnPartsCaptured.push(part);
-                    if ('thought' in part && (part as any).thought) {
-                      enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
-                    }
                     if ('functionCall' in part && part.functionCall) {
                       activeFC = part.functionCall;
                     }
@@ -182,30 +184,29 @@ CRITICAL:
                 const fc = activeFC;
                 if (fc.name === 'google_search') {
                   enqueue({ type: 'searching' });
-                  const cseId = process.env.GOOGLE_CSE_ID;
-                  let searchResultText = "No results found.";
+                  let searchResult = "No search results.";
 
-                  if (activeKey && cseId) {
+                  if (activeKey && GOOGLE_CSE_ID) {
                     try {
-                      const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=8`);
+                      const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${GOOGLE_CSE_ID}&q=${encodeURIComponent(fc.args.query)}&num=10`);
                       const sJson = await resS.json();
                       if (sJson.items) {
                         const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                         enqueue({ type: 'sources', payload: sourceChunks });
                         enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                        searchResultText = sJson.items.map((i: any, idx: number) => `[${idx + 1}] ${i.title}\n${i.snippet}`).join('\n\n');
+                        searchResult = sJson.items.map((i: any, idx: number) => `[${idx+1}] ${i.title}\n${i.snippet}`).join('\n\n');
                       }
                     } catch (e) {
-                      searchResultText = "Web search failed due to a connectivity error.";
+                      searchResult = "Web search failed.";
                     }
                   }
 
-                  // Update history: Re-append the model's call parts exactly as received
-                  // and append the function response.
+                  // Append exactly what the model returned (including internal SDK state) 
+                  // and then append the function response
                   contents.push({ role: 'model', parts: turnPartsCaptured });
                   contents.push({
                     role: 'function',
-                    parts: [{ functionResponse: { name: 'google_search', response: { result: searchResultText } } }]
+                    parts: [{ functionResponse: { name: 'google_search', response: { result: searchResult } } }]
                   });
 
                   genParams = { ...genParams, contents };
@@ -222,7 +223,7 @@ CRITICAL:
               currentKeyIndex++;
               continue;
             }
-            enqueue({ type: 'error', payload: err.message || "An internal error occurred during generation." });
+            enqueue({ type: 'error', payload: err.message || "A generation error occurred." });
             attemptSuccess = true;
           }
         }
@@ -232,7 +233,7 @@ CRITICAL:
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
         'Cache-Control': 'no-cache',
       },
     });

@@ -6,31 +6,20 @@ import {
   SearchIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  SettingsIcon
+  SettingsIcon,
+  XIcon,
+  // Add missing Trash2Icon import
+  Trash2Icon
 } from './icons';
-
-interface SidebarProps {
-  isOpen: boolean;
-  toggleSidebar: () => void;
-  conversations: Conversation[];
-  activeConversationId: string | null;
-  onNewChat: () => void;
-  onSelectConversation: (id: string) => void;
-  onDeleteConversation: (id: string) => void;
-  onOpenSettings: () => void;
-  t: (key: string) => string;
-}
 
 // --- Logo Component (Theme-Aware) ---
 const LogoIcon = () => (
   <div className="flex items-center justify-center size-10">
-    {/* Dark logo for Light Mode */}
     <img 
       src="https://i.ibb.co/xSFyPCxH/Untitled-design-1-removebg-preview.png" 
       alt="Qbit Logo" 
       className="w-full h-full object-contain dark:hidden pointer-events-none"
     />
-    {/* Light logo for Dark Mode */}
     <img 
       src="https://i.ibb.co/3yWj2f1Q/Untitled-design-removebg-preview.png" 
       alt="Qbit Logo" 
@@ -72,9 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   );
 
   const handleSearchClick = () => {
-      if (isOpen) {
-          setIsSearchActive(true);
-      } else {
+      if (isOpen) setIsSearchActive(true);
+      else {
           toggleSidebar();
           setTimeout(() => setIsSearchActive(true), 200);
       }
@@ -100,25 +88,34 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`
-      flex flex-col h-full bg-sidebar z-[10] fixed inset-y-0 left-0
+      flex flex-col h-full bg-sidebar z-[80] fixed inset-y-0 left-0
       transform transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
       border-r border-border
-      ${isOpen ? 'translate-x-0 w-[260px]' : 'max-lg:-translate-x-full lg:translate-x-0 lg:w-[60px]'}
+      ${isOpen ? 'translate-x-0 w-full lg:w-[260px]' : 'max-lg:-translate-x-full lg:translate-x-0 lg:w-[60px]'}
     `}>
-      {/* Header (Logo) - Centered */}
-      <div className="h-[4rem] flex items-center justify-center shrink-0">
+      {/* Header (Logo & Glassy Close Button for Mobile) */}
+      <div className="h-[5rem] flex items-center justify-between px-6 shrink-0">
           <button onClick={onNewChat} className="p-1 rounded-xl hover:bg-surface-l2 transition-colors focus:outline-none" aria-label="Home">
               <LogoIcon />
+          </button>
+          
+          {/* Glassy Close Button - Visible only on Mobile when Sidebar is Open */}
+          <button 
+              onClick={toggleSidebar}
+              className="lg:hidden size-11 rounded-full bg-white/5 dark:bg-white/10 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
+          >
+              <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
+              <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
           </button>
       </div>
 
       {/* Content */}
-      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none">
+      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-4">
           {/* Search */}
-          <div className={`relative w-full min-w-0 flex-col px-1.5 shrink-0 transition-all duration-200 py-1 ${isOpen ? 'h-[3rem]' : 'h-auto flex justify-center'}`}>
+          <div className={`relative w-full min-w-0 flex-col px-1.5 shrink-0 transition-all duration-200 py-2 ${isOpen ? 'h-[3rem]' : 'h-auto flex justify-center'}`}>
               {isOpen ? (
                   isSearchActive ? (
-                      <div className="flex items-center px-[7px] rounded-full border border-border bg-surface-l1 h-[2.5rem] mx-[.125rem]">
+                      <div className="flex items-center px-[10px] rounded-full border border-border bg-surface-l1 h-[2.5rem] w-full">
                           <SearchIcon className="size-4 text-muted-foreground ml-2 mr-2" />
                           <input 
                               autoFocus
@@ -133,15 +130,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ) : (
                       <button 
                           onClick={handleSearchClick}
-                          className="flex items-center gap-2 text-left w-full hover:bg-surface-l2 text-sm hover:text-foreground flex-1 px-[7px] rounded-full border border-border bg-surface-l1 justify-start text-muted-foreground h-[2.5rem] mx-[.125rem] transition-colors"
+                          className="flex items-center gap-2 text-left w-full hover:bg-surface-l2 text-sm hover:text-foreground flex-1 px-[10px] rounded-full border border-border bg-surface-l1 justify-start text-muted-foreground h-[2.5rem] transition-colors"
                       >
                           <div className="flex items-center justify-center size-6 shrink-0">
                               <SearchIcon className="size-4" />
                           </div>
-                          <span className="align-baseline truncate flex-1">
-                              <span>Search</span>
-                          </span>
-                          <span className="text-xs text-muted-foreground mr-1">Ctrl+K</span>
+                          <span className="align-baseline truncate flex-1">Search</span>
                       </button>
                   )
               ) : (
@@ -151,82 +145,59 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
           </div>
 
-          {/* Navigation Groups */}
-          <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 gap-0.5">
+          <div className="flex w-full min-w-0 flex-col py-2 shrink-0 gap-1">
               <SidebarItem icon={ChatIcon} label="Chat" onClick={onNewChat} isActive={!activeConversationId} />
           </div>
 
-          {/* History Section */}
-          <div className="flex w-full min-w-0 flex-col px-1.5 py-[2px] shrink-0 mt-2 gap-0.5">
+          <div className="flex w-full min-w-0 flex-col py-2 shrink-0 mt-2 gap-1">
               <SidebarItem icon={HistoryIcon} label="History" onClick={() => {}} />
 
-              {/* History List - Only visible when open */}
               {isOpen && (
-                  <div className="flex flex-row gap-px mx-1 mt-1 pl-1.5">
-                      <div className="cursor-pointer ms-[8px] me-[2px] py-1">
-                          <div className="border-l border-border h-full ms-[10px] me-[4px]"></div>
-                      </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                      {filteredConversations.length > 0 && (
+                          <div className="py-1 pl-3 text-xs text-muted-foreground font-semibold uppercase tracking-widest opacity-60">Recent</div>
+                      )}
                       
-                      <div className="flex flex-col gap-px w-full min-w-0">
-                          {filteredConversations.length > 0 && (
-                              <div className="py-1 pl-3 text-xs text-muted-foreground sticky top-0 z-20 text-nowrap font-semibold">Recent</div>
-                          )}
-                          
-                          {filteredConversations.length === 0 && searchTerm && (
-                              <div className="py-2 pl-3 text-sm text-muted-foreground">No results</div>
-                          )}
-
-                          {filteredConversations.map(convo => (
-                              <div key={convo.id} className="relative group/sidebar-menu-item">
-                                  <button
-                                      onClick={() => onSelectConversation(convo.id)}
-                                      className={`flex items-center gap-2 rounded-xl text-left w-full h-[36px] transition-colors pl-3 pr-1.5 text-sm ${activeConversationId === convo.id ? 'bg-surface-l2 text-foreground' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
-                                  >
-                                      <span className="flex-1 select-none text-nowrap max-w-full overflow-hidden inline-block truncate">
-                                          {convo.title}
-                                      </span>
-                                      
-                                      <div 
-                                          className="items-center justify-center h-6 w-6 flex lg:hidden lg:group-hover/sidebar-menu-item:flex hover:bg-surface-l1 rounded-lg text-muted-foreground hover:text-foreground transition-colors z-10"
-                                          onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (window.confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);
-                                          }}
-                                      >
-                                          <MoreHorizontalIcon className="size-3.5" />
-                                      </div>
-                                  </button>
+                      {filteredConversations.map(convo => (
+                          <button
+                              key={convo.id}
+                              onClick={() => onSelectConversation(convo.id)}
+                              className={`flex items-center gap-3 rounded-2xl text-left w-full h-[48px] transition-all px-4 text-sm ${activeConversationId === convo.id ? 'bg-surface-l2 text-foreground font-bold' : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'}`}
+                          >
+                              <span className="flex-1 truncate select-none">{convo.title}</span>
+                              <div 
+                                  className="size-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm(t('sidebar.confirmDelete'))) onDeleteConversation(convo.id);
+                                  }}
+                              >
+                                  <Trash2Icon className="size-4 opacity-50" />
                               </div>
-                          ))}
-                      </div>
+                          </button>
+                      ))}
                   </div>
               )}
           </div>
       </div>
 
       {/* Footer */}
-      <div className={`mt-auto relative shrink-0 ${isOpen ? 'h-[56px]' : 'h-[96px]'}`}>
-          <div className={`absolute start-[.5rem] transition-transform duration-300 ${isOpen ? 'bottom-3 translate-y-0' : 'bottom-3 -translate-y-[44px]'}`}>
-              <div className={`flex items-center gap-2 ${!isOpen && 'flex-col-reverse'}`}>
-                  <button 
-                      onClick={onOpenSettings}
-                      className="flex items-center justify-center p-2 rounded-lg border border-transparent hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                      <SettingsIcon className="size-5" />
-                  </button>
-              </div>
-          </div>
-          
-          <div className="flex items-center justify-between px-4 py-2">
-              <div className={`cursor-${isOpen ? 'w' : 'e'}-resize grow`}>
-                  <button 
-                      onClick={toggleSidebar}
-                      className={`inline-flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-surface-l2 transition-colors absolute ${isOpen ? 'end-2 bottom-3' : 'start-1.5 bottom-3'}`}
-                  >
-                      {isOpen ? <ChevronLeftIcon className="size-5" /> : <ChevronRightIcon className="size-5" />}
-                      <span className="sr-only">Toggle Sidebar</span>
-                  </button>
-              </div>
+      <div className={`mt-auto p-6 ${isOpen ? 'h-auto' : 'h-[96px]'} border-t border-border/50`}>
+          <div className={`flex items-center ${isOpen ? 'justify-between' : 'justify-center flex-col gap-4'}`}>
+              <button 
+                  onClick={onOpenSettings}
+                  className="flex items-center justify-center size-10 rounded-xl hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground"
+              >
+                  <SettingsIcon className="size-5" />
+              </button>
+              
+              {/* Desktop Toggle Button */}
+              <button 
+                  onClick={toggleSidebar}
+                  className={`hidden lg:flex items-center justify-center size-10 rounded-xl hover:bg-surface-l2 transition-colors text-muted-foreground hover:text-foreground`}
+              >
+                  {isOpen ? <ChevronLeftIcon className="size-5" /> : <ChevronRightIcon className="size-5" />}
+              </button>
           </div>
       </div>
     </div>

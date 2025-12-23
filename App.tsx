@@ -21,13 +21,6 @@ const initialPersonas: Persona[] = [
   { id: 'persona-teach', name: 'Teacher', instruction: 'You are a friendly and patient teacher.' },
 ];
 
-type ExecutionResult = {
-  output: string | null;
-  error: string;
-  type: 'string' | 'image-base64' | 'plotly-json' | 'error';
-  downloadableFile?: { filename: string; mimetype: string; data: string; };
-};
-
 const fileToDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -67,7 +60,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
-  const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
+  const [executionResults, setExecutionResults] = useState<Record<string, any>>({});
   const [chatInputText, setChatInputText] = useState('');
   const [replyContextText, setReplyContextText] = useState<string | null>(null);
   const [lightboxState, setLightboxState] = useState<{ images: any[]; startIndex: number; } | null>(null);
@@ -78,7 +71,6 @@ const App: React.FC = () => {
   const touchStartRef = useRef<number | null>(null);
   const { t } = useTranslations(language);
 
-  // Swipe Gesture Handling
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = e.touches[0].clientX;
   };
@@ -102,9 +94,7 @@ const App: React.FC = () => {
     try {
         const savedConvos = localStorage.getItem('conversations');
         const savedActiveId = localStorage.getItem('activeConversationId');
-        const savedResults = localStorage.getItem('executionResults');
         if (savedConvos) setConversations(JSON.parse(savedConvos));
-        if (savedResults) setExecutionResults(JSON.parse(savedResults));
         if (savedActiveId) setActiveConversationId(savedActiveId);
         setPersonas(initialPersonas);
     } catch (e) {}
@@ -192,7 +182,6 @@ const App: React.FC = () => {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
     >
-        {/* Sidebar remains stationary on the left layer */}
         <Sidebar
             isOpen={isSidebarOpen}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -209,26 +198,17 @@ const App: React.FC = () => {
             ref={mainContentRef}
             className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
                 ${isSidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[60px]'}
-                ${isSidebarOpen ? 'max-lg:translate-x-[260px] max-lg:filter max-lg:brightness-[0.6] max-lg:pointer-events-none' : 'translate-x-0'}
                 bg-background w-full
             `}
         >
-            {/* Overlay to close sidebar by tapping the chat on mobile */}
-            {isSidebarOpen && (
-                <div 
-                    className="lg:hidden absolute inset-0 z-[60] cursor-pointer" 
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
-
-            {/* Mobile Sidebar Toggle Button - Refined Glass Design */}
+            {/* Sidebar Toggle Button for Mobile - Glass Design */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
                     className="lg:hidden fixed top-4 left-4 z-[70] size-11 rounded-full bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-gray-200/20 dark:border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
                 >
-                    <div className="w-5 h-[2px] bg-foreground rounded-full shadow-sm"></div>
-                    <div className="w-5 h-[2px] bg-foreground rounded-full shadow-sm"></div>
+                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
                 </button>
             )}
 

@@ -52,7 +52,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
 
-        // Correctly obtain API key exclusively from process.env.API_KEY
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
@@ -88,14 +87,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        // Using gemini-3-flash-preview as recommended for general text tasks as per guidelines
         const model = 'gemini-3-flash-preview';
-        const langCode = (language as string) || 'en';
         
-        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (Lat: ${location.latitude}, Lon: ${location.longitude}).` : 'Location unknown.';
+        const locationStr = location ? `User's current location is ${location.city}, ${location.country}. ` : '';
 
         const baseSystemInstruction = `You are Qbit, an AI assistant.
-- User Context: ${locationStr}
+- User Context: ${locationStr}When the user asks about local things (weather, places, news), prioritize their current location in your web search queries.
 - Web access: Use 'google_search'.
 - Stock info: Use 'render_stock_widget'.`;
 
@@ -115,7 +112,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let currentStream = await ai.models.generateContentStream({ model, contents, config });
             let keepGoing = true;
             let totalChunks = 0;
-            // Declare functionCallToHandle outside the while loop to resolve the scope error on line 173
             let functionCallToHandle: FunctionCall | null = null;
 
             while (keepGoing) {
@@ -146,7 +142,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const query = fc.args.query as string;
-                        // Correctly obtain API key exclusively from process.env.API_KEY
                         const apiKey = process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
@@ -173,9 +168,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         keepGoing = true;
                     }
                 }
-            }
-            if (totalChunks === 0 && !functionCallToHandle) {
-                write({ type: 'error', payload: 'API returned an empty response. This might be due to a token limit or restricted content.' });
             }
         } finally {
             write({ type: 'end' });

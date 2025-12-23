@@ -88,6 +88,24 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
+    
+    // Attempt to get location for grounding
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+          try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+              const data = await res.json();
+              if (data.address) {
+                setUserLocation({
+                    city: data.address.city || data.address.town || 'Unknown',
+                    country: data.address.country || 'Unknown',
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude
+                });
+              }
+          } catch(e) {}
+      }
+    );
   }, []);
 
   useEffect(() => {
@@ -110,8 +128,6 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleNewChat = useCallback(() => {
-    // Instead of creating a conversation immediately, we just reset the active ID.
-    // The homepage GreetingMessage will show when activeConversationId is null.
     setActiveConversationId(null);
     setChatInputText('');
     setReplyContextText(null);
@@ -124,7 +140,6 @@ const App: React.FC = () => {
     let currentConvoId = activeConversationId;
     let updatedConversations = [...conversations];
 
-    // If there's no active conversation, create one now (Lazy initialization)
     if (!currentConvoId) {
         const newConvo: Conversation = { 
             id: Date.now().toString(), 
@@ -147,6 +162,7 @@ const App: React.FC = () => {
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
     const aiMsgId = (Date.now() + 1).toString();
 
+    // Immutable update to trigger re-render
     setConversations(prev => prev.map(c => c.id === currentConvoId ? { 
         ...c, 
         messages: [...c.messages, newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }] 
@@ -175,23 +191,42 @@ const App: React.FC = () => {
                     const messages = [...c.messages];
                     const idx = messages.findIndex(m => m.id === aiMsgId);
                     if (idx !== -1) {
+                        const targetMsg = { ...messages[idx] };
                         if (update.type === 'chunk') { 
                             setAiStatus('generating'); 
-                            messages[idx].content += update.payload; 
+                            targetMsg.content = (targetMsg.content as string) + update.payload;
                         }
                         else if (update.type === 'sources') { 
-                            messages[idx].groundingChunks = [...(messages[idx].groundingChunks || []), ...update.payload]; 
+                            targetMsg.groundingChunks = [...(targetMsg.groundingChunks || []), ...update.payload]; 
                         }
                         else if (update.type === 'searching') {
                             setAiStatus('searching');
                         }
+                        else if (update.type === 'search_result_count') {
+                            targetMsg.searchResultCount = update.payload;
+                        }
+                        messages[idx] = targetMsg;
                     }
                     return { ...c, messages };
                 }
                 return c;
             }));
         },
-        () => { setIsLoading(false); setAiStatus('idle'); },
+        (duration) => { 
+            setIsLoading(false); 
+            setAiStatus('idle'); 
+            setConversations(prev => prev.map(c => {
+                if (c.id === currentConvoId) {
+                    const messages = [...c.messages];
+                    const idx = messages.findIndex(m => m.id === aiMsgId);
+                    if (idx !== -1) {
+                        messages[idx] = { ...messages[idx], generationDuration: duration };
+                    }
+                    return { ...c, messages };
+                }
+                return c;
+            }));
+        },
         (err) => { setIsLoading(false); setAiStatus('error'); }
     );
   }, [activeConversationId, conversations, userLocation, language]);
@@ -226,7 +261,6 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* 2-Line Trigger Button (=) - Styled to exactly match user reference (Black Circle, White bars) */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}

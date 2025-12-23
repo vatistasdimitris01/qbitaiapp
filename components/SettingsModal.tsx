@@ -32,7 +32,8 @@ type SettingsTab = 'Appearance' | 'Behavior' | 'Data Controls';
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('Appearance');
+  // On mobile, start with null so menu list shows. On desktop, default to Appearance.
+  const [activeTab, setActiveTab] = useState<SettingsTab | null>(window.innerWidth >= 1024 ? 'Appearance' : null);
 
   // Behavior states (Simulated logic for UI toggles)
   const [autoScroll, setAutoScroll] = useState(true);
@@ -89,9 +90,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         `}
         onClick={e => e.stopPropagation()}
       >
-        {/* Mobile Header */}
+        {/* Header - Fixed on mobile, Sidebar top on Desktop */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12 shrink-0 bg-background/50 backdrop-blur-md z-10 border-b border-gray-100 dark:border-white/5">
-            <h2 className="text-2xl font-extrabold text-black dark:text-white">{t('settings.header')}</h2>
+            {activeTab ? (
+                 <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 font-extrabold text-black dark:text-white">
+                    <ChevronLeftIcon className="size-6" />
+                    <span>{t(`settings.${activeTab.toLowerCase()}`)}</span>
+                </button>
+            ) : (
+                <h2 className="text-2xl font-extrabold text-black dark:text-white">{t('settings.header')}</h2>
+            )}
             <button 
               onClick={onClose} 
               className="size-10 rounded-full bg-white dark:bg-white/10 flex items-center justify-center shadow-lg border border-gray-200 dark:border-white/10 active:scale-90 transition-transform"
@@ -126,114 +134,111 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           ))}
         </aside>
 
-        {/* Content Area - Fixed height and scrollable to prevent jumping */}
+        {/* Content Area */}
         <main className="flex-1 overflow-y-auto h-full relative scrollbar-none flex flex-col">
-          {/* Mobile Main List */}
-          <div className="lg:hidden p-6 space-y-4">
-              <div className="space-y-2">
-                 <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
-                 <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
-                 <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
+          {/* Mobile Main List: Only visible if no tab is active */}
+          {!activeTab && (
+              <div className="lg:hidden p-6 space-y-4 animate-fade-in-up">
+                  <div className="space-y-2">
+                     <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
+                     <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
+                     <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
+                  </div>
               </div>
-          </div>
+          )}
 
-          {/* Tab Sub-Pages */}
-          <div className={`flex-1 flex flex-col p-6 lg:p-10 ${activeTab ? 'animate-fade-in-up' : 'hidden lg:flex'}`}>
-              <div className="lg:hidden flex items-center gap-3 mb-8">
-                  <button onClick={() => setActiveTab('Appearance' as any)} className="p-2 rounded-full bg-surface-l2">
-                      <ChevronLeftIcon className="size-5" />
-                  </button>
-                  <h3 className="text-xl font-bold">{t(`settings.${activeTab.toLowerCase()}`)}</h3>
-              </div>
-
-              {activeTab === 'Appearance' && (
-                <div className="flex flex-col gap-10">
-                  <div className="space-y-4">
-                    <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.appearance')}</p>
-                    <div className="grid grid-cols-3 w-full gap-3">
-                      {(['light', 'dark', 'system'] as const).map(th => (
-                        <button 
-                          key={th}
-                          onClick={() => setTheme(th)}
-                          className={`inline-flex items-center justify-center gap-2 text-sm font-bold w-full rounded-[1.5rem] flex-col p-5 border-2 transition-all active:scale-95 ${theme === th ? 'bg-white dark:bg-[#292929] border-black dark:border-white text-black dark:text-white' : 'border-gray-100 dark:border-[#27272a] text-gray-500 dark:text-[#a1a1aa] hover:border-gray-300 dark:hover:border-white/20'}`}
-                        >
-                          {th === 'light' && <SunIcon className="size-6 text-yellow-500" />}
-                          {th === 'dark' && <SunIcon className="size-6 opacity-40" />}
-                          {th === 'system' && <SettingsIcon className="size-6 text-blue-500" />}
-                          <p className="capitalize mt-1">{t(`settings.themes.${th}`)}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                     <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.langTitle')}</p>
-                     <div className="flex gap-3">
-                        <button 
-                          onClick={() => setLanguage('en')} 
-                          className={`flex-1 py-4 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${language === 'en' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-xl' : 'bg-transparent text-black dark:text-white border-gray-100 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
-                        >
-                          English
-                        </button>
-                        <button 
-                          onClick={() => setLanguage('el')} 
-                          className={`flex-1 py-4 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${language === 'el' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-xl' : 'bg-transparent text-black dark:text-white border-gray-100 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
-                        >
-                          Ελληνικά
-                        </button>
-                     </div>
-                  </div>
-
-                  <div className="mt-auto">
-                     <OptionRow label={t('settings.switches.starry')} checked={starryBg} onChange={setStarryBg} id="starry" />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'Behavior' && (
-                <div className="flex flex-col gap-2">
-                  <p className="pl-1 mb-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.behavior')}</p>
-                  <div className="bg-gray-50 dark:bg-white/[0.03] rounded-[2rem] p-2 border border-gray-100 dark:border-white/5">
-                    <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
-                    <OptionRow label={t('settings.switches.docMode')} checked={sidebarEditor} onChange={setSidebarEditor} id="docmode" />
-                    <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} id="haptics" />
-                    <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} id="wrapcode" />
-                    <OptionRow label={t('settings.switches.previews')} checked={showPreviews} onChange={setShowPreviews} id="previews" />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'Data Controls' && (
-                <div className="flex flex-col gap-8">
-                  <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.data')}</p>
-                  
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-3 p-6 bg-red-500/[0.04] rounded-[2rem] border border-red-500/10">
-                      <div className="flex flex-row items-center justify-between w-full">
-                        <div className="text-sm font-bold text-red-600 dark:text-red-400">{t('settings.buttons.delete')}</div>
-                        <button 
-                          onClick={() => { if(confirm(t('sidebar.confirmDelete'))) setConversations([]); }}
-                          className="inline-flex items-center justify-center text-xs font-bold bg-red-600 text-white h-10 rounded-xl px-6 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 active:scale-95"
-                        >
-                          {t('settings.buttons.deleteAction')}
-                        </button>
+          {/* Sub-Pages: Always show on desktop, or show on mobile if activeTab is set */}
+          {(activeTab || window.innerWidth >= 1024) && (
+              <div className={`flex-1 flex flex-col p-6 lg:p-10 ${!activeTab ? 'hidden lg:flex' : 'animate-fade-in-up'}`}>
+                  {activeTab === 'Appearance' && (
+                    <div className="flex flex-col gap-10">
+                      <div className="space-y-4">
+                        <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.appearance')}</p>
+                        <div className="grid grid-cols-3 w-full gap-3">
+                          {(['light', 'dark', 'system'] as const).map(th => (
+                            <button 
+                              key={th}
+                              onClick={() => setTheme(th)}
+                              className={`inline-flex items-center justify-center gap-2 text-sm font-bold w-full rounded-[1.5rem] flex-col p-5 border-2 transition-all active:scale-95 ${theme === th ? 'bg-white dark:bg-[#292929] border-black dark:border-white text-black dark:text-white' : 'border-gray-100 dark:border-[#27272a] text-gray-500 dark:text-[#a1a1aa] hover:border-gray-300 dark:hover:border-white/20'}`}
+                            >
+                              {th === 'light' && <SunIcon className="size-6 text-yellow-500" />}
+                              {th === 'dark' && <SunIcon className="size-6 opacity-40" />}
+                              {th === 'system' && <SettingsIcon className="size-6 text-blue-500" />}
+                              <p className="capitalize mt-1">{t(`settings.themes.${th}`)}</p>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <p className="text-[10px] text-red-600/60 dark:text-red-400/50 font-medium">This action is permanent and cannot be undone.</p>
-                    </div>
 
-                    <div className="flex flex-row items-center justify-between w-full gap-4 px-6 py-5 bg-gray-50 dark:bg-white/[0.03] rounded-[2rem] border border-gray-100 dark:border-white/5">
-                      <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.clear')}</div>
-                      <button 
-                         onClick={() => { localStorage.clear(); window.location.reload(); }}
-                         className="inline-flex items-center justify-center text-xs font-bold border-2 border-gray-200 dark:border-white/10 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 h-10 rounded-xl px-6 transition-all active:scale-95"
-                      >
-                        {t('settings.buttons.clearAction')}
-                      </button>
+                      <div className="space-y-4">
+                         <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.langTitle')}</p>
+                         <div className="flex gap-3">
+                            <button 
+                              onClick={() => setLanguage('en')} 
+                              className={`flex-1 py-4 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${language === 'en' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-xl' : 'bg-transparent text-black dark:text-white border-gray-100 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
+                            >
+                              English
+                            </button>
+                            <button 
+                              onClick={() => setLanguage('el')} 
+                              className={`flex-1 py-4 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${language === 'el' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-xl' : 'bg-transparent text-black dark:text-white border-gray-100 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
+                            >
+                              Ελληνικά
+                            </button>
+                         </div>
+                      </div>
+
+                      <div className="mt-auto">
+                         <OptionRow label={t('settings.switches.starry')} checked={starryBg} onChange={setStarryBg} id="starry" />
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-          </div>
+                  )}
+
+                  {activeTab === 'Behavior' && (
+                    <div className="flex flex-col gap-2">
+                      <p className="pl-1 mb-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.behavior')}</p>
+                      <div className="bg-gray-50 dark:bg-white/[0.03] rounded-[2rem] p-2 border border-gray-100 dark:border-white/5">
+                        <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} id="autoscroll" />
+                        <OptionRow label={t('settings.switches.docMode')} checked={sidebarEditor} onChange={setSidebarEditor} id="docmode" />
+                        <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} id="haptics" />
+                        <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} id="wrapcode" />
+                        <OptionRow label={t('settings.switches.previews')} checked={showPreviews} onChange={setShowPreviews} id="previews" />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'Data Controls' && (
+                    <div className="flex flex-col gap-8">
+                      <p className="pl-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('settings.data')}</p>
+                      
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-3 p-6 bg-red-500/[0.04] rounded-[2rem] border border-red-500/10">
+                          <div className="flex flex-row items-center justify-between w-full">
+                            <div className="text-sm font-bold text-red-600 dark:text-red-400">{t('settings.buttons.delete')}</div>
+                            <button 
+                              onClick={() => { if(confirm(t('sidebar.confirmDelete'))) setConversations([]); }}
+                              className="inline-flex items-center justify-center text-xs font-bold bg-red-600 text-white h-10 rounded-xl px-6 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 active:scale-95"
+                            >
+                              {t('settings.buttons.deleteAction')}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-red-600/60 dark:text-red-400/50 font-medium">This action is permanent and cannot be undone.</p>
+                        </div>
+
+                        <div className="flex flex-row items-center justify-between w-full gap-4 px-6 py-5 bg-gray-50 dark:bg-white/[0.03] rounded-[2rem] border border-gray-100 dark:border-white/5">
+                          <div className="text-sm font-bold text-black dark:text-white">{t('settings.buttons.clear')}</div>
+                          <button 
+                             onClick={() => { localStorage.clear(); window.location.reload(); }}
+                             className="inline-flex items-center justify-center text-xs font-bold border-2 border-gray-200 dark:border-white/10 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 h-10 rounded-xl px-6 transition-all active:scale-95"
+                          >
+                            {t('settings.buttons.clearAction')}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </div>
+          )}
         </main>
       </div>
     </div>

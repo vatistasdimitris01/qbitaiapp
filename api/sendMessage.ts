@@ -94,7 +94,7 @@ export default async function handler(req: Request) {
         }
 
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
-        const modelName = 'gemini-2.5-flash-lite-latest';
+        const modelName = 'gemini-2.5-flash-lite';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const systemInstruction = `${personaInstruction || ''}\nYou are Qbit, a world-class AI assistant.\nLocation: ${locationStr}\nWeb Search: ALWAYS use 'google_search' tool for real-time info. Reasoning: Use your internal thinking process.`;

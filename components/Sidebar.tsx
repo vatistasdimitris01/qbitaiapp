@@ -63,13 +63,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`
-      flex flex-col h-full bg-sidebar z-[80] fixed inset-y-0 left-0
-      transform transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]
-      border-r border-border w-[260px]
+      flex flex-col h-full bg-sidebar z-[100] fixed inset-y-0 left-0
+      transform transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]
+      border-r border-border
+      w-full lg:w-[260px]
       ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
     `}>
-      {/* Header Area - Removed dividers */}
-      <div className="h-[6rem] flex flex-col justify-center px-4 shrink-0">
+      {/* Header Area */}
+      <div className="h-[6rem] flex flex-col justify-center px-6 shrink-0">
           <div className="flex items-center justify-between w-full">
               <button 
                 onClick={(e) => { e.stopPropagation(); onNewChat(); }} 
@@ -88,10 +89,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
       </div>
 
-      {/* Action Strip - Search Bar expands to cover icons when focused */}
-      <div className="px-5 mb-6 relative h-12 flex items-center">
+      {/* Action Strip - Search Bar expansion */}
+      <div className="px-6 mb-6 relative h-12 flex items-center">
           <div className="flex items-center gap-2 w-full relative">
-               {/* Search Bar with increased weight and dynamic expansion */}
                <div 
                   className={`relative flex items-center h-12 px-4 rounded-full bg-black/5 dark:bg-white/5 backdrop-blur-xl border border-black/5 dark:border-white/10 text-muted-foreground focus-within:text-foreground transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]
                     ${isSearchFocused ? 'w-full z-10' : 'w-[calc(100%-104px)]'}
@@ -109,7 +109,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     />
                </div>
 
-               {/* Action Icons (Hidden when Search Focused) */}
                <div className={`flex items-center gap-2 transition-all duration-300 absolute right-0 ${isSearchFocused ? 'opacity-0 scale-75 pointer-events-none translate-x-4' : 'opacity-100 scale-100 translate-x-0'}`}>
                    <button 
                         onClick={(e) => { e.stopPropagation(); onOpenSettings(); }}
@@ -130,8 +129,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
       </div>
 
-      {/* Navigation Area - Removed Chat Item, No Dividers */}
-      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-4 space-y-1">
+      {/* Navigation Area */}
+      <div className="flex min-h-0 flex-col overflow-auto grow relative overflow-x-hidden scrollbar-none px-6 space-y-1">
           <div className="py-2 shrink-0">
                <button 
                     className="group flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left outline-none text-muted-foreground hover:bg-surface-l1 hover:text-foreground"

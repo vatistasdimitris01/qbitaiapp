@@ -54,11 +54,10 @@ export default async function handler(req: Request) {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
                 
-                // Heuristic reconstruction of thinking/text parts for history
                 if (content && content.includes('<thinking>')) {
                     const rawParts = content.split(/<\/?thinking>/g);
                     rawParts.forEach((p, i) => {
-                        if (i % 2 === 1) { // Inside thinking tags
+                        if (i % 2 === 1) {
                              parts.push({ thought: p.trim() } as any);
                         } else if (p.trim()) {
                              parts.push({ text: p.trim() });
@@ -97,17 +96,32 @@ export default async function handler(req: Request) {
         const modelName = 'gemini-2.5-flash-lite';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
-        const systemInstruction = `${personaInstruction || ''}\nYou are Qbit, a world-class AI assistant.\nLocation: ${locationStr}\nWeb Search: ALWAYS use 'google_search' tool for real-time info. Reasoning: Use your internal thinking process.`;
+        const systemInstruction = `${personaInstruction || ''}
+You are Qbit, a world-class AI assistant. 
+Current Date: ${new Date().toLocaleDateString()}.
+${locationStr}
+
+MANDATORY TOOL USAGE RULES:
+1. You MUST use the 'google_search' tool for any query involving real-time information, including but not limited to: weather, news, sports scores, current events, stock prices, or any information post-dating your knowledge cutoff.
+2. If a user asks about the weather, ALWAYS call 'google_search' with a query like "weather in [City]".
+3. Do NOT apologize for not having real-time data; simply use the 'google_search' tool to find it.
+4. Your internal knowledge is for general reasoning and historical data. For anything current, use the tool.
+5. Use your internal thinking process (<thinking> tags) to plan your search.`;
 
         const genConfig: GenerateContentConfig = {
             systemInstruction,
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Search the web using Google Search.', 
+                    description: 'Searches the live web for real-time data such as weather, news, stock prices, sports scores, and current events.', 
                     parameters: { 
                         type: Type.OBJECT, 
-                        properties: { query: { type: Type.STRING } }, 
+                        properties: { 
+                            query: { 
+                                type: Type.STRING,
+                                description: 'The search query to find up-to-date information.'
+                            } 
+                        }, 
                         required: ['query'] 
                     } 
                 }] 
@@ -140,7 +154,6 @@ export default async function handler(req: Request) {
                                 const candidates = chunk.candidates;
                                 if (candidates?.[0]?.content?.parts) {
                                     for (const part of candidates[0].content.parts) {
-                                        // IMPORTANT: We must store the EXACT part object (including thought signatures)
                                         turnPartsCaptured.push(part);
 
                                         if ('thought' in part && (part as any).thought) {
@@ -171,16 +184,15 @@ export default async function handler(req: Request) {
                                                 const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResult = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
+                                                searchResult = sJson.items.map((i: any) => `Source: ${i.title}\nURL: ${i.link}\nInfo: ${i.snippet}`).join('\n\n');
                                             } else {
-                                                searchResult = "No results found.";
+                                                searchResult = "No relevant search results were found for this query.";
                                             }
                                         } catch (e) {
-                                            searchResult = "Search error.";
+                                            searchResult = "An error occurred while attempting to search the web.";
                                         }
                                     }
                                     
-                                    // MANDATORY: Append the model's turn with its signature to history before sending the response
                                     contents.push({ role: 'model', parts: turnPartsCaptured });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
                                     
@@ -209,7 +221,7 @@ export default async function handler(req: Request) {
                             continue;
                         }
                         
-                        enqueue({ type: 'error', payload: err.message || "An unexpected error occurred." });
+                        enqueue({ type: 'error', payload: err.message || "An unexpected error occurred during message generation." });
                         attemptSuccess = true;
                     }
                 }

@@ -20,6 +20,7 @@ export default async function handler(req: Request) {
         const { history, message, personaInstruction, location } = JSON.parse(payloadJSON);
         const uploadedFiles = formData.getAll('file') as File[];
 
+        // 1. Gather all API keys for rotation
         const apiKeys: string[] = [];
         const primary = process.env.API_KEY || "";
         primary.split(',').forEach(k => {
@@ -37,8 +38,9 @@ export default async function handler(req: Request) {
             }
         }
 
-        if (apiKeys.length === 0) throw new Error("No API keys found.");
+        if (apiKeys.length === 0) throw new Error("API_KEY not found in environment.");
 
+        // 2. Prepare History
         const geminiHistory: Content[] = [];
         for (const msg of history) {
             if (msg.type === 'USER') {
@@ -52,13 +54,18 @@ export default async function handler(req: Request) {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
                 
-                // If message contains thinking tags, extract them to satisfy thought_signature requirements
-                // though usually for history, plain text is sufficient unless tool calls are present.
+                // Reconstruct thinking blocks if present in string history
                 if (content && content.includes('<thinking>')) {
-                    const thoughtMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
-                    const responseMatch = content.split('</thinking>')[1];
-                    if (thoughtMatch) parts.push({ thought: thoughtMatch[1] } as any);
-                    if (responseMatch?.trim()) parts.push({ text: responseMatch.trim() });
+                    const thinkingBlocks = content.split('</thinking>');
+                    thinkingBlocks.forEach(block => {
+                        if (block.includes('<thinking>')) {
+                            const [textBefore, thought] = block.split('<thinking>');
+                            if (textBefore.trim()) parts.push({ text: textBefore.trim() });
+                            if (thought.trim()) parts.push({ thought: thought.trim() } as any);
+                        } else if (block.trim()) {
+                            parts.push({ text: block.trim() });
+                        }
+                    });
                 } else if (content) {
                     parts.push({ text: content });
                 }
@@ -73,7 +80,7 @@ export default async function handler(req: Request) {
                         msg.toolCalls.forEach((tc: any) => {
                             geminiHistory.push({ 
                                 role: 'function', 
-                                parts: [{ functionResponse: { name: tc.name, response: { content: "Complete" } } }] 
+                                parts: [{ functionResponse: { name: tc.name, response: { content: "Success" } } }] 
                             });
                         });
                     }
@@ -99,7 +106,7 @@ export default async function handler(req: Request) {
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Search the web using Google Search.', 
+                    description: 'Search the web for current information.', 
                     parameters: { 
                         type: Type.OBJECT, 
                         properties: { query: { type: Type.STRING } }, 
@@ -114,20 +121,20 @@ export default async function handler(req: Request) {
                 const enqueue = (obj: object) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
 
                 let currentKeyIndex = 0;
-                let attemptSuccess = false;
+                let finalSuccess = false;
 
-                while (!attemptSuccess && currentKeyIndex < apiKeys.length) {
+                while (!finalSuccess && currentKeyIndex < apiKeys.length) {
                     const activeKey = apiKeys[currentKeyIndex];
                     const ai = new GoogleGenAI({ apiKey: activeKey });
                     
                     try {
                         let currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                        let toolLoop = true;
+                        let turnLoop = true;
 
-                        while (toolLoop) {
-                            toolLoop = false;
-                            let fc: any = null;
-                            const modelPartsInThisTurn: Part[] = [];
+                        while (turnLoop) {
+                            turnLoop = false;
+                            let pendingFunctionCall: any = null;
+                            const partsCapturedInTurn: Part[] = [];
 
                             for await (const chunk of currentStream) {
                                 if (chunk.text) enqueue({ type: 'chunk', payload: chunk.text });
@@ -135,8 +142,8 @@ export default async function handler(req: Request) {
                                 const candidates = chunk.candidates;
                                 if (candidates?.[0]?.content?.parts) {
                                     for (const part of candidates[0].content.parts) {
-                                        // Keep track of EVERY part (thought, text, functionCall) to maintain turn integrity
-                                        modelPartsInThisTurn.push(part);
+                                        // CRITICAL: We MUST preserve every part exactly as received to keep thought signatures valid
+                                        partsCapturedInTurn.push(part);
 
                                         if ('thought' in part && (part as any).thought) {
                                             enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
@@ -145,68 +152,68 @@ export default async function handler(req: Request) {
                                             enqueue({ type: 'chunk', payload: part.text });
                                         }
                                         if ('functionCall' in part && part.functionCall) {
-                                            fc = part.functionCall;
+                                            pendingFunctionCall = part.functionCall;
                                         }
                                     }
                                 }
                             }
 
-                            if (fc) {
+                            if (pendingFunctionCall) {
+                                const fc = pendingFunctionCall;
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
                                     const cseId = process.env.GOOGLE_CSE_ID;
-                                    let searchResult = "Search unavailable.";
+                                    let searchResultText = "Search failed.";
 
                                     if (activeKey && cseId) {
                                         try {
                                             const resS = await fetch(`https://www.googleapis.com/customsearch/v1?key=${activeKey}&cx=${cseId}&q=${encodeURIComponent(fc.args.query)}&num=10`);
                                             const sJson = await resS.json();
                                             if (sJson.items) {
-                                                const chunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
-                                                enqueue({ type: 'sources', payload: chunks });
+                                                const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
+                                                enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResult = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
+                                                searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
                                             } else {
-                                                searchResult = "No results found.";
+                                                searchResultText = "No results found.";
                                             }
                                         } catch (e) {
-                                            searchResult = "Search error occurred.";
+                                            searchResultText = "Search error occurred.";
                                         }
                                     }
                                     
-                                    // CRITICAL: Push ALL parts received from the model, including thinking/signatures
-                                    contents.push({ role: 'model', parts: modelPartsInThisTurn });
-                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
+                                    // Append turn integrity history
+                                    contents.push({ role: 'model', parts: partsCapturedInTurn });
+                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                                     
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                                    toolLoop = true;
+                                    turnLoop = true;
                                 } else {
                                     enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
-                                    
-                                    contents.push({ role: 'model', parts: modelPartsInThisTurn });
+                                    contents.push({ role: 'model', parts: partsCapturedInTurn });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
-                                    
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
-                                    toolLoop = true;
+                                    turnLoop = true;
                                 }
                             }
                         }
                         enqueue({ type: 'end' });
-                        attemptSuccess = true;
+                        finalSuccess = true;
                     } catch (err: any) {
-                        const errorStr = String(err.message || err).toLowerCase();
-                        const isRateLimit = errorStr.includes("429") || 
-                                           errorStr.includes("too many requests") || 
-                                           errorStr.includes("resource_exhausted") || 
-                                           errorStr.includes("quota");
+                        const errorMsg = String(err.message || err).toLowerCase();
+                        const shouldRotate = errorMsg.includes("429") || 
+                                             errorMsg.includes("too many requests") || 
+                                             errorMsg.includes("resource_exhausted") || 
+                                             errorMsg.includes("quota");
 
-                        if (isRateLimit && currentKeyIndex < apiKeys.length - 1) {
+                        if (shouldRotate && currentKeyIndex < apiKeys.length - 1) {
                             currentKeyIndex++;
+                            // Reset the turn state but keep the conversation contents
                             continue;
                         }
                         
-                        enqueue({ type: 'error', payload: err.message || "An unexpected error occurred." });
-                        attemptSuccess = true;
+                        enqueue({ type: 'error', payload: err.message || "A model error occurred." });
+                        finalSuccess = true;
                     }
                 }
                 controller.close();

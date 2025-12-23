@@ -48,6 +48,46 @@ const sanitizeForStorage = (conversations: Conversation[]): Conversation[] => {
     }));
 };
 
+const ASCII_LOGO = `
+                                              +++++++                                               
+                                              +++++++                                               
+                                              +++++++                                               
+                                              +++++++-                                              
+                                              ++++++++                                              
+                                              +++++++++                                             
+                                              ++++++++++                                            
+                                              ++++++++++++                                          
+                                              ++++++++++++++++                                      
+                                              +++++++++++++++++-                                    
+                                              ++++++++++++++++++-                                   
+                                              +++++++++++++++++++×                                  
+                                              ++++++++++++++++++++                                  
+                                              ++++++++++++++++++++                                  
+                                              +++++++++++++++++++                                   
+                                              ++++++++++++++++++×                                   
+                                              +++++++++++++++++                                     
+                                             ++++++++++++++++-                                      
+                                            ++++++++++++-                                           
+                                        +++++++++++++++                                             
+                                     +++++++++++++++++                                              
+                                    +++++++++++++++++-                                              
+                                   ++++++++++++++++++                                               
+                                  +++++++++++++++++++                                               
+                                  +++++++++++++++++++                                               
+                                  +++++++++++++++++++                                               
+                                   ++++++++++++++++++                                               
+                                    +++++++++++++++++                                               
+                                     ++++++++++++++++                                               
+                                        -++++++++++++                                               
+                                          -++++++++++                                               
+                                            +++++++++                                               
+                                             ++++++++                                               
+                                             -+++++++                                               
+                                              +++++++                                               
+                                              +++++++                                               
+                                              +++++++
+`;
+
 const App: React.FC = () => {
   const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -87,6 +127,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log(`%c${ASCII_LOGO}`, 'color: #1d9bf0; font-weight: bold; font-family: monospace;');
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
     
     // Attempt to get location for grounding
@@ -104,9 +145,7 @@ const App: React.FC = () => {
                 });
               }
           } catch(e) {}
-      },
-      () => {},
-      { enableHighAccuracy: true }
+      }
     );
   }, []);
 
@@ -172,16 +211,15 @@ const App: React.FC = () => {
             setActiveConversationId(convo.id);
         }
 
-        // History for API excludes the message we are about to send
+        // History for API excludes the current message
         historyToUse = [...convo.messages];
 
         if (isRegeneration) {
-            // Remove previous AI turn if regenerating
+            // Regeneration logic: find last user message and clear everything after it
             const lastUserIdx = [...convo.messages].reverse().findIndex(m => m.type === MessageType.USER);
             if (lastUserIdx !== -1) {
                 const actualIdx = convo.messages.length - 1 - lastUserIdx;
                 convo.messages = convo.messages.slice(0, actualIdx + 1);
-                // Also update history to exclude everything after the target user message
                 historyToUse = convo.messages.slice(0, actualIdx);
             }
         } else {

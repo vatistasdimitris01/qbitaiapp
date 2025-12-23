@@ -198,8 +198,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
-        if (aiStatus === 'thinking') setIsThinkingOpen(true);
-    }, [aiStatus]);
+        if (aiStatus === 'thinking' && isLast) setIsThinkingOpen(true);
+    }, [aiStatus, isLast]);
 
     const messageText = useMemo(() => getTextFromMessage(message.content), [message.content]);
 
@@ -333,11 +333,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     const hasContent = hasText || hasToolCalls;
     
     // Determine if we should show the search UI
-    // Show search UI if:
-    // 1. Status is 'searching'
-    // 2. OR we have grounding chunks and we are still loading (generating text after search)
-    // 3. OR we have grounding chunks but no text yet (so search is "done" but AI hasn't spoken)
-    const showSearchUI = (aiStatus === 'searching') || (message.groundingChunks && message.groundingChunks.length > 0 && (!hasContent || isLoading));
+    const showSearchUI = (aiStatus === 'searching' && isLast) || (message.groundingChunks && message.groundingChunks.length > 0 && isLast && (!hasContent || isLoading));
 
     return (
         <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-start">
@@ -345,7 +341,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
              {hasThinkingTag && parsedThinkingText && (
                 <div className="mb-2">
                      <div onClick={() => setIsThinkingOpen(!isThinkingOpen)} className="flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors w-fit p-1 rounded-lg">
-                        <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' ? 'animate-pulse text-accent-blue' : ''}`} />
+                        <BrainIcon className={`size-4 ${isLoading && aiStatus === 'thinking' && isLast ? 'animate-pulse text-accent-blue' : ''}`} />
                         <span className="text-sm font-medium">{t('chat.message.thinking')}</span>
                         <ChevronDownIcon className={`size-4 transition-transform ${isThinkingOpen ? 'rotate-180' : ''}`} />
                     </div>
@@ -364,10 +360,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
 
             {/* Main AI Message Content */}
             <div className={`message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : ''}`}>
-                 {/* Empty State / Loading - Only show Generic loader if NOT searching and NOT generated content */}
-                 {!hasContent && isLoading && !parsedThinkingText && !showSearchUI && (
+                 {/* Empty State / Loading - Only show for the absolute last message being generated */}
+                 {!hasContent && isLast && isLoading && !parsedThinkingText && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
-                        {(aiStatus === 'generating' || (aiStatus === 'thinking' && !hasThinkingTag)) && (
+                        {(aiStatus === 'generating' || aiStatus === 'thinking') && (
                             <GeneratingLoader />
                         )}
                     </div>
@@ -429,7 +425,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                 </div>
             )}
 
-            {/* AI Action Icons Row - Always visible on mobile, hover only on desktop */}
+            {/* AI Action Icons Row */}
             <div className="flex items-center gap-1 mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
                 <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}>
                     <MessageRefreshIcon className="size-4" />

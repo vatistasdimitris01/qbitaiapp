@@ -145,8 +145,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {isLoading ? (
             <button
               onClick={onAbortGeneration}
-              className="h-10 aspect-square flex flex-col items-center justify-center rounded-full ring-1 ring-inset bg-black text-white transition-opacity hover:opacity-90"
-              style={{ cursor: 'crosshair' }}
+              className="h-10 aspect-square flex flex-col items-center justify-center rounded-full ring-1 ring-inset bg-black text-white transition-opacity hover:opacity-90 cursor-pointer"
               title={t('chat.input.stop')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-[2]">

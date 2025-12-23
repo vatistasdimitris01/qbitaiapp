@@ -47,22 +47,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.API_KEY) throw new Error("API_KEY not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const geminiHistory: Content[] = (history as HistoryItem[])
-            .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
-            .map(msg => {
+        const geminiHistory: Content[] = [];
+        for (const msg of (history as HistoryItem[])) {
+            if (msg.type === 'USER') {
                 const parts: Part[] = [];
                 if (msg.content) parts.push({ text: msg.content });
                 if (msg.files) {
-                    msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
+                    msg.files.forEach(f => parts.push({ inlineData: { mimeType: f.mimeType, data: f.data } }));
                 }
-                if (msg.toolCalls && msg.toolCalls.length > 0) {
-                     msg.toolCalls.forEach(tc => {
-                         parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         parts.push({ functionResponse: { name: tc.name, response: { content: "Handled" } } }); 
-                     });
+                geminiHistory.push({ role: 'user', parts });
+            } else if (msg.type === 'AI_RESPONSE') {
+                const parts: Part[] = [];
+                if (msg.content) parts.push({ text: msg.content });
+                if (msg.toolCalls) {
+                    msg.toolCalls.forEach(tc => parts.push({ functionCall: { name: tc.name, args: tc.args } }));
                 }
-                return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
-            }).filter(c => c.parts.length > 0);
+                if (parts.length > 0) {
+                    geminiHistory.push({ role: 'model', parts });
+                    if (msg.toolCalls) {
+                        msg.toolCalls.forEach(tc => {
+                            geminiHistory.push({ 
+                                role: 'function', 
+                                parts: [{ functionResponse: { name: tc.name, response: { content: "Handled" } } }] 
+                            });
+                        });
+                    }
+                }
+            }
+        }
         
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -81,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const baseSystemInstruction = `You are Qbit, an AI assistant.
 - Location: ${locationStr}
-- Web search: Use 'google_search'.
+- Web search: ALWAYS use 'google_search' tool for recent info.
 - Python: Use 'python_execution'.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
@@ -90,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             systemInstruction: finalSystemInstruction,
             tools: [{ 
                 functionDeclarations: [
-                    { name: 'google_search', description: 'Search the web for up-to-date info.', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } }
+                    { name: 'google_search', description: 'Search the web for news, events, or general info.', parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] } }
                 ] 
             }],
         };
@@ -104,17 +116,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    if (chunk.candidates?.[0]?.finishReason === 'SAFETY') {
-                        write({ type: 'error', payload: 'Blocked by safety filters.' });
-                    }
-
-                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                        functionCallToHandle = chunk.functionCalls[0];
-                    }
-                    
-                    const text = chunk.text || '';
+                    const text = chunk.text;
                     if (text) {
                         write({ type: 'chunk', payload: text });
+                    }
+                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                        functionCallToHandle = chunk.functionCalls[0];
                     }
                 }
 
@@ -136,10 +143,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                     write({ type: 'sources', payload: chunks });
                                     searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nSnippet: ${i.snippet}`).join('\n\n');
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                searchResultText = "Search failed.";
+                            }
                         }
+                        
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        
                         currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                         keepGoing = true;
                     } else {

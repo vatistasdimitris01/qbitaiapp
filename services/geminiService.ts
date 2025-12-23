@@ -102,7 +102,7 @@ export const streamMessageToAI = async (
                         const update: StreamUpdate = JSON.parse(line);
                         
                         if (update.type === 'chunk') {
-                            fullResponseAccumulator += update.payload;
+                            fullResponseAccumulator += (update.payload || "");
                         } else if (update.type === 'tool_call') {
                             toolCallsMade.push(update.payload.name);
                         } else if (update.type === 'error') {
@@ -128,7 +128,7 @@ export const streamMessageToAI = async (
         console.groupCollapsed("%c Qbit AI Response ", "background: #22c55e; color: white; font-weight: bold; border-radius: 4px;");
         console.log("Duration:", (duration / 1000).toFixed(2), "s");
         if (toolCallsMade.length > 0) console.log("Tools Used:", toolCallsMade);
-        console.log("Content:", fullResponseAccumulator || "[Tool Call Only]");
+        console.log("Content:", fullResponseAccumulator || "[Output contains no text]");
         console.groupEnd();
 
         onFinish(duration);
@@ -136,7 +136,7 @@ export const streamMessageToAI = async (
     } catch (error) {
         const duration = Date.now() - startTime;
         if (error instanceof Error && error.name === 'AbortError') {
-             // Abort is silent
+             // Abort silent
         } else {
             const errorMsg = error instanceof Error ? error.message : String(error);
             

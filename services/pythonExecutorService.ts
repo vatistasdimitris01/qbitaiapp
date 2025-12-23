@@ -22,7 +22,7 @@ let isExecuting = false;
  */
 const initialize = () => {
     // Hidden environments log in gray
-    console.groupCollapsed("%c qbit environments ", "color: gray; font-style: italic; font-weight: bold;");
+    console.groupCollapsed("%c qbit environments ", "color: gray; font-style: italic; font-weight: bold; border: 1px solid gray; border-radius: 4px;");
     console.log("Spinning up execution worker...");
     
     worker = new Worker('/python.worker.js');
@@ -44,12 +44,12 @@ const initialize = () => {
         };
         worker.addEventListener('message', readyListener);
         worker.onerror = (e) => {
-            // Log env errors in red
+            // Log environment failures in red group
             console.groupCollapsed("%c Qbit Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
-            console.error("Pyodide Environment Failed:", e);
+            console.error("Pyodide Environment Failed to initialize:", e);
             console.groupEnd();
             
-            console.groupEnd(); // Close the gray group if it's still open
+            console.groupEnd(); // Close gray group
             reject(e);
         };
     });

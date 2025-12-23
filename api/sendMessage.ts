@@ -20,17 +20,13 @@ export default async function handler(req: Request) {
         const { history, message, personaInstruction, location } = JSON.parse(payloadJSON);
         const uploadedFiles = formData.getAll('file') as File[];
 
-        // 1. Collect all potential API keys
         const apiKeys: string[] = [];
-        
-        // Add keys from API_KEY (handles comma-separated)
         const primary = process.env.API_KEY || "";
         primary.split(',').forEach(k => {
             const t = k.trim();
             if (t && !apiKeys.includes(t)) apiKeys.push(t);
         });
 
-        // Add keys from API_KEY_2 up to API_KEY_10
         for (let i = 2; i <= 10; i++) {
             const val = (process.env as any)[`API_KEY_${i}`];
             if (val) {
@@ -41,9 +37,8 @@ export default async function handler(req: Request) {
             }
         }
 
-        if (apiKeys.length === 0) throw new Error("No API keys found. Please set API_KEY in environment.");
+        if (apiKeys.length === 0) throw new Error("No API keys found.");
 
-        // 2. Prepare History for Gemini
         const geminiHistory: Content[] = [];
         for (const msg of history) {
             if (msg.type === 'USER') {
@@ -56,17 +51,29 @@ export default async function handler(req: Request) {
             } else if (msg.type === 'AI_RESPONSE') {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
-                if (content) parts.push({ text: content });
+                
+                // If message contains thinking tags, extract them to satisfy thought_signature requirements
+                // though usually for history, plain text is sufficient unless tool calls are present.
+                if (content && content.includes('<thinking>')) {
+                    const thoughtMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                    const responseMatch = content.split('</thinking>')[1];
+                    if (thoughtMatch) parts.push({ thought: thoughtMatch[1] } as any);
+                    if (responseMatch?.trim()) parts.push({ text: responseMatch.trim() });
+                } else if (content) {
+                    parts.push({ text: content });
+                }
+
                 if (msg.toolCalls) {
                     msg.toolCalls.forEach((tc: any) => parts.push({ functionCall: { name: tc.name, args: tc.args } }));
                 }
+                
                 if (parts.length > 0) {
                     geminiHistory.push({ role: 'model', parts });
                     if (msg.toolCalls) {
                         msg.toolCalls.forEach((tc: any) => {
                             geminiHistory.push({ 
                                 role: 'function', 
-                                parts: [{ functionResponse: { name: tc.name, response: { content: "Handled" } } }] 
+                                parts: [{ functionResponse: { name: tc.name, response: { content: "Complete" } } }] 
                             });
                         });
                     }
@@ -92,7 +99,7 @@ export default async function handler(req: Request) {
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Search the web using Google.', 
+                    description: 'Search the web using Google Search.', 
                     parameters: { 
                         type: Type.OBJECT, 
                         properties: { query: { type: Type.STRING } }, 
@@ -120,6 +127,7 @@ export default async function handler(req: Request) {
                         while (toolLoop) {
                             toolLoop = false;
                             let fc: any = null;
+                            const modelPartsInThisTurn: Part[] = [];
 
                             for await (const chunk of currentStream) {
                                 if (chunk.text) enqueue({ type: 'chunk', payload: chunk.text });
@@ -127,6 +135,9 @@ export default async function handler(req: Request) {
                                 const candidates = chunk.candidates;
                                 if (candidates?.[0]?.content?.parts) {
                                     for (const part of candidates[0].content.parts) {
+                                        // Keep track of EVERY part (thought, text, functionCall) to maintain turn integrity
+                                        modelPartsInThisTurn.push(part);
+
                                         if ('thought' in part && (part as any).thought) {
                                             enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
                                         }
@@ -163,14 +174,18 @@ export default async function handler(req: Request) {
                                         }
                                     }
                                     
-                                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                                    // CRITICAL: Push ALL parts received from the model, including thinking/signatures
+                                    contents.push({ role: 'model', parts: modelPartsInThisTurn });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
+                                    
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     toolLoop = true;
                                 } else {
                                     enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
-                                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                                    
+                                    contents.push({ role: 'model', parts: modelPartsInThisTurn });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
+                                    
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     toolLoop = true;
                                 }
@@ -186,11 +201,7 @@ export default async function handler(req: Request) {
                                            errorStr.includes("quota");
 
                         if (isRateLimit && currentKeyIndex < apiKeys.length - 1) {
-                            console.warn(`Key ${currentKeyIndex + 1} exhausted. Rotating...`);
                             currentKeyIndex++;
-                            // Clear history of current partial stream if we already sent chunks
-                            // but actually, we can't "un-send" chunks. 
-                            // However, Gemini errors usually happen at the START of the stream.
                             continue;
                         }
                         

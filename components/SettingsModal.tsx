@@ -142,7 +142,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="lg:hidden animate-fade-in-up space-y-2">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">General</div>
               <ListItem label="Appearance" icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
-              <ListItem label="Customize Grok" icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
+              <ListItem label="Customize Qbit" icon={<UserIcon className="size-4" />} onClick={() => setActiveTab('Customize')} />
               <ListItem label="Behavior" icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
               <ListItem label="Data Controls" icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
             </div>

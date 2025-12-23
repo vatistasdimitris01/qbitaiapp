@@ -19,6 +19,7 @@ export interface ChatInputHandle {
   handleFiles: (files: FileList) => void;
 }
 
+// Fixed missing opening brace in import statement and added missing language prop to destructuring
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   text,
   onTextChange,
@@ -27,7 +28,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   t,
   onAbortGeneration,
   replyContextText,
-  onClearReplyContext
+  onClearReplyContext,
+  language
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,7 +136,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-          placeholder="Ask Grok anything..."
+          placeholder="Ask Qbit anything..."
           className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-[16px] py-2.5 px-1 resize-none max-h-[200px]"
           rows={1}
         />

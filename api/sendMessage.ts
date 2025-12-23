@@ -20,7 +20,7 @@ export default async function handler(req: Request) {
         const { history, message, personaInstruction, location } = JSON.parse(payloadJSON);
         const uploadedFiles = formData.getAll('file') as File[];
 
-        // 1. Gather all API keys for rotation
+        // 1. Collect all potential API keys
         const apiKeys: string[] = [];
         const primary = process.env.API_KEY || "";
         primary.split(',').forEach(k => {
@@ -38,9 +38,9 @@ export default async function handler(req: Request) {
             }
         }
 
-        if (apiKeys.length === 0) throw new Error("API_KEY not found in environment.");
+        if (apiKeys.length === 0) throw new Error("No API keys found in environment.");
 
-        // 2. Prepare History
+        // 2. Prepare History for Gemini
         const geminiHistory: Content[] = [];
         for (const msg of history) {
             if (msg.type === 'USER') {
@@ -54,16 +54,15 @@ export default async function handler(req: Request) {
                 const parts: Part[] = [];
                 const content = msg.content === "[Output contains no text]" ? "" : msg.content;
                 
-                // Reconstruct thinking blocks if present in string history
-                if (content && content.includes('<thinking>')) {
-                    const thinkingBlocks = content.split('</thinking>');
-                    thinkingBlocks.forEach(block => {
-                        if (block.includes('<thinking>')) {
-                            const [textBefore, thought] = block.split('<thinking>');
-                            if (textBefore.trim()) parts.push({ text: textBefore.trim() });
-                            if (thought.trim()) parts.push({ thought: thought.trim() } as any);
-                        } else if (block.trim()) {
-                            parts.push({ text: block.trim() });
+                // If the message has tool calls, we need to try and recover the turn structure
+                if (msg.content && msg.content.includes('<thinking>')) {
+                    const parts_raw = msg.content.split(/<\/?thinking>/g);
+                    // This is a heuristic reconstruction of previous turns
+                    parts_raw.forEach((p: string, i: number) => {
+                        if (i % 2 === 1) { // Inside thinking tags
+                             parts.push({ thought: p.trim() } as any);
+                        } else if (p.trim()) {
+                             parts.push({ text: p.trim() });
                         }
                     });
                 } else if (content) {
@@ -99,14 +98,14 @@ export default async function handler(req: Request) {
         const modelName = 'gemini-3-flash-preview';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
-        const systemInstruction = `${personaInstruction || ''}\nYou are Qbit, a world-class AI assistant.\nLocation: ${locationStr}\nWeb Search: ALWAYS use 'google_search' for real-time info. Reasoning: Use your internal thinking process.`;
+        const systemInstruction = `${personaInstruction || ''}\nYou are Qbit, a world-class AI assistant.\nLocation: ${locationStr}\nWeb Search: ALWAYS use 'google_search' tool for real-time info. Reasoning: Use your internal thinking process.`;
 
         const genConfig: GenerateContentConfig = {
             systemInstruction,
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Search the web for current information.', 
+                    description: 'Perform a Google search to find current information from the web.', 
                     parameters: { 
                         type: Type.OBJECT, 
                         properties: { query: { type: Type.STRING } }, 
@@ -133,8 +132,9 @@ export default async function handler(req: Request) {
 
                         while (turnLoop) {
                             turnLoop = false;
-                            let pendingFunctionCall: any = null;
-                            const partsCapturedInTurn: Part[] = [];
+                            let activeFunctionCall: any = null;
+                            // This turn buffer stores ALL parts (Thought, Text, FunctionCall)
+                            const turnPartsBuffer: Part[] = [];
 
                             for await (const chunk of currentStream) {
                                 if (chunk.text) enqueue({ type: 'chunk', payload: chunk.text });
@@ -142,8 +142,8 @@ export default async function handler(req: Request) {
                                 const candidates = chunk.candidates;
                                 if (candidates?.[0]?.content?.parts) {
                                     for (const part of candidates[0].content.parts) {
-                                        // CRITICAL: We MUST preserve every part exactly as received to keep thought signatures valid
-                                        partsCapturedInTurn.push(part);
+                                        // CRITICAL: Preserve the exact part object received from the model
+                                        turnPartsBuffer.push(part);
 
                                         if ('thought' in part && (part as any).thought) {
                                             enqueue({ type: 'chunk', payload: `<thinking>\n${(part as any).thought}\n</thinking>` });
@@ -152,18 +152,18 @@ export default async function handler(req: Request) {
                                             enqueue({ type: 'chunk', payload: part.text });
                                         }
                                         if ('functionCall' in part && part.functionCall) {
-                                            pendingFunctionCall = part.functionCall;
+                                            activeFunctionCall = part.functionCall;
                                         }
                                     }
                                 }
                             }
 
-                            if (pendingFunctionCall) {
-                                const fc = pendingFunctionCall;
+                            if (activeFunctionCall) {
+                                const fc = activeFunctionCall;
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
                                     const cseId = process.env.GOOGLE_CSE_ID;
-                                    let searchResultText = "Search failed.";
+                                    let searchResult = "Search currently unavailable.";
 
                                     if (activeKey && cseId) {
                                         try {
@@ -173,24 +173,24 @@ export default async function handler(req: Request) {
                                                 const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResultText = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
+                                                searchResult = sJson.items.map((i: any) => `Title: ${i.title}\nURL: ${i.link}\nSnippet: ${i.snippet}`).join('\n\n');
                                             } else {
-                                                searchResultText = "No results found.";
+                                                searchResult = "No results found.";
                                             }
                                         } catch (e) {
-                                            searchResultText = "Search error occurred.";
+                                            searchResult = "Search service error.";
                                         }
                                     }
                                     
-                                    // Append turn integrity history
-                                    contents.push({ role: 'model', parts: partsCapturedInTurn });
-                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                                    // MANDATORY: Push ALL parts from the model's turn to maintain thought signature validity
+                                    contents.push({ role: 'model', parts: turnPartsBuffer });
+                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResult } } }] });
                                     
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     turnLoop = true;
                                 } else {
                                     enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
-                                    contents.push({ role: 'model', parts: partsCapturedInTurn });
+                                    contents.push({ role: 'model', parts: turnPartsBuffer });
                                     contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     turnLoop = true;
@@ -200,15 +200,14 @@ export default async function handler(req: Request) {
                         enqueue({ type: 'end' });
                         finalSuccess = true;
                     } catch (err: any) {
-                        const errorMsg = String(err.message || err).toLowerCase();
-                        const shouldRotate = errorMsg.includes("429") || 
-                                             errorMsg.includes("too many requests") || 
-                                             errorMsg.includes("resource_exhausted") || 
-                                             errorMsg.includes("quota");
+                        const errorStr = String(err.message || err).toLowerCase();
+                        const isQuotaError = errorStr.includes("429") || 
+                                             errorStr.includes("too many requests") || 
+                                             errorStr.includes("resource_exhausted") || 
+                                             errorStr.includes("quota");
 
-                        if (shouldRotate && currentKeyIndex < apiKeys.length - 1) {
+                        if (isQuotaError && currentKeyIndex < apiKeys.length - 1) {
                             currentKeyIndex++;
-                            // Reset the turn state but keep the conversation contents
                             continue;
                         }
                         

@@ -140,22 +140,8 @@ const App: React.FC = () => {
     if (!text.trim() && attachments.length === 0) return;
     
     let currentConvoId = targetConvoId || activeConversationId;
-    let updatedConversations = [...conversations];
-
-    if (!currentConvoId) {
-        const newConvo: Conversation = { 
-            id: Date.now().toString(), 
-            title: text.slice(0, 40) || 'New Chat', 
-            messages: [], 
-            createdAt: new Date().toISOString(), 
-            greeting: getRandomGreeting() 
-        };
-        updatedConversations = [newConvo, ...updatedConversations];
-        currentConvoId = newConvo.id;
-        setConversations(updatedConversations);
-        setActiveConversationId(newConvo.id);
-    }
-
+    
+    // Process files first
     const processedFiles: FileAttachment[] = [];
     if (!isRegeneration) {
         for (const f of attachments) {
@@ -166,37 +152,54 @@ const App: React.FC = () => {
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text, files: processedFiles };
     const aiMsgId = (Date.now() + 1).toString();
 
-    // If regeneration, we might be stripping the last AI message first
-    setConversations(prev => prev.map(c => {
-        if (c.id === currentConvoId) {
-            let messages = [...c.messages];
-            if (isRegeneration) {
-                // Find index of the last user message and remove everything after it
-                const lastUserIdx = [...messages].reverse().findIndex(m => m.type === MessageType.USER);
-                if (lastUserIdx !== -1) {
-                    messages = messages.slice(0, messages.length - lastUserIdx);
-                }
-            } else {
-                messages.push(newUserMsg);
-            }
-            messages.push({ id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
-            return { ...c, messages };
+    // Prepare history and setup initial message state ATOMICALLY
+    let historyToUse: Message[] = [];
+
+    setConversations(prev => {
+        let conversationsCopy = [...prev];
+        let convo = conversationsCopy.find(c => c.id === currentConvoId);
+
+        if (!convo) {
+            convo = { 
+                id: Date.now().toString(), 
+                title: text.slice(0, 40) || 'New Chat', 
+                messages: [], 
+                createdAt: new Date().toISOString(), 
+                greeting: getRandomGreeting() 
+            };
+            conversationsCopy = [convo, ...conversationsCopy];
+            currentConvoId = convo.id;
+            setActiveConversationId(convo.id);
         }
-        return c;
-    }));
-    
+
+        // History for API excludes the message we are about to send
+        historyToUse = [...convo.messages];
+
+        if (isRegeneration) {
+            // Remove previous AI turn if regenerating
+            const lastUserIdx = [...convo.messages].reverse().findIndex(m => m.type === MessageType.USER);
+            if (lastUserIdx !== -1) {
+                const actualIdx = convo.messages.length - 1 - lastUserIdx;
+                convo.messages = convo.messages.slice(0, actualIdx + 1);
+                // Also update history to exclude everything after the target user message
+                historyToUse = convo.messages.slice(0, actualIdx);
+            }
+        } else {
+            convo.messages.push(newUserMsg);
+        }
+
+        convo.messages.push({ id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
+        return conversationsCopy;
+    });
+
     setIsLoading(true);
     setAiStatus('thinking');
 
     const abort = new AbortController();
     abortControllerRef.current = abort;
 
-    const currentConvo = updatedConversations.find(c => c.id === currentConvoId);
-    // Use the potentially cleaned history if regenerating
-    const history = currentConvo ? (isRegeneration ? currentConvo.messages.slice(0, -1) : currentConvo.messages) : [];
-
     await streamMessageToAI(
-        history,
+        historyToUse,
         text,
         isRegeneration ? [] : attachments,
         undefined,
@@ -250,7 +253,7 @@ const App: React.FC = () => {
         },
         (err) => { setIsLoading(false); setAiStatus('error'); }
     );
-  }, [activeConversationId, conversations, userLocation, language]);
+  }, [activeConversationId, userLocation, language]);
 
   const handleRegenerate = useCallback((messageId: string) => {
     if (isLoading) return;

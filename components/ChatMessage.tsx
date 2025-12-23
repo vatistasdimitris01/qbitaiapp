@@ -187,15 +187,27 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             try { extractedSuggestions = JSON.parse(suggestionsMatch[1]); } catch (e) { }
             text = text.replace(/<suggestions>.*?<\/suggestions>/s, '').trim();
         }
-        const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        
+        // Match both closed tag and partial/unclosed thinking tag for real-time streaming UI
+        const thinkingMatch = text.match(/<thinking>([\s\S]*?)(?:<\/thinking>|$)/);
         let thinking = null;
         let response = text;
         let hasTag = false;
-        if (thinkingMatch) {
-            thinking = thinkingMatch[1].trim();
-            response = text.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+        
+        if (text.includes('<thinking>')) {
             hasTag = true;
+            if (thinkingMatch) {
+                thinking = thinkingMatch[1].trim();
+                // Response is text after the closing tag
+                if (text.includes('</thinking>')) {
+                    response = text.split('</thinking>')[1]?.trim() || '';
+                } else {
+                    // Still thinking, no response yet
+                    response = '';
+                }
+            }
         }
+        
         return { parsedThinkingText: thinking, parsedResponseText: response, hasThinkingTag: hasTag, suggestions: extractedSuggestions };
     }, [messageText, isUser]);
 
@@ -289,7 +301,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
             {showSearchUI && <SearchStatus sources={message.groundingChunks} resultCount={message.searchResultCount} />}
 
             <div className={`message-bubble relative rounded-3xl text-foreground prose dark:prose-invert break-words w-full max-w-none px-4 py-2 ${!hasContent ? 'min-h-0 py-0' : 'min-h-7'}`}>
-                 {!hasContent && isActuallyLastLoading && !parsedThinkingText && !showSearchUI && (
+                 {!hasContent && isActuallyLastLoading && !showSearchUI && (
                     <div className="flex items-center gap-2 text-muted-foreground min-h-[28px]">
                         <GeneratingLoader />
                     </div>

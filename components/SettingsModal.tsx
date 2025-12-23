@@ -32,7 +32,7 @@ type SettingsTab = 'Appearance' | 'Behavior' | 'Data Controls';
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
-  // Mobile: Start with null for menu list. Desktop: Default to Appearance.
+  // Desktop defaults to Appearance. Mobile defaults to null to show the list menu.
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(window.innerWidth >= 1024 ? 'Appearance' : null);
 
   // Behavior states
@@ -90,12 +90,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         `}
         onClick={e => e.stopPropagation()}
       >
-        {/* Mobile Header */}
+        {/* Mobile Header: Switches based on whether we are in a tab or in the main menu */}
         <div className="lg:hidden flex items-center justify-between p-6 pt-12 shrink-0 bg-background/50 backdrop-blur-md z-10 border-b border-gray-100 dark:border-white/5">
             {activeTab ? (
                  <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 font-extrabold text-black dark:text-white">
                     <ChevronLeftIcon className="size-6" />
-                    <span>{t(`settings.${activeTab.toLowerCase()}`)}</span>
+                    <span>{t(`settings.${activeTab.toLowerCase().replace(' ', '')}`)}</span>
                 </button>
             ) : (
                 <h2 className="text-2xl font-extrabold text-black dark:text-white">{t('settings.header')}</h2>
@@ -149,7 +149,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Sub-Pages: Always show on desktop, or show on mobile if activeTab is set */}
           {(activeTab || window.innerWidth >= 1024) && (
-              <div className={`flex-1 flex flex-col p-6 lg:p-10 ${!activeTab ? 'hidden lg:flex' : 'animate-fade-in-up'}`}>
+              <div className={`flex-1 flex flex-col p-6 lg:p-10 ${!activeTab ? 'hidden lg:flex' : 'animate-fade-in-up h-full'}`}>
                   {activeTab === 'Appearance' && (
                     <div className="flex flex-col gap-10">
                       <div className="space-y-4">

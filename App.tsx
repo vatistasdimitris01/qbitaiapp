@@ -201,15 +201,14 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* Burger Trigger Button (== -) - Glassy Design */}
+            {/* 2-Line Toggle Trigger Button (=) - Styled after reference image */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
                     className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all text-foreground"
                 >
-                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
-                    <div className="w-5 h-[2px] bg-foreground rounded-full"></div>
-                    <div className="w-3.5 h-[2px] bg-foreground rounded-full self-start ml-[13px]"></div>
+                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
+                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
                 </button>
             )}
 

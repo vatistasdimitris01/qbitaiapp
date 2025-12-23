@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Content, Part, GenerateContentConfig, Type } from "@google/genai";
+import { GoogleGenAI, Content, Part, GenerateContentConfig, Type, FunctionCallingMode } from "@google/genai";
 
 export const config = {
   runtime: 'edge',
@@ -93,39 +93,47 @@ export default async function handler(req: Request) {
         }
 
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userParts }];
-        const modelName = 'gemini-2.5-flash-lite';
+        // Updated model name according to guidelines
+        const modelName = 'gemini-flash-lite-latest';
         
         const locationStr = location ? `User location: ${location.city}, ${location.country}. ` : '';
         const systemInstruction = `${personaInstruction || ''}
-You are Qbit, a world-class AI assistant. 
+You are Qbit, a helpful and highly intelligent AI. 
 Current Date: ${new Date().toLocaleDateString()}.
 ${locationStr}
 
-MANDATORY TOOL USAGE RULES:
-1. You MUST use the 'google_search' tool for any query involving real-time information, including but not limited to: weather, news, sports scores, current events, stock prices, or any information post-dating your knowledge cutoff.
-2. If a user asks about the weather, ALWAYS call 'google_search' with a query like "weather in [City]".
-3. Do NOT apologize for not having real-time data; simply use the 'google_search' tool to find it.
-4. Your internal knowledge is for general reasoning and historical data. For anything current, use the tool.
-5. Use your internal thinking process (<thinking> tags) to plan your search.`;
+CRITICAL OPERATIONAL PROTOCOL:
+1. You have NO ACCESS to real-time weather, news, or any information about the world as it exists today except through the 'google_search' tool.
+2. If the user asks for weather, time-sensitive news, or recent events, you MUST call 'google_search'.
+3. DO NOT try to guess or use your training data for current weather. 
+4. Call 'google_search' with a specific query like "current weather in Athens" or "Athens weather forecast".
+5. Use your internal <thinking> tags to plan the search, but ensure a 'functionCall' follows immediately.
+6. Once you get search results, summarize them thoroughly for the user.`;
 
         const genConfig: GenerateContentConfig = {
             systemInstruction,
             tools: [{ 
                 functionDeclarations: [{ 
                     name: 'google_search', 
-                    description: 'Searches the live web for real-time data such as weather, news, stock prices, sports scores, and current events.', 
+                    description: 'Accesses the live internet to retrieve current weather, news, sports scores, stock prices, and world events.', 
                     parameters: { 
                         type: Type.OBJECT, 
                         properties: { 
                             query: { 
                                 type: Type.STRING,
-                                description: 'The search query to find up-to-date information.'
+                                description: 'The search query to perform (e.g., "weather in London tomorrow").'
                             } 
                         }, 
                         required: ['query'] 
                     } 
                 }] 
             }],
+            toolConfig: {
+                functionCallingConfig: {
+                    // Fix: Use FunctionCallingMode.AUTO enum to resolve type mismatch with 'AUTO' string literal
+                    mode: FunctionCallingMode.AUTO
+                }
+            }
         };
 
         const stream = new ReadableStream({
@@ -174,7 +182,7 @@ MANDATORY TOOL USAGE RULES:
                                 if (fc.name === 'google_search') {
                                     enqueue({ type: 'searching' });
                                     const cseId = process.env.GOOGLE_CSE_ID;
-                                    let searchResult = "Search currently unavailable.";
+                                    let searchResult = "Search API not configured or unavailable.";
 
                                     if (activeKey && cseId) {
                                         try {
@@ -184,12 +192,12 @@ MANDATORY TOOL USAGE RULES:
                                                 const sourceChunks = sJson.items.map((i: any) => ({ web: { uri: i.link, title: i.title } }));
                                                 enqueue({ type: 'sources', payload: sourceChunks });
                                                 enqueue({ type: 'search_result_count', payload: parseInt(sJson.searchInformation?.totalResults || "0", 10) });
-                                                searchResult = sJson.items.map((i: any) => `Source: ${i.title}\nURL: ${i.link}\nInfo: ${i.snippet}`).join('\n\n');
+                                                searchResult = "Web Search Results:\n\n" + sJson.items.map((i: any, idx: number) => `[${idx+1}] Source: ${i.title}\nURL: ${i.link}\nSummary: ${i.snippet}`).join('\n\n');
                                             } else {
-                                                searchResult = "No relevant search results were found for this query.";
+                                                searchResult = "No results found on the web for this query.";
                                             }
                                         } catch (e) {
-                                            searchResult = "An error occurred while attempting to search the web.";
+                                            searchResult = "An error occurred while connecting to the search provider.";
                                         }
                                     }
                                     
@@ -201,7 +209,7 @@ MANDATORY TOOL USAGE RULES:
                                 } else {
                                     enqueue({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: fc.id } });
                                     contents.push({ role: 'model', parts: turnPartsCaptured });
-                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Complete" } } }] });
+                                    contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Operation Complete" } } }] });
                                     currentStream = await ai.models.generateContentStream({ model: modelName, contents, config: genConfig });
                                     turnLoop = true;
                                 }
@@ -211,17 +219,11 @@ MANDATORY TOOL USAGE RULES:
                         attemptSuccess = true;
                     } catch (err: any) {
                         const errorMsg = String(err.message || err).toLowerCase();
-                        const isRetryable = errorMsg.includes("429") || 
-                                           errorMsg.includes("too many requests") || 
-                                           errorMsg.includes("resource_exhausted") || 
-                                           errorMsg.includes("quota");
-
-                        if (isRetryable && currentKeyIndex < apiKeys.length - 1) {
+                        if ((errorMsg.includes("429") || errorMsg.includes("quota")) && currentKeyIndex < apiKeys.length - 1) {
                             currentKeyIndex++;
                             continue;
                         }
-                        
-                        enqueue({ type: 'error', payload: err.message || "An unexpected error occurred during message generation." });
+                        enqueue({ type: 'error', payload: err.message || "A generation error occurred." });
                         attemptSuccess = true;
                     }
                 }

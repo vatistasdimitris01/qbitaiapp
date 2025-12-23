@@ -79,21 +79,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <LogoIcon />
               </button>
               
-              {/* Close Button - Double Arrow (>>) */}
+              {/* Close Button - Double Arrow (>>) - Styled after reference image (White Circle, Black arrows) */}
               <button 
                   onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
-                  className="size-12 rounded-full bg-black/40 dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all text-foreground"
+                  className="size-12 rounded-full bg-white dark:bg-white/10 backdrop-blur-2xl border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all text-black dark:text-white"
               >
                   <ChevronsRightIcon className="size-6" />
               </button>
           </div>
       </div>
 
-      {/* Action Strip - Search Bar expansion */}
+      {/* Action Strip - Search Bar expansion - Styled after reference (White background in Light Mode) */}
       <div className="px-6 mb-6 relative h-12 flex items-center">
           <div className="flex items-center gap-2 w-full relative">
                <div 
-                  className={`relative flex items-center h-12 px-4 rounded-full bg-black/5 dark:bg-white/5 backdrop-blur-xl border border-black/5 dark:border-white/10 text-muted-foreground focus-within:text-foreground transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]
+                  className={`relative flex items-center h-12 px-4 rounded-full bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 text-muted-foreground focus-within:text-black dark:focus-within:text-white transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-sm
                     ${isSearchFocused ? 'w-full z-10' : 'w-[calc(100%-104px)]'}
                   `}
                >
@@ -105,14 +105,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setIsSearchFocused(false)}
                         placeholder="Search..."
-                        className="bg-transparent border-none outline-none text-sm w-full h-full placeholder:text-muted-foreground/60 font-medium"
+                        className="bg-transparent border-none outline-none text-sm w-full h-full placeholder:text-muted-foreground/60 font-medium text-black dark:text-white"
                     />
                </div>
 
+               {/* Action Icons - White backgrounds for Light Mode */}
                <div className={`flex items-center gap-2 transition-all duration-300 absolute right-0 ${isSearchFocused ? 'opacity-0 scale-75 pointer-events-none translate-x-4' : 'opacity-100 scale-100 translate-x-0'}`}>
                    <button 
                         onClick={(e) => { e.stopPropagation(); onOpenSettings(); }}
-                        className="size-12 rounded-full bg-black/5 dark:bg-white/5 backdrop-blur-xl border border-black/5 dark:border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-lg"
+                        className="size-12 rounded-full bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-black dark:text-white hover:opacity-80 transition-all shadow-lg"
                         title="Settings"
                    >
                         <SettingsIcon className="size-5" />
@@ -120,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                    <button 
                         onClick={(e) => { e.stopPropagation(); onNewChat(); }}
-                        className="size-12 rounded-full bg-black/5 dark:bg-white/5 backdrop-blur-xl border border-black/5 dark:border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-lg"
+                        className="size-12 rounded-full bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-black dark:text-white hover:opacity-80 transition-all shadow-lg"
                         title="New Chat"
                    >
                         <SquarePenIcon className="size-5" />
@@ -138,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="size-6 flex items-center justify-center shrink-0">
                         <HistoryIcon />
                     </div>
-                    <span className="flex-1 text-sm truncate">History</span>
+                    <span className="flex-1 text-sm font-medium">History</span>
                 </button>
           </div>
 

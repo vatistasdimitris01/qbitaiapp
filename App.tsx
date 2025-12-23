@@ -201,11 +201,11 @@ const App: React.FC = () => {
                 bg-background w-full
             `}
         >
-            {/* Updated 2-Line Toggle Trigger Button (=) - Dark circle for both modes with white bars */}
+            {/* 2-Line Trigger Button (=) - Styled to exactly match user reference (Black Circle, White bars) */}
             {!isSidebarOpen && (
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-[#141414] dark:bg-white/5 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
+                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-[#141414] dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl active:scale-95 transition-all"
                 >
                     <div className="w-5 h-[2.5px] bg-white rounded-full"></div>
                     <div className="w-5 h-[2.5px] bg-white rounded-full"></div>

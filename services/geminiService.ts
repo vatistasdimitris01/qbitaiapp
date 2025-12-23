@@ -46,17 +46,6 @@ export const streamMessageToAI = async (
             language,
         };
 
-        // Console Log: Request
-        console.groupCollapsed("%c Qbit API Request ", "background: #1d9bf0; color: white; font-weight: bold; border-radius: 4px;");
-        console.log("Endpoint: POST /api/sendMessage");
-        console.log("Payload:", {
-            history: payload.history,
-            message: payload.message,
-            location: payload.location,
-            language: payload.language
-        });
-        console.groupEnd();
-
         const formData = new FormData();
         formData.append('payload', JSON.stringify(payload));
 
@@ -87,50 +76,47 @@ export const streamMessageToAI = async (
         const decoder = new TextDecoder();
         let buffer = '';
 
-        const processStream = async () => {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
+            buffer += decoder.decode(value, { stream: true });
+            
+            // Handle potentially split JSON lines
+            const lines = buffer.split('\n');
+            // Keep the last line in the buffer as it might be incomplete
+            buffer = lines.pop() || '';
 
-                for (const line of lines) {
-                    if (line.trim() === '') continue;
-                    try {
-                        const update: StreamUpdate = JSON.parse(line);
-                        
-                        if (update.type === 'chunk') {
-                            fullResponseAccumulator += (update.payload || "");
-                        } else if (update.type === 'tool_call') {
-                            toolCallsMade.push(update.payload.name);
-                        } else if (update.type === 'error') {
-                            throw new Error(update.payload);
-                        } else if (update.type === 'end') {
-                            return;
-                        }
-                        
-                        onUpdate(update);
-                    } catch (e) {
-                        if (e instanceof Error && e.message.includes("Unexpected end of JSON input")) continue;
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                try {
+                    const update: StreamUpdate = JSON.parse(line);
+                    
+                    if (update.type === 'chunk') {
+                        fullResponseAccumulator += (update.payload || "");
+                    } else if (update.type === 'tool_call') {
+                        toolCallsMade.push(update.payload.name);
+                    } else if (update.type === 'error') {
+                        throw new Error(update.payload);
+                    } else if (update.type === 'end') {
+                        onUpdate(update); // Send end signal
+                        return; // Exit normally
+                    }
+                    
+                    onUpdate(update);
+                } catch (e) {
+                    if (e instanceof Error && e.message.includes("Unexpected end of JSON input")) {
+                        // This technically shouldn't happen with the line splitting logic, 
+                        // but if it does, it's safe to ignore for that specific malformed line
+                        console.warn("Malformed JSON line in stream:", line);
+                    } else {
                         throw e;
                     }
                 }
             }
-        };
-
-        await processStream();
+        }
 
         const duration = Date.now() - startTime;
-        
-        // Console Log: Response
-        console.groupCollapsed("%c Qbit AI Response ", "background: #22c55e; color: white; font-weight: bold; border-radius: 4px;");
-        console.log("Duration:", (duration / 1000).toFixed(2), "s");
-        if (toolCallsMade.length > 0) console.log("Tools Used:", toolCallsMade);
-        console.log("Content:", fullResponseAccumulator || "[Output contains no text]");
-        console.groupEnd();
-
         onFinish(duration);
 
     } catch (error) {
@@ -139,13 +125,7 @@ export const streamMessageToAI = async (
              // Abort silent
         } else {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            
-            // Console Log: Error (Red Group)
-            console.groupCollapsed("%c Qbit Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
-            console.error("Message:", errorMsg);
-            console.log("Trace:", error);
-            console.groupEnd();
-
+            console.error("Stream Error:", errorMsg);
             onError(errorMsg);
             onFinish(duration);
         }

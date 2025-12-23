@@ -1,3 +1,4 @@
+
 // This service manages the singleton Web Worker for Python code execution.
 
 export type PythonExecutorUpdate = {
@@ -21,6 +22,10 @@ let isExecuting = false;
  * This is called automatically on service load and after termination.
  */
 const initialize = () => {
+    // Hidden environments log as requested
+    console.groupCollapsed("%c qbit environments ", "color: gray; font-style: italic; font-weight: bold; border: 1px solid gray; border-radius: 4px;");
+    console.log("Initializing Pyodide Worker...");
+    
     worker = new Worker('/python.worker.js');
     readyPromise = new Promise((resolve, reject) => {
         const readyListener = (event: MessageEvent) => {
@@ -34,11 +39,17 @@ const initialize = () => {
                     }
                 });
                 
+                console.log("Environment Ready.");
+                console.groupEnd();
                 resolve();
             }
         };
         worker.addEventListener('message', readyListener);
-        worker.onerror = (e) => reject(e);
+        worker.onerror = (e) => {
+            console.error("Pyodide Environment Error:", e);
+            console.groupEnd();
+            reject(e);
+        };
     });
 };
 

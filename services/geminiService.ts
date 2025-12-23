@@ -46,7 +46,7 @@ export const streamMessageToAI = async (
             language,
         };
 
-        // Console Log: Request (Hide API key and Instructions)
+        // Console Log: Request (Hide sensitive internals as requested)
         console.groupCollapsed("%c Qbit API Request ", "background: #1d9bf0; color: white; font-weight: bold; border-radius: 4px;");
         console.log("Endpoint: POST /api/sendMessage");
         console.log("Payload:", {
@@ -54,7 +54,7 @@ export const streamMessageToAI = async (
             message: payload.message,
             location: payload.location,
             language: payload.language
-            // personaInstruction is excluded to hide internal prompt instructions
+            // personaInstruction is excluded to hide system instructions
         });
         console.groupEnd();
 

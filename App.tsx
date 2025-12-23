@@ -127,9 +127,9 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Clear and print logo immediately
+    // Clear and print logo in BLACK as requested
     console.clear();
-    console.log(`%c${ASCII_LOGO}`, 'color: #1d9bf0; font-weight: bold; font-family: monospace;');
+    console.log(`%c${ASCII_LOGO}`, 'color: black; font-weight: bold; font-family: monospace;');
     
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
     

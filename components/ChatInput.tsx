@@ -107,11 +107,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
         </div>
       )}
 
-      {/* Main Input Bar */}
-      <div className="bg-[#1f1f1f] rounded-[28px] border border-[#333333] flex items-end gap-2 p-2 shadow-2xl relative">
+      {/* Main Input Bar - Now responsive to Light/Dark Mode */}
+      <div className="bg-white dark:bg-[#1f1f1f] rounded-[28px] border border-gray-200 dark:border-[#333333] flex items-end gap-2 p-2 shadow-2xl relative transition-colors duration-200">
         
         {/* Attach Button */}
-        <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-white/10 transition-colors flex-shrink-0 mb-0.5">
+        <label className="flex items-center justify-center w-10 h-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0 mb-0.5">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -119,7 +119,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             className="hidden" 
             multiple 
           />
-          <PaperclipIcon className="size-5 text-white" />
+          <PaperclipIcon className="size-5 text-black dark:text-white" />
         </label>
 
         {/* Textarea */}
@@ -130,7 +130,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           onKeyDown={handleKeyDown}
           placeholder={t('chat.input.placeholder')}
           rows={1}
-          className="flex-1 bg-transparent outline-none text-[#e0e0e0] placeholder-[#888888] text-base py-2.5 px-1 resize-none min-h-[40px] max-h-[200px] overflow-y-auto scrollbar-none"
+          className="flex-1 bg-transparent outline-none text-black dark:text-[#e0e0e0] placeholder-gray-500 dark:placeholder-[#888888] text-base py-2.5 px-1 resize-none min-h-[40px] max-h-[200px] overflow-y-auto scrollbar-none"
         />
 
         {/* Dynamic Right Button */}
@@ -138,7 +138,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {isLoading ? (
             <button
               onClick={onAbortGeneration}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-black hover:bg-white/90 transition-all duration-200"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
               title={t('chat.input.stop')}
             >
               <StopCircleIcon className="size-5" />
@@ -146,26 +146,26 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           ) : hasText || attachedFiles.length > 0 ? (
             <button
               onClick={handleSend}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-black hover:bg-white/90 transition-all duration-200"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all duration-200"
               title={t('chat.input.submit')}
             >
               <ArrowUpIcon className="size-5" />
             </button>
           ) : (
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center gap-0.5 cursor-pointer hover:bg-white/90 transition-all">
-                <div className="w-0.5 bg-black rounded-full" style={{ height: '0.4rem' }}></div>
-                <div className="w-0.5 bg-black rounded-full animate-pulse" style={{ height: '0.8rem' }}></div>
-                <div className="w-0.5 bg-black rounded-full animate-pulse" style={{ height: '1.2rem', animationDelay: '0.1s' }}></div>
-                <div className="w-0.5 bg-black rounded-full animate-pulse" style={{ height: '0.7rem', animationDelay: '0.2s' }}></div>
-                <div className="w-0.5 bg-black rounded-full animate-pulse" style={{ height: '1rem', animationDelay: '0.3s' }}></div>
-                <div className="w-0.5 bg-black rounded-full" style={{ height: '0.4rem' }}></div>
+            <div className="w-10 h-10 bg-black dark:bg-white rounded-full flex items-center justify-center gap-0.5 cursor-pointer hover:opacity-90 transition-all">
+                <div className="w-0.5 bg-white dark:bg-black rounded-full" style={{ height: '0.4rem' }}></div>
+                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '0.8rem' }}></div>
+                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '1.2rem', animationDelay: '0.1s' }}></div>
+                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '0.7rem', animationDelay: '0.2s' }}></div>
+                <div className="w-0.5 bg-white dark:bg-black rounded-full animate-pulse" style={{ height: '1rem', animationDelay: '0.3s' }}></div>
+                <div className="w-0.5 bg-white dark:bg-black rounded-full" style={{ height: '0.4rem' }}></div>
             </div>
           )}
         </div>
       </div>
       
       {/* Disclaimer */}
-      <p className="text-[10px] text-[#888888] text-center mt-1 px-4">
+      <p className="text-[10px] text-gray-500 dark:text-[#888888] text-center mt-1 px-4">
         {t('chat.input.disclaimer')}
       </p>
     </div>

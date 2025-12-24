@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration, Content, Type } from "@google/genai";
 
 export const config = {
@@ -34,8 +33,7 @@ export default async function handler(req: Request) {
         const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
         if (typeof imageSearchQuery === 'string' && imageSearchQuery.trim().length > 0) {
-            // Strictly use process.env.API_KEY
-            const apiKey = process.env.API_KEY;
+            const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
             const cseId = process.env.GOOGLE_CSE_ID;
             if (!apiKey || !cseId) return new Response(JSON.stringify({ error: 'Search config missing' }), { status: 500, headers });
             
@@ -74,8 +72,7 @@ export default async function handler(req: Request) {
             if (tools?.length) return new Response(JSON.stringify({ functionCalls: result.functionCalls }), { status: 200, headers });
             
             if (fc.name === 'google_search') {
-                 // Strictly use process.env.API_KEY
-                 const apiKey = process.env.API_KEY;
+                 const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                  const cseId = process.env.GOOGLE_CSE_ID;
                  const q = fc.args.query as string;
                  const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=5`);

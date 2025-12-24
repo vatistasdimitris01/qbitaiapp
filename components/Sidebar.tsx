@@ -24,13 +24,13 @@ interface SidebarProps {
 const LogoIcon = () => (
   <div className="flex items-center justify-center size-10">
     <img 
-      src="https://i.ibb.co/xSFyPCxH/Untitled-design-1-removebg-preview.png" 
-      alt="Qbit Logo" 
+      src="https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png" 
+      alt="KIPP Logo" 
       className="w-full h-full object-contain dark:hidden pointer-events-none"
     />
     <img 
-      src="https://i.ibb.co/3yWj2f1Q/Untitled-design-removebg-preview.png" 
-      alt="Qbit Logo" 
+      src="https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png" 
+      alt="KIPP Logo" 
       className="w-full h-full object-contain hidden dark:block pointer-events-none"
     />
   </div>

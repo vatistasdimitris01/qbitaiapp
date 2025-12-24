@@ -22,7 +22,7 @@ let isExecuting = false;
  */
 const initialize = () => {
     // Hidden environments log in gray
-    console.groupCollapsed("%c qbit environments ", "color: gray; font-style: italic; font-weight: bold; border: 1px solid gray; border-radius: 4px;");
+    console.groupCollapsed("%c kipp environments ", "color: gray; font-style: italic; font-weight: bold; border: 1px solid gray; border-radius: 4px;");
     console.log("Spinning up execution worker...");
     
     worker = new Worker('/python.worker.js');
@@ -37,7 +37,7 @@ const initialize = () => {
                     }
                 });
                 
-                console.log("Qbit Python Environment: READY");
+                console.log("KIPP Python Environment: READY");
                 console.groupEnd();
                 resolve();
             }
@@ -45,7 +45,7 @@ const initialize = () => {
         worker.addEventListener('message', readyListener);
         worker.onerror = (e) => {
             // Log environment failures in red group
-            console.groupCollapsed("%c Qbit Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
+            console.groupCollapsed("%c KIPP Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
             console.error("Pyodide Environment Failed to initialize:", e);
             console.groupEnd();
             

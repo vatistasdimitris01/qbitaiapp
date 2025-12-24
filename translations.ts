@@ -2,7 +2,7 @@
 export const translations = {
   en: {
     loader: {
-      text: 'Qbit',
+      text: 'KIPP',
       subtext: 'Preparing environment...',
     },
     updateBanner: {
@@ -16,8 +16,8 @@ export const translations = {
       getStarted: 'Begin Your Journey',
       steps: {
         intro: {
-          title: 'The Soul of Qbit',
-          story: 'Qbit isn’t just another AI interface. It’s a space where aesthetics and intelligence converge.',
+          title: 'The Soul of KIPP',
+          story: 'KIPP (Kosmic Intelligence Pattern Perceptron) isn’t just another AI interface. It’s a space where aesthetics and intelligence converge.',
           sub: 'Intelligence, refined.',
         },
         workspace: {
@@ -26,11 +26,11 @@ export const translations = {
           sidebar: 'History & Personalization',
           sidebar_desc: 'Access your past thoughts and customize the AI persona on the left.',
           input: 'Multimodal Input',
-          input_desc: 'Drop files, record voice, or paste code. Qbit handles it all natively.',
+          input_desc: 'Drop files, record voice, or paste code. KIPP handles it all natively.',
         },
         features: {
           title: 'Pure Power, Native Execution',
-          description: 'Qbit goes beyond text. It visualizes data and runs code directly in your browser.',
+          description: 'KIPP goes beyond text. It visualizes data and runs code directly in your browser.',
           examples: {
             stock: 'Analyze the markets',
             python: 'Execute complex math',
@@ -39,14 +39,14 @@ export const translations = {
         },
         location: {
           title: 'Grounded in Your World',
-          description: 'To provide the most relevant answers Qbit can use your location.',
+          description: 'To provide the most relevant answers KIPP can use your location.',
           allow: 'Allow Location Access',
           denied: 'Location access denied. You can change this in your browser settings.',
         }
       }
     },
     sidebar: {
-      header: 'Qbit',
+      header: 'KIPP',
       newChat: 'New Chat',
       search: 'Search...',
       recent: 'Recent History',
@@ -59,12 +59,12 @@ export const translations = {
       history: 'History'
     },
     chat: {
-      placeholder: 'Start a conversation with Qbit.',
+      placeholder: 'Start a conversation with KIPP.',
       scrollToBottom: 'Scroll to bottom',
       replyContext: 'In reference to the following text:\n"""\n{context}\n"""',
       input: {
-        placeholder: 'Ask Qbit anything...',
-        disclaimer: 'Qbit can make mistakes. Check important info.',
+        placeholder: 'Ask KIPP anything...',
+        disclaimer: 'KIPP can make mistakes. Check important info.',
         attach: 'Attach',
         submit: 'Submit',
         stop: 'Stop generation',
@@ -109,12 +109,12 @@ export const translations = {
         subtitle: 'Drop any file here to add it to the conversation',
     },
     selectionPopup: {
-      ask: 'Ask Qbit'
+      ask: 'Ask KIPP'
     }
   },
   el: {
     loader: {
-      text: 'Qbit',
+      text: 'KIPP',
       subtext: 'Προετοιμασία περιβάλλοντος...',
     },
     updateBanner: {
@@ -128,8 +128,8 @@ export const translations = {
       getStarted: 'Ξεκινήστε το Ταξίδι σας',
       steps: {
         intro: {
-          title: 'Η Ψυχή του Qbit',
-          story: 'Το Qbit δεν είναι απλώς μια διεπαφή AI. Είναι ένας χώρος όπου η αισθητική και η νοημοσύνη συγκλίνουν.',
+          title: 'Η Ψυχή του KIPP',
+          story: 'Το KIPP δεν είναι απλώς μια διεπαφή AI. Είναι ένας χώρος όπου η αισθητική και η νοημοσύνη συγκλίνουν.',
           sub: 'Νοημοσύνη, εκλεπτυσμένη.',
         },
         workspace: {
@@ -138,11 +138,11 @@ export const translations = {
           sidebar: 'Ιστορικό & Εξατομίκευση',
           sidebar_desc: 'Πρόσβαση στις προηγούμενες σκέψεις σας και προσαρμογή του AI στα αριστερά.',
           input: 'Πολυτροπική Είσοδος',
-          input_desc: 'Σύρετε αρχεία, ηχογραφήστε φωνή ή επικολλήστε κώδικα. Το Qbit τα χειρίζεται όλα.',
+          input_desc: 'Σύρετε αρχεία, ηχογραφήστε φωνή ή επικολλήστε κώδικα. Το KIPP τα χειρίζεται όλα.',
         },
         features: {
           title: 'Καθαρή Ισχύς, Τοπική Εκτέλεση',
-          description: 'Το Qbit προχωρά πέρα από το κείμενο. Οπτικοποιεί δεδομένα και εκτελεί κώδικα στον περιηγητή σας.',
+          description: 'Το KIPP προχωρά πέρα από το κείμενο. Οπτικοποιεί δεδομένα και εκτελεί κώδικα στον περιηγητή σας.',
           examples: {
             stock: 'Ανάλυση αγορών',
             python: 'Εκτέλεση μαθηματικών',
@@ -151,14 +151,14 @@ export const translations = {
         },
         location: {
           title: 'Γειωμένο στον Κόσμο σας',
-          description: 'Για να παρέχει τις πιο σχετικές απαντήσεις, το Qbit μπορεί να χρησιμοποιήσει την τοποθεσία σας.',
+          description: 'Για να παρέχει τις πιο σχετικές απαντήσεις, το KIPP μπορεί να χρησιμοποιήσει την τοποθεσία σας.',
           allow: 'Επιτρέψτε την Πρόσβαση',
           denied: 'Η πρόσβαση στην τοποθεσία απορρίφθηκε. Μπορείτε να το αλλάξετε στις ρυθμίσεις του περιηγητή σας.',
         }
       }
     },
     sidebar: {
-      header: 'Qbit',
+      header: 'KIPP',
       newChat: 'Νέα Συνομιλία',
       search: 'Αναζήτηση...',
       recent: 'Πρόσφατο Ιστορικό',
@@ -171,12 +171,12 @@ export const translations = {
       history: 'Ιστορικό'
     },
     chat: {
-      placeholder: 'Ξεκινήστε μια συζήτηση με το Qbit.',
+      placeholder: 'Ξεκινήστε μια συζήτηση με το KIPP.',
       scrollToBottom: 'Μετάβαση στο τέλος',
       replyContext: 'Σε αναφορά στο παρακάτω κείμενο:\n"""\n{context}\n"""',
       input: {
-        placeholder: 'Ρωτήστε το Qbit οτιδήποτε...',
-        disclaimer: 'Το Qbit μπορεί να κάνει λάθη. Ελέγξτε σημαντικές πληροφορίες.',
+        placeholder: 'Ρωτήστε το KIPP οτιδήποτε...',
+        disclaimer: 'Το KIPP μπορεί να κάνει λάθη. Ελέγξτε σημαντικές πληροφορίες.',
         attach: 'Επισύναψη',
         submit: 'Αποστολή',
         stop: 'Διακοπή παραγωγής',
@@ -221,7 +221,7 @@ export const translations = {
         subtitle: 'Σύρετε οποιοδήποτε αρχείο εδώ για να το προσθέσετε στη συνομιλία',
     },
     selectionPopup: {
-      ask: 'Ρωτήστε το Qbit'
+      ask: 'Ρωτήστε το KIPP'
     }
   },
   es: {},

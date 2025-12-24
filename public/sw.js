@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'qbit-cache-v3';
+const CACHE_NAME = 'kipp-cache-v1';
 // All local files and the main entry points
 const urlsToCache = [
   '/',
   '/index.html',
-  'https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png'
+  'https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png'
 ];
 
 // On install, cache the app shell

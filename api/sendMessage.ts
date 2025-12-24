@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const locationStr = location ? `User's Exact Location: ${location.city}, ${location.country}.` : 'Location hidden or unknown.';
 
-        const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
+        const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron), a highly intelligent and helpful AI assistant.
 
 **User Context:**
 - ${locationStr} 

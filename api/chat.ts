@@ -49,7 +49,7 @@ export default async function handler(req: Request) {
 
         const systemInstruction = userInstruction 
             ? `${userInstruction}\n\nRespond in ${userLanguageName}. Use clean Markdown.`
-            : `You are Qbit. Respond in ${userLanguageName}. Be helpful, concise, and precise. Use Markdown.`;
+            : `You are KIPP (Kosmic Intelligence Pattern Perceptron). Respond in ${userLanguageName}. Be helpful, concise, and precise. Use Markdown.`;
 
         const config: GenerateContentConfig = { systemInstruction };
         const googleSearchTool: FunctionDeclaration = {

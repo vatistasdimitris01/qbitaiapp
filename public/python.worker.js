@@ -1,3 +1,4 @@
+
 // This script is run in a separate thread by a Web Worker.
 // It's responsible for setting up the Pyodide environment and executing Python code.
 
@@ -39,11 +40,11 @@ self.onmessage = async (event) => {
             for (const line of lines) {
                 if (line.trim() === '') continue;
                 // Custom protocols to send structured data (plots, files) back to the main thread.
-                if (line.startsWith('__QBIT_PLOT_MATPLOTLIB__:') || line.startsWith('__QBIT_PLOT_PIL__:')) {
+                if (line.startsWith('__KIPP_PLOT_MATPLOTLIB__:') || line.startsWith('__KIPP_PLOT_PIL__:')) {
                     self.postMessage({ type: 'plot', plotType: 'image', data: line.split(':')[1] });
-                } else if (line.startsWith('__QBIT_PLOT_PLOTLY__:')) {
+                } else if (line.startsWith('__KIPP_PLOT_PLOTLY__:')) {
                     self.postMessage({ type: 'plot', plotType: 'plotly', data: line.substring(line.indexOf(':') + 1) });
-                } else if (line.startsWith('__QBIT_DOWNLOAD_FILE__:')) {
+                } else if (line.startsWith('__KIPP_DOWNLOAD_FILE__:')) {
                     const separator = ':';
                     const parts = line.split(separator);
                     if (parts.length >= 4) {
@@ -81,7 +82,7 @@ def custom_plt_show():
     plt.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
     b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_MATPLOTLIB__:{b64_str}")
+    print(f"__KIPP_PLOT_MATPLOTLIB__:{b64_str}")
     plt.clf()
 plt.show = custom_plt_show
 def custom_pil_show(self):
@@ -89,12 +90,12 @@ def custom_pil_show(self):
     self.save(buf, format='PNG')
     buf.seek(0)
     b64_str = base64.b64encode(buf.read()).decode('utf-8')
-    print(f"__QBIT_PLOT_PIL__:{b64_str}")
+    print(f"__KIPP_PLOT_PIL__:{b64_str}")
 Image.Image.show = custom_pil_show
 def custom_plotly_show(self, *args, **kwargs):
     fig_dict = self.to_dict()
     json_str = json.dumps(fig_dict, cls=NumpyEncoder)
-    print(f"__QBIT_PLOT_PLOTLY__:{json_str}")
+    print(f"__KIPP_PLOT_PLOTLY__:{json_str}")
 go.Figure.show = custom_plotly_show
 if hasattr(go, 'FigureWidget'): go.FigureWidget.show = custom_plotly_show
 
@@ -110,7 +111,7 @@ try:
             excel_bytes = buffer.read()
             b64_data = base64.b64encode(excel_bytes).decode('utf-8')
             mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            print(f"__QBIT_DOWNLOAD_FILE__:{filename}:{mimetype}:{b64_data}")
+            print(f"__KIPP_DOWNLOAD_FILE__:{filename}:{mimetype}:{b64_data}")
         else:
             original_workbook_save(self, filename)
     Workbook.save = patched_workbook_save
@@ -126,7 +127,7 @@ try:
             pdf_output_bytes = original_fpdf_output(self, dest='S')
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
-            print(f"__QBIT_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
+            print(f"__KIPP_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
         else:
             # If no filename, behave as original (e.g., return bytes for dest='S')
             return original_fpdf_output(self, name=name, dest=dest)
@@ -145,7 +146,7 @@ try:
             word_bytes = buffer.read()
             b64_data = base64.b64encode(word_bytes).decode('utf-8')
             mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            print(f"__QBIT_DOWNLOAD_FILE__:{path_or_stream}:{mimetype}:{b64_data}")
+            print(f"__KIPP_DOWNLOAD_FILE__:{path_or_stream}:{mimetype}:{b64_data}")
         else:
             original_document_save(self, path_or_stream)
     Document.save = patched_document_save

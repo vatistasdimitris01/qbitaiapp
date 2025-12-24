@@ -73,8 +73,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onComplete, onLocationUpdat
         <div className="relative flex items-center justify-center h-full group">
            <div className="absolute inset-0 bg-gradient-to-tr from-accent-blue/5 to-transparent rounded-3xl" />
            <div className="relative animate-pulse">
-                <img src="https://i.ibb.co/21xXp9Tn/it-removebg-preview.png" alt="Qbit" className="w-48 h-48 object-contain hidden dark:block" />
-                <img src="https://i.ibb.co/m1hPNDs/it-1-removebg-preview.png" alt="Qbit" className="w-48 h-48 object-contain dark:hidden" />
+                <img src="https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png" alt="KIPP" className="w-48 h-48 object-contain hidden dark:block" />
+                <img src="https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png" alt="KIPP" className="w-48 h-48 object-contain dark:hidden" />
            </div>
            <div className="absolute bottom-10 text-xs font-mono text-muted-foreground tracking-widest uppercase opacity-50">
                 {t('welcome.steps.intro.sub')}

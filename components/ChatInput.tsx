@@ -145,7 +145,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-          placeholder="Ask Qbit anything..."
+          placeholder="Ask KIPP anything..."
           className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-[16px] py-2.5 px-1 resize-none max-h-[200px]"
           rows={1}
         />

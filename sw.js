@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'qbit-cache-v3';
+const CACHE_NAME = 'kipp-cache-v2';
 // All local files and the main entry points
 const urlsToCache = [
   '/',
   '/index.html',
-  'https://raw.githubusercontent.com/vatistasdimitris01/QbitAI/main/public/logo.png'
+  'https://i.ibb.co/F4dP9PBf/Untitled-design-removebg-preview.png'
 ];
 
 // On install, cache the app shell
@@ -46,6 +46,11 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only handle http and https requests
+  if (!event.request.url.startsWith('http')) {
+      return;
+  }
+
   // For all requests, use a network-first, falling-back-to-cache strategy.
   event.respondWith(
     fetch(event.request)

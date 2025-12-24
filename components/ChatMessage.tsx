@@ -51,7 +51,7 @@ const textToHtml = (text: string): string => {
     let placeholderId = 0;
     const mathRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)|(\$[^\$\n\r]+?\$))/g;
     const textWithPlaceholders = text.replace(mathRegex, (match) => {
-        const id = `__QBIT_PLACEHOLDER_${placeholderId++}__`;
+        const id = `__KIPP_PLACEHOLDER_${placeholderId++}__`;
         placeholders[id] = match;
         return id;
     });

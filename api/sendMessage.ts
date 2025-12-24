@@ -65,7 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const geminiHistory: Content[] = (history as HistoryItem[])
+        // 1. Convert history to Gemini format
+        const rawHistory: Content[] = (history as HistoryItem[])
             .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
             .map(msg => {
                 const parts: Part[] = [];
@@ -73,9 +74,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.files) {
                     msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
                 }
+                // Ensure we map strictly to 'user' or 'model'
                 return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
-            }).filter(c => c.parts.length > 0);
-        
+            })
+            .filter(c => c.parts.length > 0);
+
+        // 2. Consolidate History: Merge consecutive messages with the same role
+        // Gemini API will error or return empty if history is [User, User, Model]
+        const consolidatedHistory: Content[] = [];
+        if (rawHistory.length > 0) {
+            let currentMsg = rawHistory[0];
+            for (let i = 1; i < rawHistory.length; i++) {
+                const nextMsg = rawHistory[i];
+                if (currentMsg.role === nextMsg.role) {
+                    // Merge parts
+                    currentMsg.parts = [...currentMsg.parts, ...nextMsg.parts];
+                } else {
+                    consolidatedHistory.push(currentMsg);
+                    currentMsg = nextMsg;
+                }
+            }
+            consolidatedHistory.push(currentMsg);
+        }
+
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         
@@ -87,8 +108,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
         
-        const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+        // Final contents array
+        const contents: Content[] = [...consolidatedHistory, { role: 'user', parts: userMessageParts }];
+        
+        // Use gemini-2.0-flash for stability
+        const model = 'gemini-2.0-flash';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
@@ -215,7 +239,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             } catch (e) {}
                         }
                         
-                        // 2. Add the function response. Using role: 'model' as specifically requested to avoid empty responses.
+                        // 2. Add the function response. 
+                        // IMPORTANT: For the manual tool execution flow here, we append the response as a 'model' role part 
+                        // if we want to simulate the continued conversation, OR as 'user' if strictly following API docs. 
+                        // However, to fix "empty response" errors and state corruption, mimicking a 'model' continuation often works best in stateless loop.
+                        // But strictly speaking, FunctionResponse should be part of the flow.
+                        // We will use 'model' role for the response content to ensure the model accepts it as context without breaking 'user-model' alternation strictness.
                         contents.push({ role: 'model', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
@@ -224,7 +253,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         // Handle generic tool calls
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
                         
-                        // 2. Add the function response. Using role: 'model' as specifically requested.
+                        // Pass confirmation back
                         contents.push({ role: 'model', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });

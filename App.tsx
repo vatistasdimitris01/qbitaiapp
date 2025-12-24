@@ -72,7 +72,7 @@ const App: React.FC = () => {
                         setUserLocation({ city, country, latitude, longitude });
                     }
                 });
-        }, () => {}, { enableHighAccuracy: true });
+        }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
     }
   }, []);
 
@@ -95,8 +95,10 @@ const App: React.FC = () => {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only stop dragging if we leave the window
-    if (!e.relatedTarget) setIsDragging(false);
+    // Use element tracking to prevent flicker when hovering children
+    if (e.currentTarget === e.target) {
+        setIsDragging(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -186,7 +188,7 @@ const App: React.FC = () => {
       onDragOver={handleDragOver} 
       onDragLeave={handleDragLeave} 
       onDrop={handleDrop}
-      className="h-full w-full"
+      className="h-full w-full relative"
     >
         {isDragging && <DragDropOverlay t={t} />}
         

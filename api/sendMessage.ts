@@ -87,16 +87,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const locationContext = location ? `[USER LOCATION CONTEXT: ${location.city}, ${location.country}]. USE THIS EXCLUSIVELY FOR SEARCH RELEVANCE. DO NOT proactively mention this location in small talk or greeting unless the user's prompt specifically asks about their surroundings or local data.` : 'Location data is not available.';
+        const locationContext = location ? `[USER LOCATION: ${location.city}, ${location.country}]. You have full permission to use this location to make your answers more relevant, personalized, and helpful. Feel free to proactively provide info about weather, local time, or nearby interests if it adds value to the conversation.` : 'Location data is currently unavailable.';
 
         const baseSystemInstruction = `You are Qbit, an intelligent AI assistant.
 ${locationContext}
 
 Guidelines:
-1. Language: ${userLanguageName}.
-2. Location: Only use location data to provide relevant web search results (e.g., weather in "Athens"). Do not use it as a conversational opener.
-3. Search: If you need real-time data, use the google_search tool.
-4. Suggestions: <suggestions>["Next query"]</suggestions>.`;
+1. Language: Always respond in ${userLanguageName}.
+2. Continuity: You are in a continuous conversation. Refer back to previous messages when helpful.
+3. Proactive Location: Use the user's location naturally to provide local insights (weather, events, places) whenever it feels appropriate.
+4. Search: If you need up-to-date or specific external facts, use the google_search tool.
+5. Suggestions: Provide a few helpful follow-up queries using <suggestions>["Option A", "Option B"]</suggestions> at the end of your response.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         

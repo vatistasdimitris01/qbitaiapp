@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
 
         const API_KEY = process.env.API_KEY;
-        const MODEL = 'gemini-1.5-flash'; // or gemini-1.5-pro if preferred
+        const MODEL = 'gemini-2.5-flash-lite'; // or gemini-1.5-pro if preferred
         const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?key=${API_KEY}`;
 
         // Build history in Gemini format

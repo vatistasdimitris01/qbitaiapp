@@ -111,9 +111,9 @@ const SearchCounter: React.FC<{ target: number }> = ({ target }) => {
     const [count, setCount] = useState(0);
 
     useEffect(() => {
-        if (target <= 0) return;
+        if (!target || target <= 0) return;
         let start = 0;
-        const duration = 1000; 
+        const duration = 1500; 
         const startTime = performance.now();
         const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
@@ -145,8 +145,8 @@ const SearchStatus: React.FC<{ sources?: GroundingChunk[], resultCount?: number 
                     <div className={step === 0 ? 'font-medium' : 'text-muted-foreground'}>Searching the web</div>
                 </div>
                 {step === 1 && (
-                    <div className="text-muted-foreground text-xs">
-                        {resultCount && resultCount > 0 ? <><SearchCounter target={resultCount} /> results</> : `${sources?.length || 0} results`}
+                    <div className="text-muted-foreground text-xs font-mono ml-1">
+                        {resultCount && resultCount > 0 ? <><SearchCounter target={resultCount} /> results</> : `${sources?.length || 0} sources`}
                     </div>
                 )}
             </div>
@@ -276,7 +276,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
         )
     }
 
-    const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
+    // Filter out internal tools like google_search from tool calls rendered in the message bubble
+    const uiToolCalls = useMemo(() => {
+        return (message.toolCalls || []).filter(tc => tc.name !== 'google_search');
+    }, [message.toolCalls]);
+
+    const hasToolCalls = uiToolCalls.length > 0;
     const hasText = !!parsedResponseText;
     const hasContent = hasText || hasToolCalls;
     const isActuallyLastLoading = isLast && isLoading;
@@ -303,7 +308,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         <GeneratingLoader />
                     </div>
                 )}
-                {hasToolCalls && <div className="w-full mb-4 space-y-4">{message.toolCalls!.map((toolCall, idx) => <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />)}</div>}
+                {hasToolCalls && <div className="w-full mb-4 space-y-4">{uiToolCalls.map((toolCall, idx) => <GenerativeUI key={idx} toolName={toolCall.name} args={toolCall.args} />)}</div>}
                 {renderableContent.map((part: any, index: number) => {
                     if (part.type === 'code') {
                          const resultKey = `${message.id}_${part.partIndex}`;

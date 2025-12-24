@@ -47,6 +47,35 @@ const App: React.FC = () => {
   const chatInputRef = useRef<ChatInputHandle>(null);
   const { t } = useTranslations(language);
 
+  const fetchExactLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+        const data = await res.json();
+        const addr = data?.address;
+        if (addr) {
+          // Priority: city -> town -> municipality -> village
+          const city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || 'Unknown City';
+          const country = addr.country || 'Unknown Country';
+          setUserLocation({ city, country, latitude, longitude });
+        }
+      } catch (e) {
+        console.error("Geocoding failed", e);
+      }
+    }, (err) => {
+      console.warn("Location access denied or failed", err);
+    }, options);
+  }, []);
+
   // Initialize
   useEffect(() => {
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
@@ -59,22 +88,9 @@ const App: React.FC = () => {
     if (!hasSeenWelcome) {
         setShowWelcome(true);
     } else {
-        // Precise location acquisition
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const { latitude, longitude } = pos.coords;
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
-                .then(res => res.json())
-                .then(data => {
-                    const addr = data?.address;
-                    if (addr) {
-                        const city = addr.city || addr.town || addr.municipality || addr.village || 'Unknown City';
-                        const country = addr.country || 'Unknown Country';
-                        setUserLocation({ city, country, latitude, longitude });
-                    }
-                });
-        }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+        fetchExactLocation();
     }
-  }, []);
+  }, [fetchExactLocation]);
 
   useEffect(() => {
     localStorage.setItem('conversations', JSON.stringify(conversations));
@@ -85,7 +101,6 @@ const App: React.FC = () => {
     document.documentElement.classList.toggle('dark', isDark);
   }, [theme]);
 
-  // Global Drag & Drop Handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -95,7 +110,6 @@ const App: React.FC = () => {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Use element tracking to prevent flicker when hovering children
     if (e.currentTarget === e.target) {
         setIsDragging(false);
     }
@@ -121,7 +135,6 @@ const App: React.FC = () => {
     
     let currentConvoId = activeConversationId;
     
-    // Convert files to attachments for UI state
     const fileAttachments: FileAttachment[] = await Promise.all(attachments.map(async file => {
         const reader = new FileReader();
         const dataUrl = await new Promise<string>((resolve) => {
@@ -139,7 +152,6 @@ const App: React.FC = () => {
     };
     const aiMsgId = (Date.now() + 1).toString();
 
-    // Get history before updating state
     const currentActiveConvo = conversations.find(c => c.id === currentConvoId);
     const history = currentActiveConvo ? currentActiveConvo.messages : [];
 
@@ -171,6 +183,10 @@ const App: React.FC = () => {
                     else if (update.type === 'searching') setAiStatus('searching');
                     else if (update.type === 'sources') messages[idx].groundingChunks = update.payload;
                     else if (update.type === 'search_result_count') messages[idx].searchResultCount = update.payload;
+                    else if (update.type === 'tool_call') {
+                        const existingToolCalls = messages[idx].toolCalls || [];
+                        messages[idx].toolCalls = [...existingToolCalls, update.payload];
+                    }
                 }
                 return { ...c, messages };
             }

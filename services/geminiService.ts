@@ -18,7 +18,6 @@ export const streamMessageToAI = async (
     onFinish: (duration: number) => void,
     onError: (error: string) => void
 ): Promise<void> => {
-    console.log("[GeminiService] Starting stream...", { messageLength: message.length, attachmentCount: attachments?.length });
     const startTime = Date.now();
     let hasFinished = false;
 
@@ -107,7 +106,6 @@ export const streamMessageToAI = async (
                     
                     onUpdate(update);
                 } catch (e) {
-                    // Silently ignore malformed chunks unless it's a real error
                     if (!(e instanceof SyntaxError)) {
                         throw e;
                     }

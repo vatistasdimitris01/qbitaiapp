@@ -17,11 +17,7 @@ interface HistoryItem {
 }
 
 const languageMap: { [key: string]: string } = {
-    en: 'English',
-    el: 'Greek',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
+    en: 'English', el: 'Greek', es: 'Spanish', fr: 'French', de: 'German',
 };
 
 export const config = {
@@ -91,20 +87,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (Lat: ${location.latitude}, Lon: ${location.longitude}).` : 'Location unknown.';
+        const locationContext = location ? `[USER LOCATION CONTEXT: ${location.city}, ${location.country}]. USE THIS EXCLUSIVELY FOR SEARCH RELEVANCE. DO NOT proactively mention this location in small talk or greeting unless the user's prompt specifically asks about their surroundings or local data.` : 'Location data is not available.';
 
-        const baseSystemInstruction = `You are Qbit, a highly intelligent AI assistant.
-${locationStr}
-NEVER claim you don't have access to location or web search.
-
-Capabilities:
-1. Stock Widget (render_stock_widget)
-2. Python/HTML code execution
-3. Google Search (google_search) - Use this for real-time info.
+        const baseSystemInstruction = `You are Qbit, an intelligent AI assistant.
+${locationContext}
 
 Guidelines:
 1. Language: ${userLanguageName}.
-2. Suggestions: <suggestions>["Next query"]</suggestions>.`;
+2. Location: Only use location data to provide relevant web search results (e.g., weather in "Athens"). Do not use it as a conversational opener.
+3. Search: If you need real-time data, use the google_search tool.
+4. Suggestions: <suggestions>["Next query"]</suggestions>.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
@@ -114,15 +106,9 @@ Guidelines:
             parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] },
         };
 
-        const renderStockWidgetTool: FunctionDeclaration = {
-            name: 'render_stock_widget',
-            description: 'Render a rich stock card.',
-            parameters: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.STRING }, change: { type: Type.STRING }, chartData: { type: Type.OBJECT } }, required: ['symbol', 'price', 'change', 'chartData'] }
-        };
-
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
+            tools: [{ functionDeclarations: [googleSearchTool] }],
         };
 
         try {
@@ -134,21 +120,12 @@ Guidelines:
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    if (chunk.candidates?.[0]?.finishReason) {
-                        const fr = chunk.candidates[0].finishReason;
-                        if (fr === 'MAX_TOKENS') write({ type: 'error', payload: 'Max tokens reached.' });
-                        else if (fr === 'SAFETY') write({ type: 'error', payload: 'Blocked by safety filters.' });
-                    }
-
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
-                    
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
-                    if (text) {
-                        write({ type: 'chunk', payload: text });
-                    }
+                    if (text) write({ type: 'chunk', payload: text });
                 }
 
                 if (functionCallToHandle) {
@@ -156,28 +133,23 @@ Guidelines:
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const query = fc.args.query as string;
-                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                        const apiKey = process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
-                        let searchResultText = "Search failed.";
+                        let searchResultText = "Search unavailable.";
                         if (apiKey && cseId) {
                             try {
-                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                                const q = location ? `${query} in ${location.city}` : query;
+                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=10`);
                                 const searchResults = await searchResponse.json();
                                 if (searchResults.items) {
-                                     const groundingChunks = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                                     write({ type: 'sources', payload: groundingChunks });
+                                     const sources = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
+                                     write({ type: 'sources', payload: sources });
                                      searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}`).join('\n');
                                 }
                             } catch (e) { }
                         }
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
-                    } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args } });
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "OK" } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }

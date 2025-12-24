@@ -22,23 +22,6 @@ const initialPersonas: Persona[] = [
   { id: 'persona-teach', name: 'Teacher', instruction: 'You are a friendly and patient teacher.' },
 ];
 
-const fileToDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
-
-const getRandomGreeting = () => [
-    "What are you working on?",
-    "Where should we begin?",
-    "Hey, Ready to dive in?",
-    "What’s on your mind today?",
-    "Ready when you are.",
-][Math.floor(Math.random() * 5)];
-
 const App: React.FC = () => {
   const [isPythonReady, setIsPythonReady] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -56,8 +39,6 @@ const App: React.FC = () => {
   const [replyContextText, setReplyContextText] = useState<string | null>(null);
   const [lightboxState, setLightboxState] = useState<{ images: any[]; startIndex: number; } | null>(null);
 
-  const mainContentRef = useRef<HTMLElement>(null);
-  const chatInputRef = useRef<ChatInputHandle>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { t } = useTranslations(language);
 
@@ -91,6 +72,10 @@ const App: React.FC = () => {
     const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text };
     const aiMsgId = (Date.now() + 1).toString();
 
+    // Get history before updating state
+    const currentActiveConvo = conversations.find(c => c.id === currentConvoId);
+    const history = currentActiveConvo ? currentActiveConvo.messages : [];
+
     setConversations(prev => {
         let conversationsCopy = [...prev];
         let convo = conversationsCopy.find(c => c.id === currentConvoId);
@@ -109,7 +94,7 @@ const App: React.FC = () => {
     const abort = new AbortController();
     abortControllerRef.current = abort;
 
-    await streamMessageToAI([], text, attachments, undefined, userLocation, language, abort.signal, (update) => {
+    await streamMessageToAI(history, text, attachments, undefined, userLocation, language, abort.signal, (update) => {
         setConversations(prev => prev.map(c => {
             if (c.id === currentConvoId) {
                 const messages = [...c.messages];
@@ -125,7 +110,7 @@ const App: React.FC = () => {
     }, (duration) => { 
         setIsLoading(false); setAiStatus('idle'); 
     }, (err) => { setIsLoading(false); setAiStatus('error'); });
-  }, [activeConversationId, userLocation, language]);
+  }, [activeConversationId, userLocation, language, conversations]);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
@@ -188,7 +173,6 @@ const App: React.FC = () => {
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-20">
                  <div className="max-w-3xl mx-auto">
                     <ChatInput
-                        ref={chatInputRef}
                         text={chatInputText}
                         onTextChange={setChatInputText}
                         onSendMessage={handleSendMessage}

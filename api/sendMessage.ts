@@ -32,7 +32,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
-    const write = (data: object) => res.write(JSON.stringify(data) + '\n');
+    let wroteSomething = false;
+    const write = (data: object) => {
+        wroteSomething = true;
+        res.write(JSON.stringify(data) + '\n');
+    };
 
     try {
         const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
@@ -51,6 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
+        // CRITICAL FIX: Do NOT replay tool calls/responses in history reconstruction. 
+        // Only User and Model text/file turns should be in history for this stateless implementation.
         const geminiHistory: Content[] = (history as HistoryItem[])
             .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
             .map(msg => {
@@ -58,12 +64,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.content) parts.push({ text: msg.content });
                 if (msg.files) {
                     msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
-                }
-                if (msg.toolCalls && msg.toolCalls.length > 0) {
-                     msg.toolCalls.forEach(tc => {
-                         parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         parts.push({ functionResponse: { name: tc.name, response: { content: "Processed" } } }); 
-                     });
                 }
                 return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
             }).filter(c => c.parts.length > 0);
@@ -91,7 +91,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 **User Context:**
 - ${locationStr} 
 - **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
-- **NEVER** claim you don't have access to the user's location if the location context above provides a city and country. Use that information as your primary ground truth for all local-intent queries.
 
 **Your Capabilities & Tools:**
 
@@ -157,10 +156,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    // Capture function calls immediately
+                    // CRITICAL: Capture function calls immediately
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
-                        // Notify client immediately to prevent 'end' without content
+                        // Notify client immediately that a tool is being called
                          write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
                     }
                     
@@ -172,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
                     
-                    // Add the model's tool call to history
+                    // 1. Add the MODEL'S function call to conversation history
                     contents.push({ role: 'model', parts: [{ functionCall: fc }] });
 
                     if (fc.name === 'google_search') {
@@ -203,16 +202,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             } catch (e) {}
                         }
                         
-                        // Pass response back to model
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        // 2. Add the USER'S function response to conversation history (Inputs to model are 'user')
+                        contents.push({ role: 'user', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     } else {
                         // Handle generic tool calls
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
                         
-                        // Pass confirmation back to model
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
+                        // 2. Add the USER'S function response to conversation history
+                        contents.push({ role: 'user', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
+                        
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }

@@ -44,7 +44,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
         setIsVisible(true);
     } else {
-        const timer = setTimeout(() => setIsVisible(false), 300); // Match transition duration
+        const timer = setTimeout(() => setIsVisible(false), 300);
         return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -104,16 +104,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div 
         className={`
-          bg-background w-full h-full 
-          lg:fixed lg:inset-8 lg:w-auto lg:h-auto lg:rounded-[2.5rem] lg:border lg:border-border lg:shadow-2xl 
+          bg-background w-full 
+          fixed bottom-0 left-0 right-0 h-[85vh] rounded-t-[2rem] border-t border-border shadow-2xl
+          lg:static lg:w-[90vw] lg:h-[85vh] lg:max-w-6xl lg:rounded-[2.5rem] lg:border lg:border-border
           flex flex-col overflow-hidden relative
           transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
-          ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-full lg:translate-y-8 lg:scale-95 lg:opacity-0'}
+          ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-full lg:translate-y-0 lg:scale-95 lg:opacity-0'}
         `}
         onClick={e => e.stopPropagation()}
       >
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-6 pt-8 shrink-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
+        <div className="lg:hidden flex items-center justify-between p-6 pt-8 shrink-0 bg-background/80 backdrop-blur-md z-10 border-b border-border rounded-t-[2rem]">
             {activeTab ? (
                  <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 font-extrabold text-foreground">
                     <ChevronLeftIcon className="size-6" />

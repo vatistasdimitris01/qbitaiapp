@@ -221,10 +221,10 @@ const App: React.FC = () => {
                         const existingToolCalls = messages[idx].toolCalls || [];
                         messages[idx].toolCalls = [...existingToolCalls, update.payload];
                     } else if (update.type === 'tool_call_detected') {
-                         // Ensure generic tool calls are visible immediately
+                         // Ensure generic tool calls are visible immediately or update status
                          const existingToolCalls = messages[idx].toolCalls || [];
                          if (!existingToolCalls.find((tc: any) => tc.name === update.payload)) {
-                            // Temporary placeholder if needed, or mostly for UI status update
+                            // Can add placeholder if needed
                          }
                     }
                 }

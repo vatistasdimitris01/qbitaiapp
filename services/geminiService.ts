@@ -21,6 +21,7 @@ export const streamMessageToAI = async (
     const startTime = Date.now();
     let hasFinished = false;
 
+    // Use a safe toggle to ensure onFinish is only called once
     const safeOnFinish = () => {
         if (!hasFinished) {
             hasFinished = true;
@@ -106,6 +107,7 @@ export const streamMessageToAI = async (
                     
                     onUpdate(update);
                 } catch (e) {
+                    // Silently ignore malformed JSON chunks during streaming
                     if (!(e instanceof SyntaxError)) {
                         throw e;
                     }

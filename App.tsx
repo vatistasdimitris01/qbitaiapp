@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
+import WelcomeModal from './components/WelcomeModal';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { stopPythonExecution } from './services/pythonExecutorService';
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   const [aiStatus, setAiStatus] = useState<AIStatus>('idle');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
@@ -42,17 +44,34 @@ const App: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const { t } = useTranslations(language);
 
+  // Initialize
   useEffect(() => {
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
+    
+    const savedConvos = localStorage.getItem('conversations');
+    if (savedConvos) setConversations(JSON.parse(savedConvos));
+    setPersonas(initialPersonas);
+
+    const hasSeenWelcome = localStorage.getItem('welcome_seen');
+    if (!hasSeenWelcome) {
+        setShowWelcome(true);
+    } else {
+        // Try to get location silently if already seen welcome
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const { latitude, longitude } = pos.coords;
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+                .then(res => res.json())
+                .then(data => {
+                    const city = data?.address?.city || data?.address?.town || 'Unknown';
+                    setUserLocation({ city, country: data?.address?.country || 'Unknown', latitude, longitude });
+                });
+        }, () => {});
+    }
   }, []);
 
   useEffect(() => {
-    try {
-        const savedConvos = localStorage.getItem('conversations');
-        if (savedConvos) setConversations(JSON.parse(savedConvos));
-        setPersonas(initialPersonas);
-    } catch (e) {}
-  }, []);
+    localStorage.setItem('conversations', JSON.stringify(conversations));
+  }, [conversations]);
 
   useEffect(() => {
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -188,6 +207,13 @@ const App: React.FC = () => {
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
             {lightboxState && <Lightbox images={lightboxState.images} startIndex={lightboxState.startIndex} onClose={() => setLightboxState(null)} />}
+            {showWelcome && (
+                <WelcomeModal 
+                    onComplete={() => { setShowWelcome(false); localStorage.setItem('welcome_seen', 'true'); }} 
+                    onLocationUpdate={(loc, lang) => { setUserLocation(loc); if(lang) setLanguage(lang as any); }}
+                    t={t}
+                />
+            )}
         </ContentArea>
     </AppShell>
   );

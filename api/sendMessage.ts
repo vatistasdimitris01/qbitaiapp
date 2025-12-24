@@ -17,7 +17,11 @@ interface HistoryItem {
 }
 
 const languageMap: { [key: string]: string } = {
-    en: 'English', el: 'Greek', es: 'Spanish', fr: 'French', de: 'German',
+    en: 'English',
+    el: 'Greek',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
 };
 
 export const config = {
@@ -83,33 +87,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-flash-lite-latest';
+        const model = 'gemini-2.5-flash-lite';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const locationContext = location ? `[USER LOCATION: ${location.city}, ${location.country}]. You have full permission to use this location to make your answers more relevant, personalized, and helpful. Feel free to proactively provide info about weather, local time, or nearby interests if it adds value to the conversation.` : 'Location data is currently unavailable.';
+        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (${location.latitude}, ${location.longitude}).` : 'Location unknown.';
 
-        const baseSystemInstruction = `You are Qbit, an intelligent AI assistant.
-${locationContext}
+        const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
 
-Guidelines:
-1. Language: Always respond in ${userLanguageName}.
-2. Continuity: You are in a continuous conversation. Refer back to previous messages when helpful.
-3. Proactive Location: Use the user's location naturally to provide local insights (weather, events, places) whenever it feels appropriate.
-4. Search: If you need up-to-date or specific external facts, use the google_search tool.
-5. Suggestions: Provide a few helpful follow-up queries using <suggestions>["Option A", "Option B"]</suggestions> at the end of your response.`;
+**User Context:**
+- ${locationStr} 
+- **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You have full access to this location. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
+
+**Your Capabilities & Tools:**
+
+1.  **Stock Market Widget**
+    *   **What you can do:** Instantly render a rich stock market card with price, stats, and interactive charts.
+    *   **How to do it:** Use the \`render_stock_widget\` tool.
+    *   **CRITICAL:** You MUST generate simulated but realistic historical data for '5D', '1M', '6M', '1Y', '5Y' ranges in the \`history\` field.
+
+2.  **Web Applications (HTML/CSS/JS)**
+    *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block.
+
+3.  **Python Code Execution**
+    *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
+
+4.  **Google Search (Grounding)**
+    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries. ALWAYS USE THE PROVIDED TOOL FOR WEB SEARCH.
+
+**General Guidelines:**
+
+1.  **Language**: Respond in ${userLanguageName}.
+2.  **Continuous Conversation**: Maintain the flow of conversation. You are provided with conversation history; use it to understand context.
+3.  **Proactive**: If a visual tool (like stocks) or a search is needed, use it immediately.
+4.  **Suggestions**: Provide 1-3 follow-up suggestions in JSON format <suggestions>["Query 1", "Query 2"]</suggestions> at the end.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
-            description: 'Perform a web search for real-time info.',
-            parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] },
+            description: 'Get information from the web using Google Search.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: { query: { type: Type.STRING } },
+                required: ['query'],
+            },
+        };
+
+        const renderStockWidgetTool: FunctionDeclaration = {
+            name: 'render_stock_widget',
+            description: 'Render a stock card with chart. Keys: symbol, price, change, stats, chartData, history.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    symbol: { type: Type.STRING },
+                    price: { type: Type.STRING },
+                    change: { type: Type.STRING },
+                    stats: { type: Type.OBJECT },
+                    chartData: { type: Type.OBJECT },
+                    history: { type: Type.OBJECT }
+                },
+                required: ['symbol', 'price', 'change', 'chartData']
+            }
         };
 
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool] }],
+            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
         };
 
         try {
@@ -124,33 +168,46 @@ Guidelines:
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                     }
+                    
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
                     if (text) write({ type: 'chunk', payload: text });
+                    if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
-                        const query = fc.args.query as string;
-                        const apiKey = process.env.API_KEY;
+                        const rawQuery = fc.args.query as string;
+                        // Proactively add location context to generic queries
+                        const query = (location && !rawQuery.toLowerCase().includes(location.city.toLowerCase())) 
+                            ? `${rawQuery} in ${location.city}` 
+                            : rawQuery;
+
+                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
-                        let searchResultText = "Search unavailable.";
+                        
+                        let searchResultText = "Search failed.";
                         if (apiKey && cseId) {
                             try {
-                                const q = location ? `${query} in ${location.city}` : query;
-                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=10`);
-                                const searchResults = await searchResponse.json();
-                                if (searchResults.items) {
-                                     const sources = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
+                                const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                                const sData = await sRes.json();
+                                if (sData.items) {
+                                     const sources = sData.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
                                      write({ type: 'sources', payload: sources });
-                                     searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}`).join('\n');
+                                     searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`).join('\n\n');
                                 }
-                            } catch (e) { }
+                            } catch (e) {}
                         }
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        currentStream = await ai.models.generateContentStream({ model, contents, config });
+                        keepGoing = true;
+                    } else {
+                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args } });
+                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered" } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
@@ -162,7 +219,11 @@ Guidelines:
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (!res.headersSent) res.status(500).json({ error: { message: errorMessage } });
-        else { write({ type: 'error', payload: errorMessage }); res.end(); }
+        if (res.headersSent) {
+            write({ type: 'error', payload: errorMessage });
+            res.end();
+        } else {
+            res.status(500).json({ error: { message: errorMessage } });
+        }
     }
 }

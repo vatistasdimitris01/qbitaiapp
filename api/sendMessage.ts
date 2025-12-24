@@ -1,6 +1,4 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -21,9 +19,9 @@ const languageMap: { [key: string]: string } = {
 };
 
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+    api: {
+        bodyParser: false,
+    },
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -45,45 +43,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const payloadJSON = fields.payload?.[0];
         if (!payloadJSON) throw new Error("Missing 'payload' in form data.");
         const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
-        
+
         const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
 
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
-        const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        const geminiHistory: Content[] = (history as HistoryItem[])
+        const API_KEY = process.env.API_KEY;
+        const MODEL = 'gemini-1.5-flash'; // or gemini-1.5-pro if preferred
+        const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?key=${API_KEY}`;
+
+        // Build history in Gemini format
+        const geminiHistory: any[] = (history as HistoryItem[])
             .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
             .map(msg => {
-                const parts: Part[] = [];
+                const parts: any[] = [];
                 if (msg.content) parts.push({ text: msg.content });
                 if (msg.files) {
-                    msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
+                    msg.files.forEach(file => parts.push({
+                        inlineData: { mimeType: file.mimeType, data: file.data }
+                    }));
                 }
                 if (msg.toolCalls && msg.toolCalls.length > 0) {
-                     msg.toolCalls.forEach(tc => {
-                         parts.push({ functionCall: { name: tc.name, args: tc.args } });
-                         parts.push({ functionResponse: { name: tc.name, response: { content: "Processed" } } }); 
-                     });
+                    msg.toolCalls.forEach(tc => {
+                        parts.push({ functionCall: { name: tc.name, args: tc.args } });
+                        parts.push({ functionResponse: { name: tc.name, response: { content: "Processed" } } });
+                    });
                 }
-                return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
+                return { role: msg.type === 'USER' ? 'user' : 'model', parts };
             }).filter(c => c.parts.length > 0);
-        
+
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        
-        const userMessageParts: Part[] = [{ text: message }];
+
+        // Build current user message parts
+        const userMessageParts: any[] = [{ text: message }];
         if (fileList.length > 0) {
             for (const file of fileList) {
                 const base64Data = (await fs.promises.readFile(file.filepath)).toString('base64');
-                userMessageParts.push({ inlineData: { mimeType: file.mimetype || 'application/octet-stream', data: base64Data } });
+                userMessageParts.push({
+                    inlineData: {
+                        mimeType: file.mimetype || 'application/octet-stream',
+                        data: base64Data
+                    }
+                });
             }
         }
-        
-        const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+
+        let contents: any[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
+
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
-        
+
         const locationStr = location ? `User's Exact Location: ${location.city}, ${location.country}.` : 'Location hidden or unknown.';
 
         const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron), a highly intelligent and helpful AI assistant.
@@ -114,106 +124,169 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 2.  **Proactive**: If a visual tool fits the request, USE IT immediately.
 3.  **Suggestions**: Always end with <suggestions>["Query 1", "Query 2"]</suggestions>.`;
 
-        const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
-        
-        const googleSearchTool: FunctionDeclaration = {
-            name: 'google_search',
-            description: 'Get real-time information from the web.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: { query: { type: Type.STRING } },
-                required: ['query'],
-            },
-        };
+        const finalSystemInstruction = personaInstruction
+            ? `${personaInstruction}\n\n${baseSystemInstruction}`
+            : baseSystemInstruction;
 
-        const renderStockWidgetTool: FunctionDeclaration = {
-            name: 'render_stock_widget',
-            description: 'Render a stock card with price and history.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    symbol: { type: Type.STRING },
-                    price: { type: Type.STRING },
-                    change: { type: Type.STRING },
-                    stats: { type: Type.OBJECT },
-                    chartData: { type: Type.OBJECT },
-                    history: { type: Type.OBJECT }
-                },
-                required: ['symbol', 'price', 'change', 'chartData']
-            }
-        };
-
-        const config: GenerateContentConfig = {
-            systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
-        };
-
-        try {
-            let currentStream = await ai.models.generateContentStream({ model, contents, config });
-            let keepGoing = true;
-
-            while (keepGoing) {
-                keepGoing = false;
-                let functionCallToHandle: FunctionCall | null = null;
-                
-                for await (const chunk of currentStream) {
-                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                        functionCallToHandle = chunk.functionCalls[0];
-                    }
-                    let text = '';
-                    try { text = chunk.text || ''; } catch (e) { }
-                    if (text) write({ type: 'chunk', payload: text });
-                }
-
-                if (functionCallToHandle) {
-                    const fc = functionCallToHandle;
-                    if (fc.name === 'google_search') {
-                        write({ type: 'searching' });
-                        const rawQuery = fc.args.query as string;
-                        const query = (location && !rawQuery.toLowerCase().includes(location.city.toLowerCase())) 
-                            ? `${rawQuery} in ${location.city}` 
-                            : rawQuery;
-
-                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-                        const cseId = process.env.GOOGLE_CSE_ID;
-                        
-                        let searchResultText = "Search failed.";
-                        if (apiKey && cseId) {
-                            try {
-                                const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
-                                const sData = await sRes.json();
-                                
-                                if (sData.searchInformation && sData.searchInformation.totalResults) {
-                                    write({ type: 'search_result_count', payload: parseInt(sData.searchInformation.totalResults, 10) });
-                                }
-
-                                if (sData.items) {
-                                     const sources = sData.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                                     write({ type: 'sources', payload: sources });
-                                     searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}\nURL: ${item.link}`).join('\n\n');
-                                }
-                            } catch (e) {}
+        // Tool declarations
+        const tools = [
+            {
+                functionDeclarations: [
+                    {
+                        name: 'google_search',
+                        description: 'Get real-time information from the web.',
+                        parameters: {
+                            type: 'OBJECT',
+                            properties: { query: { type: 'STRING' } },
+                            required: ['query'],
+                        },
+                    },
+                    {
+                        name: 'render_stock_widget',
+                        description: 'Render a stock card with price and history.',
+                        parameters: {
+                            type: 'OBJECT',
+                            properties: {
+                                symbol: { type: 'STRING' },
+                                price: { type: 'STRING' },
+                                change: { type: 'STRING' },
+                                stats: { type: 'OBJECT' },
+                                chartData: { type: 'OBJECT' },
+                                history: { type: 'OBJECT' }
+                            },
+                            required: ['symbol', 'price', 'change', 'chartData']
                         }
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
-                    } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
+                    }
+                ]
+            }
+        ];
+
+        let keepGoing = true;
+
+        while (keepGoing) {
+            keepGoing = false;
+            let functionCallToHandle: any = null;
+
+            const requestBody = {
+                contents,
+                systemInstruction: { parts: [{ text: finalSystemInstruction }] },
+                tools,
+                generationConfig: { responseMimeType: "text/plain" }
+            };
+
+            const response = await fetch(BASE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Gemini API error ${response.status}: ${errText}`);
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error("No response body");
+
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim().startsWith('data:'));
+
+                for (const line of lines) {
+                    const jsonStr = line.replace('data: ', '').trim();
+                    if (jsonStr === '[DONE]') continue;
+
+                    try {
+                        const parsed = JSON.parse(jsonStr);
+                        const candidates = parsed.candidates || [];
+                        for (const candidate of candidates) {
+                            const content = candidate.content;
+                            if (content?.parts) {
+                                for (const part of content.parts) {
+                                    if (part.text) {
+                                        write({ type: 'chunk', payload: part.text });
+                                    }
+                                    if (part.functionCall) {
+                                        functionCallToHandle = part.functionCall;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse stream chunk:", jsonStr);
                     }
                 }
             }
-        } finally {
-            write({ type: 'end' });
-            res.end();
+
+            // Handle tool calls
+            if (functionCallToHandle) {
+                const fc = functionCallToHandle;
+
+                if (fc.name === 'google_search') {
+                    write({ type: 'searching' });
+                    const rawQuery = fc.args.query as string;
+                    const query = (location && !rawQuery.toLowerCase().includes(location.city.toLowerCase()))
+                        ? `${rawQuery} in ${location.city}`
+                        : rawQuery;
+
+                    const googleApiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
+                    const cseId = process.env.GOOGLE_CSE_ID;
+
+                    let searchResultText = "Search failed.";
+                    if (googleApiKey && cseId) {
+                        try {
+                            const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                            const sData = await sRes.json();
+
+                            if (sData.searchInformation?.totalResults) {
+                                write({ type: 'search_result_count', payload: parseInt(sData.searchInformation.totalResults, 10) });
+                            }
+
+                            if (sData.items) {
+                                const sources = sData.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
+                                write({ type: 'sources', payload: sources });
+                                searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}\nURL: ${item.link}`).join('\n\n');
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                    contents.push({
+                        role: 'tool',
+                        parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }]
+                    });
+                    keepGoing = true;
+                } else {
+                    // Other tools (like render_stock_widget)
+                    write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
+
+                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                    contents.push({
+                        role: 'tool',
+                        parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }]
+                    });
+                    keepGoing = true;
+                }
+            }
         }
+
+        write({ type: 'end' });
+        res.end();
+
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) { write({ type: 'error', payload: errorMessage }); res.end(); }
-        else { res.status(500).json({ error: { message: errorMessage } }); }
+        if (res.headersSent) {
+            write({ type: 'error', payload: errorMessage });
+            res.end();
+        } else {
+            res.status(500).json({ error: { message: errorMessage } });
+        }
     }
 }

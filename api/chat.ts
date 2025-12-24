@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration, Content, Type } from "@google/genai";
 
 export const config = {
@@ -37,7 +38,6 @@ export default async function handler(req: Request) {
             const cseId = process.env.GOOGLE_CSE_ID;
             if (!apiKey || !cseId) return new Response(JSON.stringify({ error: 'Search config missing' }), { status: 500, headers });
             
-            // Increased num from 3 to 5
             const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(imageSearchQuery)}&searchType=image&num=5`);
             const data = await res.json();
             return new Response(JSON.stringify({ images: data.items ? data.items.map((i: any) => i.link) : [] }), { status: 200, headers });
@@ -65,8 +65,6 @@ export default async function handler(req: Request) {
 
         const result = await ai.models.generateContent({ model, contents, config });
         
-        // If tool call and it's google_search, handle it (simplistic version for this API)
-        // For custom tools, return the call.
         if (result.functionCalls?.length) {
             const fc = result.functionCalls[0];
             if (tools?.length) return new Response(JSON.stringify({ functionCalls: result.functionCalls }), { status: 200, headers });

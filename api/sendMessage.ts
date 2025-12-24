@@ -87,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-flash-lite-latest';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
@@ -128,18 +128,16 @@ Guidelines:
         try {
             let currentStream = await ai.models.generateContentStream({ model, contents, config });
             let keepGoing = true;
-            let textGenerated = false;
 
             while (keepGoing) {
                 keepGoing = false;
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    // Check for finish reason in the candidates
                     if (chunk.candidates?.[0]?.finishReason) {
                         const fr = chunk.candidates[0].finishReason;
-                        if (fr === 'MAX_TOKENS') write({ type: 'error', payload: 'Response reached maximum token limit.' });
-                        else if (fr === 'SAFETY') write({ type: 'error', payload: 'Response was blocked by safety filters.' });
+                        if (fr === 'MAX_TOKENS') write({ type: 'error', payload: 'Max tokens reached.' });
+                        else if (fr === 'SAFETY') write({ type: 'error', payload: 'Blocked by safety filters.' });
                     }
 
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
@@ -149,10 +147,8 @@ Guidelines:
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
                     if (text) {
-                        textGenerated = true;
                         write({ type: 'chunk', payload: text });
                     }
-                    if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
                 if (functionCallToHandle) {
@@ -170,7 +166,7 @@ Guidelines:
                                 if (searchResults.items) {
                                      const groundingChunks = searchResults.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
                                      write({ type: 'sources', payload: groundingChunks });
-                                     searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`).join('\n\n---\n\n');
+                                     searchResultText = searchResults.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}`).join('\n');
                                 }
                             } catch (e) { }
                         }
@@ -179,9 +175,9 @@ Guidelines:
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
+                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args } });
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered" } } }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "OK" } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
@@ -193,7 +189,7 @@ Guidelines:
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) { write({ type: 'error', payload: errorMessage }); res.end(); }
-        else res.status(500).json({ error: { message: errorMessage } });
+        if (!res.headersSent) res.status(500).json({ error: { message: errorMessage } });
+        else { write({ type: 'error', payload: errorMessage }); res.end(); }
     }
 }

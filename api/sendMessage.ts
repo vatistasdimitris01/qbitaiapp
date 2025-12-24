@@ -1,6 +1,16 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Content, Part, FunctionDeclaration, GenerateContentConfig, Type, FunctionCall } from "@google/genai";
+import { 
+    GoogleGenAI, 
+    Content, 
+    Part, 
+    FunctionDeclaration, 
+    GenerateContentConfig, 
+    Type, 
+    FunctionCall,
+    HarmCategory,
+    HarmBlockThreshold
+} from "@google/genai";
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -32,9 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
-    let wroteSomething = false;
+    let hasSentContent = false;
     const write = (data: object) => {
-        wroteSomething = true;
+        hasSentContent = true;
         res.write(JSON.stringify(data) + '\n');
     };
 
@@ -55,8 +65,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
         const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-        // CRITICAL FIX: Do NOT replay tool calls/responses in history reconstruction. 
-        // Only User and Model text/file turns should be in history for this stateless implementation.
         const geminiHistory: Content[] = (history as HistoryItem[])
             .filter(msg => msg.type === 'USER' || msg.type === 'AI_RESPONSE')
             .map(msg => {
@@ -145,6 +153,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
             tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
+            safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            ],
         };
 
         try {
@@ -159,8 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     // CRITICAL: Capture function calls immediately
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
-                        // Notify client immediately that a tool is being called
-                         write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
+                        write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
                     }
                     
                     let text = '';
@@ -202,8 +215,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             } catch (e) {}
                         }
                         
-                        // 2. Add the USER'S function response to conversation history (Inputs to model are 'user')
-                        contents.push({ role: 'user', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        // 2. Add the function response. Using role: 'model' as specifically requested to avoid empty responses.
+                        contents.push({ role: 'model', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
@@ -211,8 +224,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         // Handle generic tool calls
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
                         
-                        // 2. Add the USER'S function response to conversation history
-                        contents.push({ role: 'user', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
+                        // 2. Add the function response. Using role: 'model' as specifically requested.
+                        contents.push({ role: 'model', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
@@ -220,7 +233,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
         } finally {
-            write({ type: 'end' });
+            if (hasSentContent) {
+                write({ type: 'end' });
+            } else {
+                write({ type: 'error', payload: "No response generated by AI." });
+            }
             res.end();
         }
     } catch (error) {

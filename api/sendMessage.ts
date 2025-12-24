@@ -157,9 +157,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
+                    // Capture function calls immediately
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
+                        // Notify client immediately to prevent 'end' without content
+                         write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
                     }
+                    
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
                     if (text) write({ type: 'chunk', payload: text });
@@ -167,6 +171,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
+                    
+                    // Add the model's tool call to history
+                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const rawQuery = fc.args.query as string;
@@ -194,13 +202,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 }
                             } catch (e) {}
                         }
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                        
+                        // Pass response back to model
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     } else {
+                        // Handle generic tool calls
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
-                        contents.push({ role: 'model', parts: [{ functionCall: fc }] });
+                        
+                        // Pass confirmation back to model
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;

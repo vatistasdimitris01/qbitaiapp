@@ -116,10 +116,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const currentParam = params.get('c');
-    if (activeConversationId && activeConversationId !== currentParam) {
-        const newUrl = `${window.location.pathname}?c=${activeConversationId}`;
-        window.history.pushState({ path: newUrl }, '', newUrl);
-    } else if (!activeConversationId && currentParam) {
+    
+    if (activeConversationId) {
+        if (activeConversationId !== currentParam) {
+            const newUrl = `${window.location.pathname}?c=${activeConversationId}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+        }
+    } else if (currentParam) {
+        // If no active chat but URL has one, clear it from URL (new chat state)
         const newUrl = window.location.pathname;
         window.history.pushState({ path: newUrl }, '', newUrl);
     }
@@ -216,6 +220,12 @@ const App: React.FC = () => {
                     else if (update.type === 'tool_call') {
                         const existingToolCalls = messages[idx].toolCalls || [];
                         messages[idx].toolCalls = [...existingToolCalls, update.payload];
+                    } else if (update.type === 'tool_call_detected') {
+                         // Ensure generic tool calls are visible immediately
+                         const existingToolCalls = messages[idx].toolCalls || [];
+                         if (!existingToolCalls.find((tc: any) => tc.name === update.payload)) {
+                            // Temporary placeholder if needed, or mostly for UI status update
+                         }
                     }
                 }
                 return { ...c, messages };
@@ -275,10 +285,6 @@ const App: React.FC = () => {
     const abort = new AbortController();
     abortControllerRef.current = abort;
     
-    // Convert FileAttachment back to File object is tricky without re-fetching, 
-    // but for simplicity in this demo we pass empty array if we can't reconstruct File objects easily.
-    // In a production app, you might store blob refs or re-fetch.
-    // For now, we rely on the text content mostly or existing context logic.
     const attachments: File[] = []; 
 
     // The history sent to AI should exclude the very last user message which is sent as 'message' param

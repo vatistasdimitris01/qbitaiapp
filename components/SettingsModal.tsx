@@ -104,11 +104,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div 
         className={`
-          bg-background w-full h-full lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl 
-          lg:rounded-[2rem] lg:border lg:border-border lg:shadow-2xl 
+          bg-background w-full h-full 
+          lg:fixed lg:inset-8 lg:w-auto lg:h-auto lg:rounded-[2.5rem] lg:border lg:border-border lg:shadow-2xl 
           flex flex-col overflow-hidden relative
-          transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-full lg:translate-y-10 lg:scale-95 lg:opacity-0'}
+          transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
+          ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-full lg:translate-y-8 lg:scale-95 lg:opacity-0'}
         `}
         onClick={e => e.stopPropagation()}
       >

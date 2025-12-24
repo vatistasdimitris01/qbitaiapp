@@ -49,7 +49,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onComplete, onLocationUpdat
           const data = await res.json();
           const address = data?.address;
           if (address) {
-            const city = address.city || address.town || address.village || address.suburb || 'Unknown City';
+            // Refined city logic to avoid districts being picked as city
+            const city = address.city || address.town || address.municipality || address.village || address.suburb || 'Unknown City';
             const country = address.country || 'Unknown Country';
             const countryCode = address.country_code?.toUpperCase();
             onLocationUpdate({ city, country, latitude, longitude }, countryCode ? countryToLang[countryCode] : undefined);

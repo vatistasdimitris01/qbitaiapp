@@ -62,8 +62,11 @@ const App: React.FC = () => {
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
                 .then(res => res.json())
                 .then(data => {
-                    const city = data?.address?.city || data?.address?.town || 'Unknown';
-                    setUserLocation({ city, country: data?.address?.country || 'Unknown', latitude, longitude });
+                    const addr = data?.address;
+                    if (addr) {
+                        const city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || 'Unknown City';
+                        setUserLocation({ city, country: addr.country || 'Unknown Country', latitude, longitude });
+                    }
                 });
         }, () => {});
     }

@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
+    // Helper to write to stream
     const write = (data: object) => res.write(JSON.stringify(data) + '\n');
 
     try {
@@ -87,43 +88,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...geminiHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-2.5-flash-lite';
+        const model = 'gemini-2.5-flash';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
-        const locationStr = location ? `Current User Location: ${location.city}, ${location.country} (${location.latitude}, ${location.longitude}).` : 'Location unknown.';
+        // Strict Location context: Only city and country as requested
+        const locationStr = location ? `Current User Location: ${location.city}, ${location.country}.` : 'Location unknown.';
 
         const baseSystemInstruction = `You are Qbit, a highly intelligent and helpful AI assistant.
 
 **User Context:**
 - ${locationStr} 
-- **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You have full access to this location. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
+- **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
 
 **Your Capabilities & Tools:**
 
 1.  **Stock Market Widget**
-    *   **What you can do:** Instantly render a rich stock market card with price, stats, and interactive charts.
+    *   **What you can do:** Instantly render a rich stock market card with price, stats, and interactive charts for different time ranges.
     *   **How to do it:** Use the \`render_stock_widget\` tool.
-    *   **CRITICAL:** You MUST generate simulated but realistic historical data for '5D', '1M', '6M', '1Y', '5Y' ranges in the \`history\` field.
+    *   **When to use:** User asks about stock prices, market trends, or specific ticker symbols. YOU must generate the data.
+    *   **CRITICAL:** You MUST generate simulated but realistic historical data for '5D', '1M', '6M', '1Y', '5Y' ranges in the \`history\` field of the tool call. The chart will not work without this data.
 
 2.  **Web Applications (HTML/CSS/JS)**
+    *   **What you can do:** Create self-contained web components, dashboards, calculators.
     *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block.
 
 3.  **Python Code Execution**
+    *   **What you can do:** Analyze data, solve math, generate plots.
     *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
 
 4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries. ALWAYS USE THE PROVIDED TOOL FOR WEB SEARCH.
+    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries to ensure high relevance. ALWAYS MAKE IT USE GOOGLE ENGINGE API AND ID FOR WEB SEARCH.
 
 **General Guidelines:**
 
 1.  **Language**: Respond in ${userLanguageName}.
-2.  **Continuous Conversation**: Maintain the flow of conversation. You are provided with conversation history; use it to understand context.
-3.  **Proactive**: If a visual tool (like stocks) or a search is needed, use it immediately.
-4.  **Suggestions**: Provide 1-3 follow-up suggestions in JSON format <suggestions>["Query 1", "Query 2"]</suggestions> at the end.`;
+2.  **Proactive**: If a visual tool fits the request, USE IT instead of just describing the data.
+3.  **Suggestions**: Provide 1-3 short follow-up suggestions in JSON format <suggestions>["Next query"]</suggestions> at the end.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
+        // --- Tool Definitions ---
+
         const googleSearchTool: FunctionDeclaration = {
             name: 'google_search',
             description: 'Get information from the web using Google Search.',
@@ -136,16 +142,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const renderStockWidgetTool: FunctionDeclaration = {
             name: 'render_stock_widget',
-            description: 'Render a stock card with chart. Keys: symbol, price, change, stats, chartData, history.',
+            description: 'Render a rich stock card with chart. Generate realistic or latest known data for the stock including price, change, stats and a simulated intraday chart. Also provide simulated history data for other ranges if possible.',
             parameters: {
                 type: Type.OBJECT,
                 properties: {
-                    symbol: { type: Type.STRING },
-                    price: { type: Type.STRING },
-                    change: { type: Type.STRING },
-                    stats: { type: Type.OBJECT },
-                    chartData: { type: Type.OBJECT },
-                    history: { type: Type.OBJECT }
+                    symbol: { type: Type.STRING, description: 'Stock symbol e.g. AAPL' },
+                    price: { type: Type.STRING, description: 'Current price, e.g. "234.50"' },
+                    currency: { type: Type.STRING, description: 'Currency symbol, e.g. "$"' },
+                    change: { type: Type.STRING, description: 'Price change, e.g. "-0.45"' },
+                    changePercent: { type: Type.STRING, description: 'Price change percent, e.g. "-0.23%"' },
+                    stats: {
+                        type: Type.OBJECT,
+                        description: 'Key statistics like Open, High, Low, Vol, Mkt Cap, PE Ratio',
+                    },
+                    chartData: {
+                        type: Type.OBJECT,
+                        description: 'Intraday (1D) chart data with x (times) and y (prices) arrays.',
+                        properties: {
+                            x: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            y: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                        }
+                    },
+                    history: {
+                        type: Type.OBJECT,
+                        description: 'REQUIRED: Simulated historical chart data for ranges: 5D, 1M, 6M, 1Y, 5Y. Keys are range names (e.g. "5D"), values are objects with x (dates) and y (prices) arrays.',
+                        properties: {
+                            "5D": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "1M": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "6M": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "1Y": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } },
+                            "5Y": { type: Type.OBJECT, properties: { x: { type: Type.ARRAY, items: { type: Type.STRING } }, y: { type: Type.ARRAY, items: { type: Type.NUMBER } } } }
+                        }
+                    }
                 },
                 required: ['symbol', 'price', 'change', 'chartData']
             }
@@ -153,11 +181,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
+            tools: [{ 
+                functionDeclarations: [
+                    googleSearchTool, 
+                    renderStockWidgetTool
+                ] 
+            }],
         };
 
         try {
-            let currentStream = await ai.models.generateContentStream({ model, contents, config });
+            const initialStream = await ai.models.generateContentStream({ model, contents, config });
+            
+            let currentStream = initialStream;
             let keepGoing = true;
 
             while (keepGoing) {
@@ -171,16 +206,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     
                     let text = '';
                     try { text = chunk.text || ''; } catch (e) { }
-                    if (text) write({ type: 'chunk', payload: text });
+                    
+                    if (text) {
+                        write({ type: 'chunk', payload: text });
+                    }
                     if (chunk.usageMetadata) write({ type: 'usage', payload: chunk.usageMetadata });
                 }
 
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
+                    
                     if (fc.name === 'google_search') {
                         write({ type: 'searching' });
                         const rawQuery = fc.args.query as string;
-                        // Proactively add location context to generic queries
+                        // Grounding logic: automatically append location if no specific place mentioned
                         const query = (location && !rawQuery.toLowerCase().includes(location.city.toLowerCase())) 
                             ? `${rawQuery} in ${location.city}` 
                             : rawQuery;
@@ -188,37 +227,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
-                        let searchResultText = "Search failed.";
+                        let searchResultText = "No results found or search failed.";
                         if (apiKey && cseId) {
                             try {
-                                const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
-                                const sData = await sRes.json();
-                                if (sData.items) {
-                                     const sources = sData.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                                     write({ type: 'sources', payload: sources });
-                                     searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`).join('\n\n');
+                                const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
+                                const searchResults = await searchResponse.json();
+                                if (searchResults.items) {
+                                     const groundingChunks = searchResults.items.map((item: any) => ({
+                                        web: { uri: item.link, title: item.title },
+                                    }));
+                                    write({ type: 'sources', payload: groundingChunks });
+                                    
+                                    if (searchResults.searchInformation && searchResults.searchInformation.totalResults) {
+                                        write({ type: 'search_result_count', payload: parseInt(searchResults.searchInformation.totalResults, 10) });
+                                    }
+
+                                    searchResultText = searchResults.items.map((item: any) => 
+                                        `Title: ${item.title}\nURL: ${item.link}\nSnippet: ${item.snippet}`
+                                    ).join('\n\n---\n\n');
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                console.error("Search error", e);
+                            }
                         }
+
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
                         contents.push({ role: 'function', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
+
                     } else {
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args } });
+                        write({ 
+                            type: 'tool_call', 
+                            payload: { 
+                                name: fc.name, 
+                                args: fc.args, 
+                                id: Math.random().toString(36).substring(7) 
+                            } 
+                        });
+
                         contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered" } } }] });
+                        contents.push({ role: 'function', parts: [{ functionResponse: { name: fc.name, response: { content: "UI Rendered Successfully." } } }] });
+
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
                 }
             }
+
         } finally {
             write({ type: 'end' });
             res.end();
         }
     } catch (error) {
+        console.error("API Error:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
+        
         if (res.headersSent) {
             write({ type: 'error', payload: errorMessage });
             res.end();

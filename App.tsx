@@ -9,6 +9,7 @@ import SettingsModal from './components/SettingsModal';
 import Lightbox from './components/Lightbox';
 import GreetingMessage from './components/GreetingMessage';
 import WelcomeModal from './components/WelcomeModal';
+import DragDropOverlay from './components/DragDropOverlay';
 import { useTranslations } from './hooks/useTranslations';
 import { streamMessageToAI } from './services/geminiService';
 import { stopPythonExecution } from './services/pythonExecutorService';
@@ -36,12 +37,14 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState('dark');
   const [language, setLanguage] = useState<Language>('en');
   const [userLocation, setUserLocation] = useState<LocationInfo | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [executionResults, setExecutionResults] = useState<Record<string, any>>({});
   const [chatInputText, setChatInputText] = useState('');
   const [replyContextText, setReplyContextText] = useState<string | null>(null);
   const [lightboxState, setLightboxState] = useState<{ images: any[]; startIndex: number; } | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const chatInputRef = useRef<ChatInputHandle>(null);
   const { t } = useTranslations(language);
 
   // Initialize
@@ -56,19 +59,20 @@ const App: React.FC = () => {
     if (!hasSeenWelcome) {
         setShowWelcome(true);
     } else {
-        // Try to get location silently if already seen welcome
+        // Precise location acquisition
         navigator.geolocation.getCurrentPosition((pos) => {
             const { latitude, longitude } = pos.coords;
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
                 .then(res => res.json())
                 .then(data => {
                     const addr = data?.address;
                     if (addr) {
-                        const city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || 'Unknown City';
-                        setUserLocation({ city, country: addr.country || 'Unknown Country', latitude, longitude });
+                        const city = addr.city || addr.town || addr.municipality || addr.village || 'Unknown City';
+                        const country = addr.country || 'Unknown Country';
+                        setUserLocation({ city, country, latitude, longitude });
                     }
                 });
-        }, () => {});
+        }, () => {}, { enableHighAccuracy: true });
     }
   }, []);
 
@@ -81,6 +85,29 @@ const App: React.FC = () => {
     document.documentElement.classList.toggle('dark', isDark);
   }, [theme]);
 
+  // Global Drag & Drop Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only stop dragging if we leave the window
+    if (!e.relatedTarget) setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      chatInputRef.current?.handleFiles(e.dataTransfer.files);
+    }
+  };
+
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null);
     setChatInputText('');
@@ -91,7 +118,23 @@ const App: React.FC = () => {
     if (!text.trim() && attachments.length === 0) return;
     
     let currentConvoId = activeConversationId;
-    const newUserMsg: Message = { id: Date.now().toString(), type: MessageType.USER, content: text };
+    
+    // Convert files to attachments for UI state
+    const fileAttachments: FileAttachment[] = await Promise.all(attachments.map(async file => {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve) => {
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.readAsDataURL(file);
+        });
+        return { name: file.name, type: file.type, size: file.size, dataUrl };
+    }));
+
+    const newUserMsg: Message = { 
+        id: Date.now().toString(), 
+        type: MessageType.USER, 
+        content: text,
+        files: fileAttachments
+    };
     const aiMsgId = (Date.now() + 1).toString();
 
     // Get history before updating state
@@ -102,7 +145,7 @@ const App: React.FC = () => {
         let conversationsCopy = [...prev];
         let convo = conversationsCopy.find(c => c.id === currentConvoId);
         if (!convo) {
-            convo = { id: Date.now().toString(), title: text.slice(0, 40), messages: [], createdAt: new Date().toISOString() };
+            convo = { id: Date.now().toString(), title: text.slice(0, 40) || 'New Conversation', messages: [], createdAt: new Date().toISOString() };
             conversationsCopy = [convo, ...conversationsCopy];
             currentConvoId = convo.id;
             setActiveConversationId(convo.id);
@@ -124,6 +167,8 @@ const App: React.FC = () => {
                 if (idx !== -1) {
                     if (update.type === 'chunk') { setAiStatus('generating'); messages[idx].content += update.payload; }
                     else if (update.type === 'searching') setAiStatus('searching');
+                    else if (update.type === 'sources') messages[idx].groundingChunks = update.payload;
+                    else if (update.type === 'search_result_count') messages[idx].searchResultCount = update.payload;
                 }
                 return { ...c, messages };
             }
@@ -137,88 +182,98 @@ const App: React.FC = () => {
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   return (
-    <AppShell isSidebarOpen={isSidebarOpen}>
-        <Sidebar
-            isOpen={isSidebarOpen}
-            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onNewChat={handleNewChat}
-            onSelectConversation={(id) => { setActiveConversationId(id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
-            onDeleteConversation={(id) => setConversations(prev => prev.filter(c => c.id !== id))}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            t={t}
-        />
+    <div 
+      onDragOver={handleDragOver} 
+      onDragLeave={handleDragLeave} 
+      onDrop={handleDrop}
+      className="h-full w-full"
+    >
+        {isDragging && <DragDropOverlay t={t} />}
         
-        <ContentArea isPushed={isSidebarOpen}>
-            {!isSidebarOpen && (
-                <button 
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-white dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl transition-all"
-                >
-                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
-                    <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
-                </button>
-            )}
+        <AppShell isSidebarOpen={isSidebarOpen}>
+            <Sidebar
+                isOpen={isSidebarOpen}
+                toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                conversations={conversations}
+                activeConversationId={activeConversationId}
+                onNewChat={handleNewChat}
+                onSelectConversation={(id) => { setActiveConversationId(id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
+                onDeleteConversation={(id) => setConversations(prev => prev.filter(c => c.id !== id))}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                t={t}
+            />
+            
+            <ContentArea isPushed={isSidebarOpen}>
+                {!isSidebarOpen && (
+                    <button 
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="fixed top-4 left-4 z-[70] size-12 rounded-full bg-white dark:bg-white/10 backdrop-blur-2xl border border-white/10 flex flex-col items-center justify-center gap-1.5 shadow-2xl transition-all"
+                    >
+                        <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
+                        <div className="w-5 h-[2.5px] bg-foreground rounded-full"></div>
+                    </button>
+                )}
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-48 scrollbar-none">
-                <div className="max-w-3xl mx-auto flex flex-col min-h-full">
-                     {(!activeConversation || activeConversation.messages.length === 0) ? (
-                        <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">
-                            <GreetingMessage />
-                        </div>
-                     ) : (
-                         activeConversation.messages.map((msg, index) => (
-                             <ChatMessage
-                                 key={msg.id}
-                                 message={msg}
-                                 onRegenerate={() => {}}
-                                 onFork={() => {}}
-                                 isLoading={isLoading && index === activeConversation.messages.length - 1}
-                                 aiStatus={aiStatus}
-                                 onShowAnalysis={() => {}}
-                                 executionResults={executionResults}
-                                 onStoreExecutionResult={() => {}}
-                                 onFixRequest={() => {}}
-                                 onStopExecution={() => stopPythonExecution()}
-                                 isPythonReady={isPythonReady}
-                                 t={t}
-                                 onOpenLightbox={(imgs, idx) => setLightboxState({ images: imgs, startIndex: idx })}
-                                 isLast={index === activeConversation.messages.length - 1}
-                                 onSendSuggestion={handleSendMessage}
-                             />
-                         ))
-                     )}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-48 scrollbar-none">
+                    <div className="max-w-3xl mx-auto flex flex-col min-h-full">
+                         {(!activeConversation || activeConversation.messages.length === 0) ? (
+                            <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">
+                                <GreetingMessage />
+                            </div>
+                         ) : (
+                             activeConversation.messages.map((msg, index) => (
+                                 <ChatMessage
+                                     key={msg.id}
+                                     message={msg}
+                                     onRegenerate={() => {}}
+                                     onFork={() => {}}
+                                     isLoading={isLoading && index === activeConversation.messages.length - 1}
+                                     aiStatus={aiStatus}
+                                     onShowAnalysis={() => {}}
+                                     executionResults={executionResults}
+                                     onStoreExecutionResult={() => {}}
+                                     onFixRequest={() => {}}
+                                     onStopExecution={() => stopPythonExecution()}
+                                     isPythonReady={isPythonReady}
+                                     t={t}
+                                     onOpenLightbox={(imgs, idx) => setLightboxState({ images: imgs, startIndex: idx })}
+                                     isLast={index === activeConversation.messages.length - 1}
+                                     onSendSuggestion={handleSendMessage}
+                                 />
+                             ))
+                         )}
+                    </div>
                 </div>
-            </div>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-20">
-                 <div className="max-w-3xl mx-auto">
-                    <ChatInput
-                        text={chatInputText}
-                        onTextChange={setChatInputText}
-                        onSendMessage={handleSendMessage}
-                        isLoading={isLoading}
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-20">
+                     <div className="max-w-3xl mx-auto">
+                        <ChatInput
+                            ref={chatInputRef}
+                            text={chatInputText}
+                            onTextChange={setChatInputText}
+                            onSendMessage={handleSendMessage}
+                            isLoading={isLoading}
+                            t={t}
+                            onAbortGeneration={() => abortControllerRef.current?.abort()}
+                            replyContextText={replyContextText}
+                            onClearReplyContext={() => setReplyContextText(null)}
+                            language={language}
+                        />
+                     </div>
+                </div>
+
+                <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
+                {lightboxState && <Lightbox images={lightboxState.images} startIndex={lightboxState.startIndex} onClose={() => setLightboxState(null)} />}
+                {showWelcome && (
+                    <WelcomeModal 
+                        onComplete={() => { setShowWelcome(false); localStorage.setItem('welcome_seen', 'true'); }} 
+                        onLocationUpdate={(loc, lang) => { setUserLocation(loc); if(lang) setLanguage(lang as any); }}
                         t={t}
-                        onAbortGeneration={() => abortControllerRef.current?.abort()}
-                        replyContextText={replyContextText}
-                        onClearReplyContext={() => setReplyContextText(null)}
-                        language={language}
                     />
-                 </div>
-            </div>
-
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} personas={personas} setPersonas={setPersonas} conversations={conversations} setConversations={setConversations} activeConversationId={activeConversationId} t={t} />
-            {lightboxState && <Lightbox images={lightboxState.images} startIndex={lightboxState.startIndex} onClose={() => setLightboxState(null)} />}
-            {showWelcome && (
-                <WelcomeModal 
-                    onComplete={() => { setShowWelcome(false); localStorage.setItem('welcome_seen', 'true'); }} 
-                    onLocationUpdate={(loc, lang) => { setUserLocation(loc); if(lang) setLanguage(lang as any); }}
-                    t={t}
-                />
-            )}
-        </ContentArea>
-    </AppShell>
+                )}
+            </ContentArea>
+        </AppShell>
+    </div>
   );
 };
 

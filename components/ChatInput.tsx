@@ -19,7 +19,6 @@ export interface ChatInputHandle {
   handleFiles: (files: FileList) => void;
 }
 
-// Fixed missing opening brace in import statement and added missing language prop to destructuring
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   text,
   onTextChange,
@@ -36,21 +35,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
+  const handleFiles = (files: FileList) => {
+    const newFiles = Array.from(files);
+    setAttachedFiles(prev => [...prev, ...newFiles]);
+    newFiles.forEach(file => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => setPreviews(prev => [...prev, e.target?.result as string]);
+            reader.readAsDataURL(file);
+        } else {
+            setPreviews(prev => [...prev, 'file']);
+        }
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     focus: () => textareaRef.current?.focus(),
-    handleFiles: (files: FileList) => {
-        const newFiles = Array.from(files);
-        setAttachedFiles(prev => [...prev, ...newFiles]);
-        newFiles.forEach(file => {
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => setPreviews(prev => [...prev, e.target?.result as string]);
-                reader.readAsDataURL(file);
-            } else {
-                setPreviews(prev => [...prev, 'file']);
-            }
-        });
-    }
+    handleFiles: (files: FileList) => handleFiles(files)
   }));
 
   useEffect(() => {
@@ -67,12 +68,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       setAttachedFiles([]);
       setPreviews([]);
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const removeFile = (index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
     setPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) handleFiles(e.target.files);
   };
 
   const hasContent = text.trim().length > 0 || attachedFiles.length > 0;
@@ -96,13 +102,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               {previews.map((src, i) => (
                 <div key={i} className="relative group size-16 rounded-xl border border-border overflow-hidden bg-surface-l1 shadow-sm">
                   {src === 'file' ? (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] p-1 text-center truncate">
+                    <div className="w-full h-full flex items-center justify-center text-[10px] p-1 text-center truncate bg-surface-l2 text-foreground font-medium">
                         {attachedFiles[i]?.name}
                     </div>
                   ) : (
                     <img src={src} className="w-full h-full object-cover" alt="" />
                   )}
-                  {/* Always visible removal button for better mobile accessibility */}
                   <button 
                     onClick={() => removeFile(i)}
                     className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 shadow-md transition-transform active:scale-90"
@@ -118,18 +123,22 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
       {/* Main Input Bar */}
       <div 
-        className="bg-white dark:bg-[#1f1f1f] lg:dark:bg-[#1f1f1f] dark:bg-surface-l1 rounded-[1.75rem] border border-gray-200 dark:border-[#27272a] flex items-end gap-2 p-2 relative shadow-lg"
+        className="bg-white dark:bg-[#1f1f1f] rounded-[1.75rem] border border-gray-200 dark:border-[#27272a] flex items-end gap-2 p-2 relative shadow-lg"
       >
-        <label className="flex items-center justify-center size-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0 mb-0.5">
+        <button 
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-center size-10 rounded-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0 mb-0.5"
+        >
           <input 
             type="file" 
             ref={fileInputRef} 
-            onChange={(e) => e.target.files && (ref as any).current?.handleFiles(e.target.files)} 
+            onChange={onFileInputChange} 
             className="hidden" 
             multiple 
           />
           <PaperclipIcon className="size-5 text-muted-foreground" />
-        </label>
+        </button>
 
         <textarea
           ref={textareaRef}

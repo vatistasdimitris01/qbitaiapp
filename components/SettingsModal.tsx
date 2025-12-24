@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Conversation, Persona } from '../types';
 import { 
   XIcon, 
@@ -9,7 +9,7 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon
 } from './icons';
-import { ModalBase, Button, Text, Surface } from './DesignSystem';
+import { Button, Text, Surface } from './DesignSystem';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,13 +32,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose, theme, setTheme, language, setLanguage, personas, conversations, setConversations, activeConversationId, t
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab | null>(window.innerWidth >= 1024 ? 'Appearance' : null);
+  const [isVisible, setIsVisible] = useState(false);
 
   // Behavior states (Simulated local for UI demo)
   const [autoScroll, setAutoScroll] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
   const [wrapCode, setWrapCode] = useState(true);
 
-  if (!isOpen) return null;
+  // Handle entry/exit animations
+  useEffect(() => {
+    if (isOpen) {
+        setIsVisible(true);
+    } else {
+        const timer = setTimeout(() => setIsVisible(false), 300); // Match transition duration
+        return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!isVisible && !isOpen) return null;
 
   const handleClearCache = async () => {
     if (confirm("Are you sure you want to clear the app cache? This will refresh the page.")) {
@@ -87,13 +98,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[150] flex items-center justify-center backdrop-blur-sm p-4" onClick={onClose}>
+    <div 
+      className={`fixed inset-0 z-[200] flex items-end lg:items-center justify-center transition-all duration-300 ${isOpen ? 'bg-black/60 backdrop-blur-sm' : 'bg-transparent pointer-events-none'}`}
+      onClick={onClose}
+    >
       <div 
-        className="bg-background w-full transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] lg:max-w-4xl lg:h-[70vh] lg:min-h-[550px] lg:flex lg:flex-row lg:rounded-[2.5rem] lg:border lg:border-border lg:shadow-2xl fixed inset-0 lg:relative h-full lg:h-auto overflow-hidden"
+        className={`
+          bg-background w-full h-full lg:h-[85vh] lg:w-[90vw] lg:max-w-6xl 
+          lg:rounded-[2rem] lg:border lg:border-border lg:shadow-2xl 
+          flex flex-col overflow-hidden relative
+          transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-full lg:translate-y-10 lg:scale-95 lg:opacity-0'}
+        `}
         onClick={e => e.stopPropagation()}
       >
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-6 pt-12 shrink-0 bg-background/50 backdrop-blur-md z-10 border-b border-border">
+        <div className="lg:hidden flex items-center justify-between p-6 pt-8 shrink-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
             {activeTab ? (
                  <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 font-extrabold text-foreground">
                     <ChevronLeftIcon className="size-6" />
@@ -102,112 +122,137 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             ) : (
                 <Text variant="h2">{t('settings.header')}</Text>
             )}
-            <Button variant="secondary" size="icon" onClick={onClose}>
+            <Button variant="secondary" size="icon" onClick={onClose} className="rounded-full">
               <XIcon className="size-5" />
             </Button>
         </div>
 
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex w-64 p-6 flex-shrink-0 border-r border-border flex-col gap-1.5 h-full bg-surface-base">
-          <div className="px-4 py-3 mb-6">
-            <Text variant="h1">{t('settings.header')}</Text>
-            <Text variant="small" className="mt-1 opacity-50">Intelligence Refined</Text>
-          </div>
-          {[
-            { id: 'Appearance', label: t('settings.appearance'), icon: <SunIcon className="size-4" /> },
-            { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-4" /> },
-            { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-4" /> }
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as SettingsTab)}
-              className={`inline-flex items-center whitespace-nowrap text-sm font-bold transition-all duration-200 rounded-2xl py-3.5 gap-3 px-5 justify-start ${
-                activeTab === tab.id 
-                  ? 'bg-surface-l1 text-foreground shadow-sm ring-1 ring-border' 
-                  : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </aside>
+        {/* Desktop Close Button (Floating) */}
+        <button 
+          onClick={onClose}
+          className="hidden lg:flex absolute top-6 right-6 z-50 p-2 rounded-full bg-surface-l2 hover:bg-surface-l3 transition-colors"
+        >
+          <XIcon className="size-5" />
+        </button>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto h-full relative scrollbar-none flex flex-col">
-          {!activeTab && (
-              <div className="lg:hidden p-6 space-y-2 animate-fade-in-up">
-                 <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
-                 <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
-                 <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
+        <div className="flex flex-1 h-full overflow-hidden">
+            {/* Desktop Sidebar */}
+            <aside className="hidden lg:flex w-72 p-8 flex-shrink-0 border-r border-border flex-col gap-2 h-full bg-surface-base/50">
+              <div className="py-2 mb-6">
+                <Text variant="h1" className="text-3xl">{t('settings.header')}</Text>
+                <Text variant="small" className="mt-2 opacity-50 font-mono text-xs uppercase tracking-widest">System Preferences</Text>
               </div>
-          )}
+              {[
+                { id: 'Appearance', label: t('settings.appearance'), icon: <SunIcon className="size-5" /> },
+                { id: 'Behavior', label: t('settings.behavior'), icon: <SettingsIcon className="size-5" /> },
+                { id: 'Data Controls', label: t('settings.data'), icon: <TerminalIcon className="size-5" /> }
+              ].map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as SettingsTab)}
+                  className={`inline-flex items-center whitespace-nowrap text-base font-bold transition-all duration-200 rounded-2xl py-4 gap-4 px-5 justify-start ${
+                    activeTab === tab.id 
+                      ? 'bg-foreground text-background shadow-lg scale-[1.02]' 
+                      : 'text-muted-foreground hover:bg-surface-l2 hover:text-foreground'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </aside>
 
-          {(activeTab || window.innerWidth >= 1024) && (
-              <div className={`flex-1 flex flex-col p-6 lg:p-10 ${!activeTab ? 'hidden lg:flex' : 'animate-fade-in-up h-full'}`}>
-                  {activeTab === 'Appearance' && (
-                    <div className="flex flex-col gap-10">
-                      <div className="space-y-4">
-                        <Text variant="small">{t('settings.appearance')}</Text>
-                        <div className="grid grid-cols-3 gap-3">
-                          {(['light', 'dark', 'system'] as const).map(th => (
-                            <button 
-                              key={th}
-                              onClick={() => setTheme(th)}
-                              className={`inline-flex items-center justify-center gap-2 text-sm font-bold rounded-[1.5rem] flex-col p-5 border-2 transition-all ${theme === th ? 'bg-surface-l1 border-foreground text-foreground shadow-xl' : 'border-border text-muted-foreground hover:border-border/80'}`}
-                            >
-                              <p className="capitalize">{t(`settings.themes.${th}`)}</p>
-                            </button>
-                          ))}
+            {/* Content Area */}
+            <main className="flex-1 overflow-y-auto h-full relative scrollbar-none flex flex-col bg-background">
+              {!activeTab && (
+                  <div className="lg:hidden p-4 space-y-2 animate-fade-in-up">
+                    <ListItem label={t('settings.appearance')} icon={<SunIcon className="size-4" />} onClick={() => setActiveTab('Appearance')} />
+                    <ListItem label={t('settings.behavior')} icon={<SettingsIcon className="size-4" />} onClick={() => setActiveTab('Behavior')} />
+                    <ListItem label={t('settings.data')} icon={<TerminalIcon className="size-4" />} onClick={() => setActiveTab('Data Controls')} />
+                  </div>
+              )}
+
+              {(activeTab || window.innerWidth >= 1024) && (
+                  <div className={`flex-1 flex flex-col p-6 lg:p-12 max-w-4xl ${!activeTab ? 'hidden lg:flex' : 'animate-fade-in-up h-full'}`}>
+                      {activeTab === 'Appearance' && (
+                        <div className="flex flex-col gap-12">
+                          <div className="space-y-6">
+                            <Text variant="h2" className="lg:hidden">{t('settings.appearance')}</Text>
+                            <Text variant="small" className="hidden lg:block uppercase tracking-widest opacity-60">{t('settings.appearance')}</Text>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              {(['light', 'dark', 'system'] as const).map(th => (
+                                <button 
+                                  key={th}
+                                  onClick={() => setTheme(th)}
+                                  className={`relative overflow-hidden inline-flex items-center justify-center gap-2 text-sm font-bold rounded-[1.5rem] flex-col p-6 border-2 transition-all duration-200 ${theme === th ? 'bg-surface-l1 border-foreground text-foreground shadow-xl scale-[1.02]' : 'bg-surface-base border-transparent text-muted-foreground hover:bg-surface-l2'}`}
+                                >
+                                  <div className={`size-12 rounded-full mb-3 flex items-center justify-center ${theme === th ? 'bg-foreground text-background' : 'bg-surface-l3'}`}>
+                                     <SunIcon className="size-6" />
+                                  </div>
+                                  <p className="capitalize">{t(`settings.themes.${th}`)}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <Text variant="small" className="uppercase tracking-widest opacity-60">{t('settings.langTitle')}</Text>
+                            <div className="flex gap-4">
+                                <Button variant={language === 'en' ? 'primary' : 'secondary'} className="flex-1 h-12 rounded-xl text-base" onClick={() => setLanguage('en')}>English</Button>
+                                <Button variant={language === 'el' ? 'primary' : 'secondary'} className="flex-1 h-12 rounded-xl text-base" onClick={() => setLanguage('el')}>Ελληνικά</Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="space-y-4">
-                         <Text variant="small">{t('settings.langTitle')}</Text>
-                         <div className="flex gap-3">
-                            <Button variant={language === 'en' ? 'primary' : 'secondary'} className="flex-1" onClick={() => setLanguage('en')}>English</Button>
-                            <Button variant={language === 'el' ? 'primary' : 'secondary'} className="flex-1" onClick={() => setLanguage('el')}>Ελληνικά</Button>
-                         </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'Behavior' && (
-                    <div className="flex flex-col gap-2">
-                      <Text variant="small" className="mb-4">{t('settings.behavior')}</Text>
-                      <Surface level="l2" className="p-2">
-                        <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} />
-                        <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} />
-                        <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} />
-                      </Surface>
-                    </div>
-                  )}
-
-                  {activeTab === 'Data Controls' && (
-                    <div className="flex flex-col gap-8">
-                      <Text variant="small">{t('settings.data')}</Text>
-                      <Surface className="bg-red-500/5 border-red-500/10 p-6">
-                        <div className="flex items-center justify-between">
-                          <Text variant="body" className="font-bold text-red-500">{t('settings.buttons.delete')}</Text>
-                          <Button variant="danger" size="sm" onClick={() => { if(confirm(t('sidebar.confirmDelete'))) setConversations([]); }}>
-                            {t('settings.buttons.deleteAction')}
-                          </Button>
+                      {activeTab === 'Behavior' && (
+                        <div className="flex flex-col gap-6">
+                          <Text variant="h2" className="lg:hidden">{t('settings.behavior')}</Text>
+                          <Text variant="small" className="hidden lg:block uppercase tracking-widest opacity-60">{t('settings.behavior')}</Text>
+                          
+                          <Surface level="l1" className="p-2 rounded-2xl overflow-hidden">
+                            <OptionRow label={t('settings.switches.autoScroll')} checked={autoScroll} onChange={setAutoScroll} />
+                            <OptionRow label={t('settings.switches.haptics')} checked={hapticFeedback} onChange={setHapticFeedback} />
+                            <OptionRow label={t('settings.switches.wrapCode')} checked={wrapCode} onChange={setWrapCode} />
+                          </Surface>
                         </div>
-                      </Surface>
+                      )}
 
-                      <Surface className="bg-orange-500/5 border-orange-500/10 p-6">
-                        <div className="flex items-center justify-between">
-                          <Text variant="body" className="font-bold text-orange-600 dark:text-orange-400">{t('settings.buttons.clear')}</Text>
-                          <Button variant="secondary" size="sm" onClick={handleClearCache}>
-                            {t('settings.buttons.clearAction')}
-                          </Button>
+                      {activeTab === 'Data Controls' && (
+                        <div className="flex flex-col gap-8">
+                          <Text variant="h2" className="lg:hidden">{t('settings.data')}</Text>
+                          <Text variant="small" className="hidden lg:block uppercase tracking-widest opacity-60">{t('settings.data')}</Text>
+
+                          <Surface className="bg-red-500/5 border-red-500/10 p-8 rounded-3xl">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                  <Text variant="body" className="font-bold text-red-600 dark:text-red-400">{t('settings.buttons.delete')}</Text>
+                                  <p className="text-xs text-red-600/60 dark:text-red-400/60">This action cannot be undone.</p>
+                              </div>
+                              <Button variant="danger" size="md" onClick={() => { if(confirm(t('sidebar.confirmDelete'))) setConversations([]); }}>
+                                {t('settings.buttons.deleteAction')}
+                              </Button>
+                            </div>
+                          </Surface>
+
+                          <Surface className="bg-orange-500/5 border-orange-500/10 p-8 rounded-3xl">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                  <Text variant="body" className="font-bold text-orange-600 dark:text-orange-400">{t('settings.buttons.clear')}</Text>
+                                  <p className="text-xs text-orange-600/60 dark:text-orange-400/60">Fixes most loading issues.</p>
+                              </div>
+                              <Button variant="secondary" size="md" onClick={handleClearCache}>
+                                {t('settings.buttons.clearAction')}
+                              </Button>
+                            </div>
+                          </Surface>
                         </div>
-                      </Surface>
-                    </div>
-                  )}
-              </div>
-          )}
-        </main>
+                      )}
+                  </div>
+              )}
+            </main>
+        </div>
       </div>
     </div>
   );

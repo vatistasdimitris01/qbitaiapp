@@ -249,7 +249,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
     if (isUser) {
         return (
             <div className="relative group flex flex-col justify-center w-full max-w-[var(--content-max-width)] pb-4 items-end">
-                <div className="message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words bg-surface-l1 border border-border max-w-[100%] @sm/mainview:max-w-[90%] px-4 py-2 rounded-br-lg">
+                <div className="message-bubble relative rounded-3xl text-foreground min-h-7 prose dark:prose-invert break-words bg-surface-l1 border border-border max-w-[100%] @sm/mainview:max-w-[90%] px-4 py-2 rounded-br-lg shadow-sm">
                     <div className="whitespace-pre-wrap leading-relaxed text-[16px]">{messageText}</div>
                 </div>
                 {message.files && message.files.length > 0 && (
@@ -261,6 +261,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                         ))}
                     </div>
                 )}
+                <div className="flex items-center gap-2 mt-1 px-1">
+                     <button className="p-1 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground transition-colors" title={t('chat.message.copy')} onClick={handleCopy}>
+                        {isCopied ? <CheckIcon className="size-3.5 text-green-500" /> : <MessageCopyIcon className="size-3.5" />}
+                     </button>
+                </div>
             </div>
         );
     }
@@ -318,14 +323,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onRegenerate, onFork
                     }
                     if (part.type === 'gallery-search') return <GallerySearchLoader key={index} query={part.query} onOpenLightbox={onOpenLightbox} />;
                     if (part.type === 'gallery') return <div key={index} className="my-4"><ImageGallery images={part.images.map((img: string) => ({ url: img, alt: 'Generated Image' }))} onImageClick={(i) => onOpenLightbox(part.images.map((img: string) => ({ url: img, alt: 'Generated Image' })), i)} /></div>;
-                    return <div key={index} className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
+                    return <div key={index} className="prose dark:prose-invert max-w-none w-full" dangerouslySetInnerHTML={{ __html: textToHtml(part.content) }} />;
                 })}
             </div>
 
             {message.groundingChunks && message.groundingChunks.length > 0 && !isLoading && <div className="mt-2 flex flex-wrap gap-2"><GroundingSources chunks={message.groundingChunks} t={t} /></div>}
 
             {!isLoading && (
-                <div className="flex items-center gap-1 mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 w-full justify-start px-2">
+                <div className="flex items-center gap-2 mt-2 opacity-100 transition-opacity duration-200 w-full justify-start px-2">
                     <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.regenerate')} onClick={() => onRegenerate(message.id)}><MessageRefreshIcon className="size-4" /></button>
                     <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.copy')} onClick={handleCopy}>{isCopied ? <CheckIcon className="size-4 text-green-500" /> : <MessageCopyIcon className="size-4" />}</button>
                     <button className="p-1.5 hover:bg-surface-l2 rounded-full text-muted-foreground hover:text-foreground" title={t('chat.message.fork')} onClick={() => onFork(message.id)}><GitForkIcon className="size-4" /></button>

@@ -81,8 +81,19 @@ const App: React.FC = () => {
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
     
     const savedConvos = localStorage.getItem('conversations');
-    if (savedConvos) setConversations(JSON.parse(savedConvos));
+    let loadedConvos: Conversation[] = [];
+    if (savedConvos) {
+        loadedConvos = JSON.parse(savedConvos);
+        setConversations(loadedConvos);
+    }
     setPersonas(initialPersonas);
+
+    // URL Routing Initialization
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('c');
+    if (chatId && loadedConvos.some(c => c.id === chatId)) {
+        setActiveConversationId(chatId);
+    }
 
     const hasSeenWelcome = localStorage.getItem('welcome_seen');
     if (!hasSeenWelcome) {
@@ -100,6 +111,19 @@ const App: React.FC = () => {
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', isDark);
   }, [theme]);
+
+  // Sync URL with Active Conversation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const currentParam = params.get('c');
+    if (activeConversationId && activeConversationId !== currentParam) {
+        const newUrl = `${window.location.pathname}?c=${activeConversationId}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+    } else if (!activeConversationId && currentParam) {
+        const newUrl = window.location.pathname;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+  }, [activeConversationId]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -127,6 +151,8 @@ const App: React.FC = () => {
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null);
     setChatInputText('');
+    const newUrl = window.location.pathname;
+    window.history.pushState({ path: newUrl }, '', newUrl);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   }, []);
 
@@ -152,18 +178,22 @@ const App: React.FC = () => {
     };
     const aiMsgId = (Date.now() + 1).toString();
 
-    const currentActiveConvo = conversations.find(c => c.id === currentConvoId);
-    const history = currentActiveConvo ? currentActiveConvo.messages : [];
+    let history: Message[] = [];
 
     setConversations(prev => {
         let conversationsCopy = [...prev];
         let convo = conversationsCopy.find(c => c.id === currentConvoId);
+        
         if (!convo) {
             convo = { id: Date.now().toString(), title: text.slice(0, 40) || 'New Conversation', messages: [], createdAt: new Date().toISOString() };
             conversationsCopy = [convo, ...conversationsCopy];
             currentConvoId = convo.id;
             setActiveConversationId(convo.id);
         }
+        
+        // Capture history before adding new messages for the API call
+        history = [...convo.messages];
+        
         convo.messages.push(newUserMsg, { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' });
         return conversationsCopy;
     });
@@ -196,6 +226,90 @@ const App: React.FC = () => {
         setIsLoading(false); setAiStatus('idle'); 
     }, (err) => { setIsLoading(false); setAiStatus('error'); });
   }, [activeConversationId, userLocation, language, conversations]);
+
+  const handleRegenerate = useCallback(async (messageId: string) => {
+    if (!activeConversationId || isLoading) return;
+
+    const convo = conversations.find(c => c.id === activeConversationId);
+    if (!convo) return;
+
+    const msgIndex = convo.messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
+
+    // Identify the context for regeneration
+    let historyToKeep: Message[] = [];
+    let lastUserMessage: Message | null = null;
+
+    if (convo.messages[msgIndex].type === MessageType.AI_RESPONSE) {
+        // If regenerating an AI response, we need the history up to the previous user message
+        historyToKeep = convo.messages.slice(0, msgIndex);
+        lastUserMessage = historyToKeep[historyToKeep.length - 1]; // Should be user message
+        // Remove the AI message and anything after it from UI
+    } else if (convo.messages[msgIndex].type === MessageType.USER) {
+         // If regenerating from a user message (effectively "resending" it)
+         historyToKeep = convo.messages.slice(0, msgIndex);
+         lastUserMessage = convo.messages[msgIndex];
+         // We keep the history *before* this user message, and treat this user message as the new trigger
+    }
+
+    if (!lastUserMessage || lastUserMessage.type !== MessageType.USER) return;
+
+    // Update state to remove old messages
+    const aiMsgId = (Date.now() + 1).toString();
+    setConversations(prev => prev.map(c => {
+        if (c.id === activeConversationId) {
+            // Keep messages before the regeneration point
+            // If regenerating AI: keep up to User. Add new placeholder.
+            // If regenerating User: keep up to User (inclusive). Add new placeholder.
+            const newMessages = convo.messages[msgIndex].type === MessageType.AI_RESPONSE 
+                ? [...convo.messages.slice(0, msgIndex), { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }]
+                : [...convo.messages.slice(0, msgIndex + 1), { id: aiMsgId, type: MessageType.AI_RESPONSE, content: '' }];
+            
+            return { ...c, messages: newMessages };
+        }
+        return c;
+    }));
+
+    setIsLoading(true);
+    setAiStatus('thinking');
+    const abort = new AbortController();
+    abortControllerRef.current = abort;
+    
+    // Convert FileAttachment back to File object is tricky without re-fetching, 
+    // but for simplicity in this demo we pass empty array if we can't reconstruct File objects easily.
+    // In a production app, you might store blob refs or re-fetch.
+    // For now, we rely on the text content mostly or existing context logic.
+    const attachments: File[] = []; 
+
+    // The history sent to AI should exclude the very last user message which is sent as 'message' param
+    const apiHistory = historyToKeep.slice(0, historyToKeep.length - 1);
+    const messageText = typeof lastUserMessage.content === 'string' ? lastUserMessage.content : '';
+
+    await streamMessageToAI(apiHistory, messageText, attachments, undefined, userLocation, language, abort.signal, (update) => {
+        setConversations(prev => prev.map(c => {
+            if (c.id === activeConversationId) {
+                const messages = [...c.messages];
+                const idx = messages.findIndex(m => m.id === aiMsgId);
+                if (idx !== -1) {
+                    if (update.type === 'chunk') { setAiStatus('generating'); messages[idx].content += update.payload; }
+                    else if (update.type === 'searching') setAiStatus('searching');
+                    else if (update.type === 'sources') messages[idx].groundingChunks = update.payload;
+                    else if (update.type === 'search_result_count') messages[idx].searchResultCount = update.payload;
+                    else if (update.type === 'tool_call') {
+                        const existingToolCalls = messages[idx].toolCalls || [];
+                        messages[idx].toolCalls = [...existingToolCalls, update.payload];
+                    }
+                }
+                return { ...c, messages };
+            }
+            return c;
+        }));
+    }, (duration) => { 
+        setIsLoading(false); setAiStatus('idle'); 
+    }, (err) => { setIsLoading(false); setAiStatus('error'); });
+
+  }, [activeConversationId, conversations, userLocation, language, isLoading]);
+
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
@@ -243,7 +357,7 @@ const App: React.FC = () => {
                                  <ChatMessage
                                      key={msg.id}
                                      message={msg}
-                                     onRegenerate={() => {}}
+                                     onRegenerate={handleRegenerate}
                                      onFork={() => {}}
                                      isLoading={isLoading && index === activeConversation.messages.length - 1}
                                      aiStatus={aiStatus}

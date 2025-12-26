@@ -52,7 +52,7 @@ export default async function handler(req: Request) {
             process.env.API_KEY_5
         ].filter(Boolean) as string[];
 
-        if (apiKeys.length === 0) throw new Error("API_KEY not set.");
+        if (apiKeys.length === 0) throw new Error("API_KEY not set. Please configure environment variables.");
 
         const userLanguageName = languageMap[language as string] || 'English';
         const systemInstruction = userInstruction 
@@ -68,7 +68,8 @@ export default async function handler(req: Request) {
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
         let lastError = null;
-        for (const apiKey of apiKeys) {
+        for (let i = 0; i < apiKeys.length; i++) {
+            const apiKey = apiKeys[i];
             try {
                 const ai = new GoogleGenAI({ apiKey });
                 const result = await ai.models.generateContent({ model, contents, config: genConfig });
@@ -78,14 +79,19 @@ export default async function handler(req: Request) {
                     groundingChunks: result.candidates?.[0]?.groundingMetadata?.groundingChunks || []
                 }), { status: 200, headers });
             } catch (error: any) {
-                console.warn(`[API Rotation Chat] Key failed, trying next... Error: ${error.message}`);
+                console.warn(`[API Rotation Chat] Key ${i+1} failed. Error: ${error.message}`);
                 lastError = error;
+                // If it's a transient error or quota limit, try the next key
+                continue;
             }
         }
 
         throw lastError || new Error("Failed to generate content with any available API key.");
 
     } catch (error: any) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        return new Response(JSON.stringify({ error: error.message }), { 
+            status: 500, 
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
+        });
     }
 }

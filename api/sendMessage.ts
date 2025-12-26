@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ].filter(Boolean) as string[];
 
     if (apiKeys.length === 0) {
-        res.status(500).json({ error: "No API keys configured in environment variables." });
+        res.status(500).json({ error: "No API keys configured in environment variables. Set API_KEY, API_KEY_2, etc." });
         return;
     }
 
@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             })
             .filter(c => c.parts.length > 0);
 
-        // 2. Consolidate History: Merge consecutive messages with the same role
+        // 2. Consolidate History
         const consolidatedHistory: Content[] = [];
         if (rawHistory.length > 0) {
             let currentMsg = rawHistory[0];
@@ -143,12 +143,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // API Key Rotation Loop
         let lastError = null;
-        for (const apiKey of apiKeys) {
+        for (let i = 0; i < apiKeys.length; i++) {
+            const apiKey = apiKeys[i];
             try {
                 const ai = new GoogleGenAI({ apiKey });
+                // We attempt to initialize the stream
                 const stream = await ai.models.generateContentStream({ model, contents, config: genConfig });
                 
                 let sentGrounding = false;
+                // Test the stream by getting the first chunk
                 for await (const chunk of stream) {
                     const text = chunk.text;
                     if (text) {
@@ -167,18 +170,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 write({ type: 'end' });
                 res.end();
-                return; // Success! Exit handler.
+                return; // Success!
 
             } catch (error: any) {
-                console.warn(`[API Rotation] Key failed, trying next... Error: ${error.message}`);
+                console.warn(`[API Rotation] Key ${i+1} failed. Error: ${error.message}`);
                 lastError = error;
-                // If we've already started writing chunks to the response, we can't cleanly retry with a new key for the same stream.
-                // However, most auth/quota errors happen at the connection/initialization stage.
-                if (hasSentHeader) break; 
+                
+                // If we've already started writing chunks (header sent), we cannot retry for this specific request 
+                // because the stream is already corrupted for the client.
+                if (hasSentHeader) {
+                    break;
+                }
+                // If header NOT sent, continue loop to try next API key.
             }
         }
 
-        // If we reach here, all keys failed
+        // All keys failed or an error occurred after header was sent
         throw lastError || new Error("Failed to generate content with any available API key.");
 
     } catch (error) {

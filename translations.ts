@@ -17,6 +17,8 @@ export const translations = {
       placeholder: 'Start a conversation with KIPP.', scrollToBottom: 'Scroll to bottom', replyContext: 'In reference to the following text:\n"""\n{context}\n"""',
       input: { placeholder: 'Ask KIPP anything...', disclaimer: 'KIPP can make mistakes. Check important info.', attach: 'Attach', submit: 'Submit', stop: 'Stop generation', },
       message: { thinking: 'Chain of Thought', grounding: 'Used Google Search and found the following sources:', copy: 'Copy message', regenerate: 'Regenerate response', viewCode: 'View Code', fork: 'Fork conversation', },
+      audio: { play: 'Play audio', pause: 'Pause audio' },
+      fileSuccess: 'Successfully generated {filename}'
     },
     settings: {
       header: 'Settings', appearance: 'Appearance', behavior: 'Behavior', data: 'Data Controls', langTitle: 'Language / Γλώσσα',
@@ -44,6 +46,8 @@ export const translations = {
       placeholder: 'Ξεκινήστε μια συζήτηση με το KIPP.', scrollToBottom: 'Μετάβαση στο τέλος', replyContext: 'Σε αναφορά στο παρακάτω κείμενο:\n"""\n{context}\n"""',
       input: { placeholder: 'Ρωτήστε το KIPP οτιδήποτε...', disclaimer: 'Το KIPP μπορεί να κάνει λάθη. Ελέγξτε σημαντικές πληροφορίες.', attach: 'Επισύναψη', submit: 'Αποστολή', stop: 'Διακοπή παραγωγής', },
       message: { thinking: 'Αλυσίδα Σκέψης', grounding: 'Χρησιμοποιήθηκε η Αναζήτηση Google και βρέθηκαν οι εξής πηγές:', copy: 'Αντιγραφή μηνύματος', regenerate: 'Επαναπαραγωγή απάντησης', viewCode: 'Προβολή Κώδικα', fork: 'Δημιουργία αντιγράφου', },
+      audio: { play: 'Αναπαραγωγή ήχου', pause: 'Παύση ήχου' },
+      fileSuccess: 'Επιτυχής δημιουργία του αρχείου {filename}'
     },
     settings: {
       header: 'Ρυθμίσεις', appearance: 'Εμφάνιση', behavior: 'Συμπεριφορά', data: 'Δεδομένα', langTitle: 'Γλώσσα / Language',

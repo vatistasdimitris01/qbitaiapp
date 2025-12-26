@@ -16,6 +16,9 @@ let pythonExecutionCallback: UpdateCallback | null = null;
 let isPythonExecuting = false;
 
 const initializePythonWorker = () => {
+    console.groupCollapsed("%c kipp environments ", "color: gray; font-style: italic; font-weight: bold; border: 1px solid gray; border-radius: 4px;");
+    console.log("Spinning up execution worker...");
+    
     pythonWorker = new Worker('/python.worker.js');
     pythonReadyPromise = new Promise((resolve, reject) => {
         const readyListener = (event: MessageEvent) => {
@@ -26,11 +29,19 @@ const initializePythonWorker = () => {
                         pythonExecutionCallback(event.data as PythonExecutorUpdate);
                     }
                 });
+                console.log("KIPP Python Environment: READY");
+                console.groupEnd();
                 resolve();
             }
         };
         pythonWorker.addEventListener('message', readyListener);
-        pythonWorker.onerror = (e) => reject(e);
+        pythonWorker.onerror = (e) => {
+            console.groupCollapsed("%c KIPP Error ", "background: #ef4444; color: white; font-weight: bold; border-radius: 4px;");
+            console.error("Pyodide Environment Failed to initialize:", e);
+            console.groupEnd();
+            console.groupEnd();
+            reject(e);
+        };
     });
 };
 

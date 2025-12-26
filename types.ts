@@ -1,4 +1,5 @@
 
+
 export enum MessageType {
   USER = 'USER',
   AI_RESPONSE = 'AI_RESPONSE',
@@ -10,51 +11,53 @@ export enum MessageType {
 }
 
 export interface WebGroundingChunk {
-  web: {
-    uri: string;
-    title: string;
-  };
+    web: {
+        uri: string;
+        title: string;
+    };
 }
 
 export interface MapsPlaceReviewSnippet {
-  uri: string;
-  quote: string;
-  author: string;
+    uri: string;
+    quote: string;
+    author: string;
 }
 
 export interface MapsPlaceAnswerSource {
-  reviewSnippets: MapsPlaceReviewSnippet[];
+    reviewSnippets: MapsPlaceReviewSnippet[];
 }
 
 export interface MapsGroundingChunk {
-  maps: {
-    uri: string;
-    title: string;
-    latitude?: number;
-    longitude?: number;
-    placeAnswerSources: MapsPlaceAnswerSource[];
-  }
+    maps: {
+        uri: string;
+        title: string;
+        latitude?: number;
+        longitude?: number;
+        placeAnswerSources: MapsPlaceAnswerSource[];
+    }
 }
 
 export type GroundingChunk = WebGroundingChunk | MapsGroundingChunk;
 
 export interface CodeBlockContent {
-  lang: string;
-  code: string;
+    lang: string;
+    code: string;
 }
 
 export interface AgentPlanContent {
-  goal: string;
-  steps: string[];
-  currentStep: number;
+    goal: string;
+    steps: string[];
+    currentStep: number;
 }
 
 export interface FileAttachment {
-  name: string;
-  type: string;
-  size: number;
-  dataUrl: string;
+    name: string;
+    type: string;
+    size: number;
+    dataUrl: string;
 }
+
+export type Tool = 'web-search' | 'code-execution' | 'agent-mode' | null;
 
 export interface ToolCall {
   id: string;
@@ -69,6 +72,7 @@ export interface Message {
   type: MessageType;
   content: MessageContent;
   files?: FileAttachment[];
+  tool?: Tool;
   toolCalls?: ToolCall[];
   usageMetadata?: {
     promptTokenCount: number;
@@ -80,11 +84,19 @@ export interface Message {
   generationDuration?: number;
 }
 
-export interface LocationInfo {
-  city: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
+export type Theme = 'theme-slate' | 'theme-light' | 'theme-matrix';
+
+export interface Tab {
+  id: number;
+  url: string | null;
+  title?: string;
+}
+
+export interface CitationSource {
+  url: string;
+  title: string;
+  description?: string;
+  quote?: string;
 }
 
 export interface Persona {
@@ -93,8 +105,15 @@ export interface Persona {
   instruction: string;
 }
 
+export interface LocationInfo {
+    city: string;
+    country: string;
+    latitude?: number;
+    longitude?: number;
+}
+
 export interface Conversation {
-  id: string;
+  id:string;
   title: string;
   messages: Message[];
   personaId?: string;
@@ -104,9 +123,21 @@ export interface Conversation {
 
 export type AIStatus = 'idle' | 'thinking' | 'searching' | 'generating' | 'complete' | 'error';
 
-export type ExecutionResult = {
-  output: string | null;
+/**
+ * Represents a file that can be downloaded from a code execution result.
+ */
+export interface DownloadableFile {
+  filename: string;
+  mimetype: string;
+  data: string;
+}
+
+/**
+ * Represents the result of a code execution block.
+ */
+export interface ExecutionResult {
+  output: any;
   error: string;
   type: 'string' | 'image-base64' | 'plotly-json' | 'error';
-  downloadableFile?: { filename: string; mimetype: string; data: string };
-};
+  downloadableFile?: DownloadableFile;
+}

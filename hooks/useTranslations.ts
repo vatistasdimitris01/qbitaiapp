@@ -6,19 +6,15 @@ export const useTranslations = (lang: keyof typeof translations = 'en') => {
   const t = useCallback((key: string, params?: Record<string, string>): string => {
     const keys = key.split('.');
     let result: any = translations[lang] || translations.en;
-    
     for (const k of keys) {
       result = result?.[k];
       if (result === undefined) {
         let fallbackResult: any = translations.en;
-        for (const fk of keys) {
-          fallbackResult = fallbackResult?.[fk];
-        }
+        for (const fk of keys) { fallbackResult = fallbackResult?.[fk]; }
         result = fallbackResult || key;
         break;
       }
     }
-    
     let template = typeof result === 'string' ? result : key;
     if (params) {
       Object.keys(params).forEach(paramKey => {
@@ -28,6 +24,5 @@ export const useTranslations = (lang: keyof typeof translations = 'en') => {
     }
     return template;
   }, [lang]);
-
   return { t, lang };
 };

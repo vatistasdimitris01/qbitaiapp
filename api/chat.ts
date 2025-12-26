@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration, Content, Type } from "@google/genai";
 
 export const config = {
@@ -60,7 +61,8 @@ export default async function handler(req: Request) {
 
         config.tools = [{ functionDeclarations: (tools && tools.length) ? tools : [googleSearchTool] }];
         
-        const model = "	gemini-2.5-flash-lite";
+        // Corrected model name alias to 'gemini-flash-lite-latest'
+        const model = "gemini-flash-lite-latest";
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
         const result = await ai.models.generateContent({ model, contents, config });

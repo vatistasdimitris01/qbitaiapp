@@ -11,7 +11,7 @@ async function loadPyodideAndPackages() {
     pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
     
     // Load standard scientific and data analysis packages.
-    await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'opencv-python', 'requests']);
+    await pyodide.loadPackage(['numpy', 'matplotlib', 'pandas', 'scikit-learn', 'sympy', 'pillow', 'beautifulsoup4', 'scipy', 'requests']);
     
     // Load micropip to install packages from PyPI.
     await pyodide.loadPackage('micropip');
@@ -59,24 +59,37 @@ self.onmessage = async (event) => {
                 }
             }
         }});
-        pyodide.setStderr({ batched: (str) => self.postMessage({ type: 'stderr', error: str }) });
+        
+        pyodide.setStderr({ batched: (str) => {
+            if (str.trim()) {
+                self.postMessage({ type: 'stderr', error: str });
+            }
+        }});
 
-        // Python preamble to patch libraries for seamless integration (e.g., capturing plots and file saves).
+        // Python preamble to patch libraries for seamless integration
+        // sys.stdin = io.StringIO("") prevents OSError: [Errno 29] I/O error on reads
         const preamble = `
-import io, base64, json, matplotlib, warnings
+import io, base64, json, matplotlib, warnings, sys
 import matplotlib.pyplot as plt
 from PIL import Image
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+
+# Prevent blocking I/O errors on stdin
+sys.stdin = io.StringIO("")
+
 warnings.filterwarnings('ignore', category=DeprecationWarning)
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer): return int(obj)
         if isinstance(obj, np.floating): return float(obj)
         if isinstance(obj, np.ndarray): return obj.tolist()
         return super(NumpyEncoder, self).default(obj)
+
 matplotlib.use('agg')
+
 def custom_plt_show():
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -85,6 +98,7 @@ def custom_plt_show():
     print(f"__KIPP_PLOT_MATPLOTLIB__:{b64_str}")
     plt.clf()
 plt.show = custom_plt_show
+
 def custom_pil_show(self):
     buf = io.BytesIO()
     self.save(buf, format='PNG')
@@ -92,6 +106,7 @@ def custom_pil_show(self):
     b64_str = base64.b64encode(buf.read()).decode('utf-8')
     print(f"__KIPP_PLOT_PIL__:{b64_str}")
 Image.Image.show = custom_pil_show
+
 def custom_plotly_show(self, *args, **kwargs):
     fig_dict = self.to_dict()
     json_str = json.dumps(fig_dict, cls=NumpyEncoder)
@@ -122,14 +137,12 @@ try:
     from fpdf import FPDF
     original_fpdf_output = FPDF.output
     def patched_fpdf_output(self, name='', dest='S'):
-        # If a filename is provided, intercept it for download
         if name: 
             pdf_output_bytes = original_fpdf_output(self, dest='S')
             b64_data = base64.b64encode(pdf_output_bytes).decode('utf-8')
             mimetype = "application/pdf"
             print(f"__KIPP_DOWNLOAD_FILE__:{name}:{mimetype}:{b64_data}")
         else:
-            # If no filename, behave as original (e.g., return bytes for dest='S')
             return original_fpdf_output(self, name=name, dest=dest)
     FPDF.output = patched_fpdf_output
 except ImportError:

@@ -1,6 +1,5 @@
 
-
-import { GoogleGenAI, GenerateContentConfig, FunctionDeclaration, Content, Type } from "@google/genai";
+import { GoogleGenAI, GenerateContentConfig, Content } from "@google/genai";
 
 export const config = {
   runtime: 'edge',
@@ -34,6 +33,7 @@ export default async function handler(req: Request) {
         const { message, tools, userInstruction, imageSearchQuery, language } = await req.json();
         const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
+        // Handle image search separately if requested
         if (typeof imageSearchQuery === 'string' && imageSearchQuery.trim().length > 0) {
             const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
             const cseId = process.env.GOOGLE_CSE_ID;
@@ -52,52 +52,20 @@ export default async function handler(req: Request) {
             ? `${userInstruction}\n\nRespond in ${userLanguageName}. Use clean Markdown.`
             : `You are KIPP (Kosmic Intelligence Pattern Perceptron). Respond in ${userLanguageName}. Be helpful, concise, and precise. Use Markdown.`;
 
-        const config: GenerateContentConfig = { systemInstruction };
-        const googleSearchTool: FunctionDeclaration = {
-            name: 'google_search',
-            description: 'Search the web.',
-            parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] },
+        const config: GenerateContentConfig = { 
+            systemInstruction,
+            tools: [{ googleSearch: {} }]
         };
-
-        config.tools = [{ functionDeclarations: (tools && tools.length) ? tools : [googleSearchTool] }];
         
-        // Corrected model name alias to 'gemini-flash-lite-latest'
-        const model = "gemini-flash-lite-latest";
+        const model = "gemini-3-flash-preview";
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
         const result = await ai.models.generateContent({ model, contents, config });
         
-        if (result.functionCalls?.length) {
-            const fc = result.functionCalls[0];
-            if (tools?.length) return new Response(JSON.stringify({ functionCalls: result.functionCalls }), { status: 200, headers });
-            
-            if (fc.name === 'google_search') {
-                 const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-                 const cseId = process.env.GOOGLE_CSE_ID;
-                 const q = fc.args.query as string;
-                 let snippets = 'No results found.';
-                 
-                 if (apiKey && cseId) {
-                     try {
-                         const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=5`);
-                         const sData = await sRes.json();
-                         snippets = sData.items?.map((i:any) => i.snippet).join('\n') || 'No results';
-                     } catch (e) {
-                         console.error("Search failed in chat endpoint", e);
-                     }
-                 }
-                 
-                 const newContents = [
-                     ...contents, 
-                     { role: 'model', parts: [{functionCall: fc}]}, 
-                     { role: 'tool', parts: [{functionResponse: {name: 'google_search', response: {content: snippets}}}]}
-                 ];
-                 const finalRes = await ai.models.generateContent({ model, contents: newContents as Content[], config });
-                 return new Response(JSON.stringify({ response: finalRes.text }), { status: 200, headers });
-            }
-        }
-
-        return new Response(JSON.stringify({ response: result.text }), { status: 200, headers });
+        return new Response(JSON.stringify({ 
+            response: result.text,
+            groundingChunks: result.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+        }), { status: 200, headers });
 
     } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });

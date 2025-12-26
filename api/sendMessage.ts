@@ -4,10 +4,7 @@ import {
     GoogleGenAI, 
     Content, 
     Part, 
-    FunctionDeclaration, 
     GenerateContentConfig, 
-    Type, 
-    FunctionCall,
     HarmCategory,
     HarmBlockThreshold
 } from "@google/genai";
@@ -94,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             consolidatedHistory.push(currentMsg);
         }
 
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         
         const userMessageParts: Part[] = [{ text: message }];
@@ -111,28 +108,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const userLanguageName = languageMap[langCode] || 'English';
         const locationStr = location ? `User's Exact Location: ${location.city}, ${location.country}.` : 'Location hidden or unknown.';
 
-        const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron).
+        const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron), a modern and helpful AI assistant.
 - ${locationStr}
 - Current Language: ${userLanguageName}.
-- STRICT GROUNDING: Use the 'google_search' tool for all factual or real-time queries.
-- SYNTHESIS: Once search results are provided via the 'tool' role, synthesize a natural response in ${userLanguageName}.
-- End with <suggestions>["Query 1", "Query 2"]</suggestions>.`;
+- Always respond in ${userLanguageName}.
+- USE NATIVE SEARCH: Use the built-in googleSearch tool for factual or real-time queries.
+- SUGGESTIONS: Always end your response with <suggestions>["Next Question 1", "Next Question 2"]</suggestions> where the questions are relevant to the topic.
+- Formatting: Use clean Markdown.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        const googleSearchTool: FunctionDeclaration = {
-            name: 'google_search',
-            description: 'Get real-time information from the web.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: { query: { type: Type.STRING } },
-                required: ['query'],
-            },
-        };
-
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool] }],
+            tools: [{ googleSearch: {} }],
             safetySettings: [
                 { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -141,83 +129,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ],
         };
 
-        try {
-            let currentStream = await ai.models.generateContentStream({ model, contents, config });
-            let keepGoing = true;
+        const stream = await ai.models.generateContentStream({ model, contents, config });
+        let sentGrounding = false;
 
-            while (keepGoing) {
-                keepGoing = false;
-                let functionCallToHandle: FunctionCall | null = null;
-                
-                for await (const chunk of currentStream) {
-                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                        functionCallToHandle = chunk.functionCalls[0];
-                        write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
-                    }
-                    
-                    const text = chunk.text;
-                    if (text) write({ type: 'chunk', payload: text });
-                }
+        for await (const chunk of stream) {
+            const text = chunk.text;
+            if (text) {
+                write({ type: 'chunk', payload: text });
+            }
 
-                if (functionCallToHandle) {
-                    const fc = functionCallToHandle;
-                    
-                    // 1. MUST add the model turn with the function call to context
-                    contents.push({ role: 'model', parts: [{ functionCall: fc }] });
-
-                    if (fc.name === 'google_search') {
-                        write({ type: 'searching' });
-                        const rawQuery = fc.args.query as string;
-                        const query = (location && !rawQuery.toLowerCase().includes(location.city.toLowerCase())) 
-                            ? `${rawQuery} in ${location.city}` 
-                            : rawQuery;
-
-                        const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
-                        const cseId = process.env.GOOGLE_CSE_ID;
-                        
-                        let searchResultText = "Search yielded no specific results.";
-                        if (apiKey && cseId) {
-                            try {
-                                const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
-                                const sData = await sRes.json();
-                                
-                                if (sData.searchInformation?.totalResults) {
-                                    write({ type: 'search_result_count', payload: parseInt(sData.searchInformation.totalResults, 10) });
-                                }
-
-                                if (sData.items) {
-                                     const sources = sData.items.map((item: any) => ({ web: { uri: item.link, title: item.title } }));
-                                     write({ type: 'sources', payload: sources });
-                                     searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}\nURL: ${item.link}`).join('\n\n');
-                                }
-                            } catch (e) { console.error("Search failed:", e); }
-                        }
-                        
-                        // 2. Add the tool turn with the response, referencing the original call id
-                        contents.push({ 
-                            role: 'tool', 
-                            parts: [{ 
-                                functionResponse: { 
-                                    name: 'google_search', 
-                                    response: { content: searchResultText },
-                                    id: fc.id 
-                                } 
-                            }] 
-                        });
-                        
-                        // Trigger synthesis pass
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
-                    }
+            // Extract grounding metadata if present
+            const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+            if (groundingMetadata && !sentGrounding) {
+                if (groundingMetadata.groundingChunks) {
+                    write({ type: 'sources', payload: groundingMetadata.groundingChunks });
+                    sentGrounding = true; // Usually grounding metadata comes towards the end or in specific chunks
                 }
             }
-        } finally {
-            if (hasSentContent) write({ type: 'end' });
-            res.end();
         }
+        
+        write({ type: 'end' });
+        res.end();
+
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (res.headersSent) { write({ type: 'error', payload: errorMessage }); res.end(); }
-        else { res.status(500).json({ error: { message: errorMessage } }); }
+        console.error("[API Error]", error);
+        if (res.headersSent) { 
+            write({ type: 'error', payload: errorMessage }); 
+            res.end(); 
+        } else { 
+            res.status(500).json({ error: { message: errorMessage } }); 
+        }
     }
 }

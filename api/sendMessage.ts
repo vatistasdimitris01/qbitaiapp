@@ -39,9 +39,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
-    let hasSentContent = false;
+    // Collect all available API keys from environment variables
+    const apiKeys = [
+        process.env.API_KEY,
+        process.env.API_KEY_2,
+        process.env.API_KEY_3,
+        process.env.API_KEY_4,
+        process.env.API_KEY_5
+    ].filter(Boolean) as string[];
+
+    if (apiKeys.length === 0) {
+        res.status(500).json({ error: "No API keys configured in environment variables." });
+        return;
+    }
+
+    let hasSentHeader = false;
     const write = (data: object) => {
-        hasSentContent = true;
+        if (!hasSentHeader) {
+            res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            hasSentHeader = true;
+        }
         res.write(JSON.stringify(data) + '\n');
     };
 
@@ -58,9 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { history, message, personaInstruction, location, language } = JSON.parse(payloadJSON);
         
         const fileList = files.file ? (Array.isArray(files.file) ? files.file : [files.file]) : [];
-
-        if (!process.env.API_KEY) throw new Error("API_KEY environment variable is not set.");
-        const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
         // 1. Convert history to Gemini format
         const rawHistory: Content[] = (history as HistoryItem[])
@@ -91,9 +106,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             consolidatedHistory.push(currentMsg);
         }
 
-        res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        
         const userMessageParts: Part[] = [{ text: message }];
         if (fileList.length > 0) {
             for (const file of fileList) {
@@ -118,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
-        const config: GenerateContentConfig = {
+        const genConfig: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
             tools: [{ googleSearch: {} }],
             safetySettings: [
@@ -129,32 +141,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ],
         };
 
-        const stream = await ai.models.generateContentStream({ model, contents, config });
-        let sentGrounding = false;
+        // API Key Rotation Loop
+        let lastError = null;
+        for (const apiKey of apiKeys) {
+            try {
+                const ai = new GoogleGenAI({ apiKey });
+                const stream = await ai.models.generateContentStream({ model, contents, config: genConfig });
+                
+                let sentGrounding = false;
+                for await (const chunk of stream) {
+                    const text = chunk.text;
+                    if (text) {
+                        write({ type: 'chunk', payload: text });
+                    }
 
-        for await (const chunk of stream) {
-            const text = chunk.text;
-            if (text) {
-                write({ type: 'chunk', payload: text });
-            }
-
-            // Extract grounding metadata if present
-            const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
-            if (groundingMetadata && !sentGrounding) {
-                if (groundingMetadata.groundingChunks) {
-                    write({ type: 'sources', payload: groundingMetadata.groundingChunks });
-                    sentGrounding = true; // Usually grounding metadata comes towards the end or in specific chunks
+                    // Extract grounding metadata
+                    const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+                    if (groundingMetadata && !sentGrounding) {
+                        if (groundingMetadata.groundingChunks) {
+                            write({ type: 'sources', payload: groundingMetadata.groundingChunks });
+                            sentGrounding = true;
+                        }
+                    }
                 }
+                
+                write({ type: 'end' });
+                res.end();
+                return; // Success! Exit handler.
+
+            } catch (error: any) {
+                console.warn(`[API Rotation] Key failed, trying next... Error: ${error.message}`);
+                lastError = error;
+                // If we've already started writing chunks to the response, we can't cleanly retry with a new key for the same stream.
+                // However, most auth/quota errors happen at the connection/initialization stage.
+                if (hasSentHeader) break; 
             }
         }
-        
-        write({ type: 'end' });
-        res.end();
+
+        // If we reach here, all keys failed
+        throw lastError || new Error("Failed to generate content with any available API key.");
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error("[API Error]", error);
-        if (res.headersSent) { 
+        if (hasSentHeader) { 
             write({ type: 'error', payload: errorMessage }); 
             res.end(); 
         } else { 

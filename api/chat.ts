@@ -44,28 +44,46 @@ export default async function handler(req: Request) {
             return new Response(JSON.stringify({ images: data.items ? data.items.map((i: any) => i.link) : [] }), { status: 200, headers });
         }
 
-        if (!process.env.API_KEY) throw new Error("API_KEY not set.");
-        const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-        const userLanguageName = languageMap[language as string] || 'English';
+        const apiKeys = [
+            process.env.API_KEY,
+            process.env.API_KEY_2,
+            process.env.API_KEY_3,
+            process.env.API_KEY_4,
+            process.env.API_KEY_5
+        ].filter(Boolean) as string[];
 
+        if (apiKeys.length === 0) throw new Error("API_KEY not set.");
+
+        const userLanguageName = languageMap[language as string] || 'English';
         const systemInstruction = userInstruction 
             ? `${userInstruction}\n\nRespond in ${userLanguageName}. Use clean Markdown.`
             : `You are KIPP (Kosmic Intelligence Pattern Perceptron). Respond in ${userLanguageName}. Be helpful, concise, and precise. Use Markdown.`;
 
-        const config: GenerateContentConfig = { 
+        const genConfig: GenerateContentConfig = { 
             systemInstruction,
             tools: [{ googleSearch: {} }]
         };
         
-        const model = "gemini-3-flash-preview";
+        const model = "gemini-2.0-flash-lite";
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
-        const result = await ai.models.generateContent({ model, contents, config });
-        
-        return new Response(JSON.stringify({ 
-            response: result.text,
-            groundingChunks: result.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-        }), { status: 200, headers });
+        let lastError = null;
+        for (const apiKey of apiKeys) {
+            try {
+                const ai = new GoogleGenAI({ apiKey });
+                const result = await ai.models.generateContent({ model, contents, config: genConfig });
+                
+                return new Response(JSON.stringify({ 
+                    response: result.text,
+                    groundingChunks: result.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+                }), { status: 200, headers });
+            } catch (error: any) {
+                console.warn(`[API Rotation Chat] Key failed, trying next... Error: ${error.message}`);
+                lastError = error;
+            }
+        }
+
+        throw lastError || new Error("Failed to generate content with any available API key.");
 
     } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });

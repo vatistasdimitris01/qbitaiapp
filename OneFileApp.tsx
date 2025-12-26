@@ -566,18 +566,7 @@ const ImageGallery: React.FC<{ images: ImageInfo[]; onImageClick: (index: number
   const len = images.length;
   if (len === 1) return (<div className="not-prose my-2"><GalleryImage image={images[0]} className="aspect-video max-w-sm" onClick={() => onImageClick(0)} /></div>);
   if (len === 2) return (<div className="not-prose my-2 grid grid-cols-2 gap-1.5 max-w-lg"><GalleryImage image={images[0]} className="aspect-square" onClick={() => onImageClick(0)} /><GalleryImage image={images[1]} className="aspect-square" onClick={() => onImageClick(1)} /></div>);
-  if (len >= 4) { 
-    const visibleImages = images.slice(0, 4); 
-    const hiddenCount = images.length - 4; 
-    return (
-      <div className="not-prose my-2 grid grid-cols-2 gap-1.5 max-w-md">
-        {visibleImages.map((image, index) => { 
-          const overlay = index === 3 && hiddenCount > 0 ? `+${hiddenCount}` : null; 
-          return <GalleryImage key={index} image={image} overlayText={overlay} onClick={() => onImageClick(index)} className="aspect-[4/3]" />; 
-        })}
-      </div>
-    ); 
-  }
+  if (len >= 4) { const visibleImages = images.slice(0, 4); const hiddenCount = images.length - 4; return (<div className="not-prose my-2 grid grid-cols-2 gap-1.5 max-w-md">{visibleImages.map((image, index) => { const overlay = index === 3 && hiddenCount > 0 ? `+${hiddenCount}` : null; return <GalleryImage key={index} image={image} overlayText={overlay} onClick={() => onImageClick(index)} className="aspect-[4/3]" />; })}</div>); }
   return (<div className="not-prose my-2 grid grid-cols-3 gap-1.5 max-w-xl">{images.map((img, i) => <GalleryImage key={i} image={img} className="aspect-square" onClick={() => onImageClick(i)} />)}</div>);
 };
 
@@ -661,7 +650,7 @@ const GroundingSources: React.FC<{ chunks: GroundingChunk[]; t: (key: string) =>
     return (
         <>
             <button type="button" className="flex items-center gap-2 group px-3 py-1.5 rounded-full bg-white dark:bg-[#141414] hover:bg-gray-50 dark:hover:bg-[#292929] border border-gray-200 dark:border-[#27272a] transition-all shadow-sm" onClick={() => setIsModalOpen(true)}>
-                <div className="flex items-center -space-x-2">{visiblePills.map((chunk, index) => { const icon = 'web' in chunk ? `https://www.google.com/s2/favicons?sz=64&domain_url=${getHostname(chunk.web.uri)}` : null; return (<div key={index} className="size-5 rounded-full bg-white dark:bg-[#141414] border-2 border-white dark:border-[#141414] ring-1 ring-gray-200 dark:ring-[#27272a] overflow-hidden flex items-center justify-center">{icon ? <img src={icon} alt="" className="size-3" /> : <MapPinIcon className="size-2.5 text-blue-500" />}</div>); })}</div>
+                <div className="flex items-center -space-x-2">{visiblePills.map((chunk, index) => { const icon = 'web' in chunk ? `https://www.google.com/s2/favicons?sz=64&domain_url=${getHostname(chunk.web.uri)}` : null; return (<div key={index} className="size-5 rounded-full bg-white dark:bg-[#141414] border-2 border-white dark:border-[#141414] ring-1 ring-gray-200 dark:ring-[#27272a] overflow-hidden flex items-center justify-center">{icon ? <img src={icon} alt="" className="size-3" /> : <MapPinIcon className="size-5 text-blue-500" />}</div>); })}</div>
                 <div className="text-[11px] font-bold text-gray-500 dark:text-[#a1a1aa] group-hover:text-black dark:group-hover:text-white transition-colors uppercase tracking-widest">{chunks.length} sources</div>
             </button>
             {isModalOpen && (
@@ -1040,7 +1029,10 @@ const OneFileApp: React.FC = () => {
                     else if (update.type === 'searching') setAiStatus('searching');
                     else if (update.type === 'sources') messages[idx].groundingChunks = update.payload;
                     else if (update.type === 'search_result_count') messages[idx].searchResultCount = update.payload;
-                    else if (update.type === 'tool_call') { const existingToolCalls = messages[idx].toolCalls || []; messages[idx].toolCalls = [...existingToolCalls, update.payload]; }
+                    else if (update.type === 'tool_call') { 
+                        const existingToolCalls = messages[idx].toolCalls || []; 
+                        messages[idx].toolCalls = [...existingToolCalls, update.payload]; 
+                    }
                 }
                 return { ...c, messages };
             }
@@ -1071,6 +1063,7 @@ const OneFileApp: React.FC = () => {
     const messageText = typeof lastUserMessage.content === 'string' ? lastUserMessage.content : '';
     await streamMessageToAI(apiHistory, messageText, [], undefined, userLocation, language, abort.signal, (update) => {
         setConversations(prev => prev.map(c => {
+            // FIX: Replaced currentConvoId with activeConversationId which is available in the closure
             if (c.id === activeConversationId) {
                 const messages = [...c.messages]; const idx = messages.findIndex(m => m.id === aiMsgId);
                 if (idx !== -1) {
@@ -1078,7 +1071,10 @@ const OneFileApp: React.FC = () => {
                     else if (update.type === 'searching') setAiStatus('searching');
                     else if (update.type === 'sources') messages[idx].groundingChunks = update.payload;
                     else if (update.type === 'search_result_count') messages[idx].searchResultCount = update.payload;
-                    else if (update.type === 'tool_call') { const existingToolCalls = messages[idx].toolCalls || []; messages[idx].toolCalls = [...existingToolCalls, update.payload]; }
+                    else if (update.type === 'tool_call') { 
+                        const existingToolCalls = messages[idx].toolCalls || []; 
+                        messages[idx].toolCalls = [...existingToolCalls, update.payload]; 
+                    }
                 }
                 return { ...c, messages };
             }

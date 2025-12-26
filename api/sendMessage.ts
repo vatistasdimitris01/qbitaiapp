@@ -74,7 +74,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (msg.files) {
                     msg.files.forEach(file => parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } }));
                 }
-                // Ensure we map strictly to 'user' or 'model'
                 return { role: msg.type === 'USER' ? 'user' : 'model', parts: parts } as Content;
             })
             .filter(c => c.parts.length > 0);
@@ -86,7 +85,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             for (let i = 1; i < rawHistory.length; i++) {
                 const nextMsg = rawHistory[i];
                 if (currentMsg.role === nextMsg.role) {
-                    // Merge parts
                     currentMsg.parts = [...currentMsg.parts, ...nextMsg.parts];
                 } else {
                     consolidatedHistory.push(currentMsg);
@@ -107,42 +105,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
         
-        // Final contents array
         const contents: Content[] = [...consolidatedHistory, { role: 'user', parts: userMessageParts }];
-        
-        // Updated model to gemini-3-flash-preview
         const model = 'gemini-3-flash-preview';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
-        
         const locationStr = location ? `User's Exact Location: ${location.city}, ${location.country}.` : 'Location hidden or unknown.';
 
-        const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron), a highly intelligent and helpful AI assistant.
-
-**User Context:**
-- ${locationStr} 
-- **STRICT LOCATION POLICY**: Always use the user's current location to ground responses (like weather, local news, or nearby searches) by default. You MUST incorporate the current location into web searches (e.g. for "news" or "weather") UNLESS the user explicitly mentions a different specific location in their prompt. If a specific city or place is mentioned by the user, prioritize that over their current location.
-
-**Your Capabilities & Tools:**
-
-1.  **Stock Market Widget**
-    *   **How to do it:** Use the \`render_stock_widget\` tool.
-    *   **CRITICAL:** You MUST generate simulated but realistic historical data for '5D', '1M', '6M', '1Y', '5Y' ranges in the \`history\` field.
-
-2.  **Web Applications (HTML/CSS/JS)**
-    *   **How to do it:** Output standard HTML code in a \`\`\`html\`\`\` block.
-
-3.  **Python Code Execution**
-    *   **How to do it:** Output code in a \`\`\`python\`\`\` block.
-
-4.  **Google Search (Grounding)**
-    *   **How to do it:** Use the \`google_search\` tool. Incorporate the user's location automatically for local queries to ensure high relevance. ALWAYS USE THIS TOOL FOR REAL-TIME INFO.
-
-**General Guidelines:**
-
-1.  **Language**: Respond in ${userLanguageName}.
-2.  **Proactive**: If a visual tool fits the request, USE IT immediately.
-3.  **Suggestions**: Always end with <suggestions>["Query 1", "Query 2"]</suggestions>.`;
+        const baseSystemInstruction = `You are KIPP (Kosmic Intelligence Pattern Perceptron).
+- ${locationStr}
+- Current Language: ${userLanguageName}.
+- STRICT GROUNDING: Use the 'google_search' tool for all factual or real-time queries.
+- SYNTHESIS: Once search results are provided via the 'tool' role, synthesize a natural response in ${userLanguageName}.
+- End with <suggestions>["Query 1", "Query 2"]</suggestions>.`;
 
         const finalSystemInstruction = personaInstruction ? `${personaInstruction}\n\n${baseSystemInstruction}` : baseSystemInstruction;
         
@@ -156,26 +130,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
         };
 
-        const renderStockWidgetTool: FunctionDeclaration = {
-            name: 'render_stock_widget',
-            description: 'Render a stock card with price and history.',
-            parameters: {
-                type: Type.OBJECT,
-                properties: {
-                    symbol: { type: Type.STRING },
-                    price: { type: Type.STRING },
-                    change: { type: Type.STRING },
-                    stats: { type: Type.OBJECT },
-                    chartData: { type: Type.OBJECT },
-                    history: { type: Type.OBJECT }
-                },
-                required: ['symbol', 'price', 'change', 'chartData']
-            }
-        };
-
         const config: GenerateContentConfig = {
             systemInstruction: finalSystemInstruction,
-            tools: [{ functionDeclarations: [googleSearchTool, renderStockWidgetTool] }],
+            tools: [{ functionDeclarations: [googleSearchTool] }],
             safetySettings: [
                 { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -193,21 +150,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let functionCallToHandle: FunctionCall | null = null;
                 
                 for await (const chunk of currentStream) {
-                    // CRITICAL: Capture function calls immediately
                     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                         functionCallToHandle = chunk.functionCalls[0];
                         write({ type: 'tool_call_detected', payload: functionCallToHandle.name });
                     }
                     
-                    let text = '';
-                    try { text = chunk.text || ''; } catch (e) { }
+                    const text = chunk.text;
                     if (text) write({ type: 'chunk', payload: text });
                 }
 
                 if (functionCallToHandle) {
                     const fc = functionCallToHandle;
                     
-                    // 1. Add the MODEL'S function call to conversation history
+                    // 1. MUST add the model turn with the function call to context
                     contents.push({ role: 'model', parts: [{ functionCall: fc }] });
 
                     if (fc.name === 'google_search') {
@@ -220,13 +175,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
-                        let searchResultText = "Search failed or no results found.";
+                        let searchResultText = "Search yielded no specific results.";
                         if (apiKey && cseId) {
                             try {
                                 const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
                                 const sData = await sRes.json();
                                 
-                                if (sData.searchInformation && sData.searchInformation.totalResults) {
+                                if (sData.searchInformation?.totalResults) {
                                     write({ type: 'search_result_count', payload: parseInt(sData.searchInformation.totalResults, 10) });
                                 }
 
@@ -235,34 +190,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                      write({ type: 'sources', payload: sources });
                                      searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}\nURL: ${item.link}`).join('\n\n');
                                 }
-                            } catch (e) {
-                                console.error("Search API Error:", e);
-                            }
+                            } catch (e) { console.error("Search failed:", e); }
                         }
                         
-                        // 2. Add the function response with role 'tool'
-                        contents.push({ role: 'tool', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        // 2. Add the tool turn with the response, referencing the original call id
+                        contents.push({ 
+                            role: 'tool', 
+                            parts: [{ 
+                                functionResponse: { 
+                                    name: 'google_search', 
+                                    response: { content: searchResultText },
+                                    id: fc.id 
+                                } 
+                            }] 
+                        });
                         
-                        currentStream = await ai.models.generateContentStream({ model, contents, config });
-                        keepGoing = true;
-                    } else {
-                        // Handle generic tool calls
-                        write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
-                        
-                        // Pass confirmation back with role 'tool'
-                        contents.push({ role: 'tool', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
-                        
+                        // Trigger synthesis pass
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
                     }
                 }
             }
         } finally {
-            if (hasSentContent) {
-                write({ type: 'end' });
-            } else {
-                write({ type: 'error', payload: "No response generated by AI." });
-            }
+            if (hasSentContent) write({ type: 'end' });
             res.end();
         }
     } catch (error) {

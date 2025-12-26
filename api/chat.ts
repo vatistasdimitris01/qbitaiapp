@@ -60,7 +60,7 @@ export default async function handler(req: Request) {
 
         config.tools = [{ functionDeclarations: (tools && tools.length) ? tools : [googleSearchTool] }];
         
-        const model = "gemini-flash-lite-latest";
+        const model = "	gemini-2.5-flash-lite";
         const contents: Content[] = [{ role: 'user', parts: [{ text: message }] }];
 
         const result = await ai.models.generateContent({ model, contents, config });
@@ -73,11 +73,23 @@ export default async function handler(req: Request) {
                  const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                  const cseId = process.env.GOOGLE_CSE_ID;
                  const q = fc.args.query as string;
-                 const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=5`);
-                 const sData = await sRes.json();
-                 const snippets = sData.items?.map((i:any) => i.snippet).join('\n') || 'No results';
+                 let snippets = 'No results found.';
                  
-                 const newContents = [...contents, { role: 'model', parts: [{functionCall: fc}]}, { role: 'function', parts: [{functionResponse: {name: 'google_search', response: {content: snippets}}}]}];
+                 if (apiKey && cseId) {
+                     try {
+                         const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(q)}&num=5`);
+                         const sData = await sRes.json();
+                         snippets = sData.items?.map((i:any) => i.snippet).join('\n') || 'No results';
+                     } catch (e) {
+                         console.error("Search failed in chat endpoint", e);
+                     }
+                 }
+                 
+                 const newContents = [
+                     ...contents, 
+                     { role: 'model', parts: [{functionCall: fc}]}, 
+                     { role: 'tool', parts: [{functionResponse: {name: 'google_search', response: {content: snippets}}}]}
+                 ];
                  const finalRes = await ai.models.generateContent({ model, contents: newContents as Content[], config });
                  return new Response(JSON.stringify({ response: finalRes.text }), { status: 200, headers });
             }

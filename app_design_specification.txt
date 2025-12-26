@@ -1,0 +1,169 @@
+# KIPP Application Design Specification
+
+## 1. Global Design Language
+
+### 1.1 Color Palette (CSS Variables)
+The application uses a semantic color system with support for Light, Dark, and Mobile-Specific Dark modes.
+
+**Light Theme (:root)**
+- **Background**: `var(--background)` -> #f9f8f7 (Warm gray/off-white)
+- **Foreground**: `var(--foreground)` -> #18181b (Almost black)
+- **Surfaces**:
+  - Base: #f9f8f7
+  - Level 1 (Cards/Bubbles): #ffffff
+  - Level 2 (Hover/Inputs): #f3f2f1
+  - Level 3 (Borders/Dividers): #e5e7eb
+- **Borders**: #e4e4e7
+- **Accent**: #1d9bf0 (Twitter/Sky Blue)
+
+**Dark Theme (.dark)**
+- **Background**: #141414 (Deep gray, not pure black)
+- **Foreground**: #f3f3f3 (Off-white)
+- **Surfaces**:
+  - Base: #141414
+  - Level 1: #212121
+  - Level 2: #292929
+  - Level 3: #333333
+- **Borders**: #292929
+
+**Mobile Dark Mode (@media max-width: 1024px)**
+- **Background**: #000000 (True black for OLED optimization)
+- **Surfaces**:
+  - Level 1: #111111
+  - Level 2: #141414
+  - Borders: #1a1a1a
+
+### 1.2 Typography
+- **Font Family**: 'Inter', sans-serif (System UI fallback)
+- **Monospace**: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas'
+- **Rendering**: Antialiased, optimized for legibility.
+
+---
+
+## 2. Layout Architecture
+
+### 2.1 App Shell
+- **Structure**: `flex h-screen w-full overflow-hidden relative`
+- **Z-Index Strategy**:
+  - Base Content: 0
+  - Sidebar: 100
+  - Overlays/Modals: 200-300
+
+### 2.2 Content Area (Push Effect)
+- **Behavior**: When sidebar opens on desktop, the main content area pushes right rather than being covered.
+- **Animation**: `transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]`
+- **States**:
+  - Default: `translate-x-0 w-full`
+  - Pushed: `lg:translate-x-[320px] lg:w-[calc(100%-320px)]`
+
+---
+
+## 3. Component Specifications
+
+### 3.1 Sidebar
+*See sidebar_design.txt for full details.*
+- **Width**: 320px (Desktop), 100% (Mobile)
+- **Glassmorphism**: Header elements use `backdrop-blur-xl` and semi-transparent backgrounds.
+
+### 3.2 Chat Interface
+
+**Message Bubbles**
+- **User Message**:
+  - Style: `bg-surface-l1` (White/Dark Grey)
+  - Border: `border border-border`
+  - Shape: `rounded-3xl rounded-br-lg` (Asymmetric "speech bubble" look)
+  - Shadow: `shadow-sm`
+  - Alignment: Right-aligned wrapper, internal text left-aligned.
+- **AI Response**:
+  - Style: Transparent background.
+  - Typography: `prose dark:prose-invert` (Tailwind Typography plugin).
+  - Shape: `rounded-3xl`
+  - Alignment: Left-aligned.
+  - Special Elements:
+    - **Thinking Block**: Accordion style, `border-l-2 border-border`, italic text.
+    - **Tools**: Styled cards for Generative UI (Stocks, Graphs).
+
+**Input Area (Floating Bar)**
+- **Container**: Fixed at bottom, floating above content.
+- **Visuals**:
+  - Shape: `rounded-[1.75rem]` (Pill shape)
+  - Background: `bg-white` / `dark:bg-[#1f1f1f]`
+  - Border: `border border-gray-200` / `dark:border-[#27272a]`
+  - Shadow: `shadow-lg`
+- **Interactions**:
+  - Send Button: Circular, scales up (`scale-110`) when active, changes from transparent to foreground color.
+  - Paperclip: Hover effect `bg-black/5`.
+
+### 3.3 Modals & Overlays
+
+**Settings Modal**
+- **Transition**: `cubic-bezier(0.32,0.72,0,1)` (iOS-like spring).
+- **Desktop**:
+  - Size: `w-[90vw] h-[85vh] max-w-6xl`
+  - Style: Floating card with `rounded-[2.5rem]`, border, shadow.
+  - Layout: Two-column (Sidebar nav + Content).
+- **Mobile**:
+  - Behavior: Bottom sheet/Drawer.
+  - Animation: Slide up from bottom (`translate-y-full` to `0`).
+  - Style: `h-[85vh] rounded-t-[2rem]`.
+
+**Welcome / Onboarding Modal**
+- **Layout**: Split screen.
+  - Desktop: Visuals (58%) | Text (42%)
+  - Mobile: Visuals (Top 45%) | Text (Bottom 55%)
+- **Visuals**: Gradient backgrounds, animated mockups using CSS shapes.
+- **Navigation**: Progress dots + "Next" button.
+
+**Lightbox**
+- **Background**: `bg-black/80 backdrop-blur-sm`.
+- **Navigation**: Chevrons for Prev/Next, Keyboard support (Arrow keys, Esc).
+- **Animation**: Fade in/out.
+
+### 3.4 Interactive Elements
+
+**Buttons**
+- **Primary**: `bg-foreground text-background` (Inverted contrast).
+- **Secondary**: `bg-surface-l2 hover:bg-surface-l3`.
+- **Icon Buttons**: Circular, hover backgrounds, transition-colors.
+
+**Code Blocks**
+- **Header**: Mac-style window controls or action buttons (Copy, Run, Expand).
+- **Content**: Horizontal scroll, custom scrollbar styling, syntax highlighting.
+- **Execution**:
+  - Status indicators (Spinner, Success check).
+  - Output area: Separate block with `border-t`.
+
+**Generative UI (Widgets)**
+- **Stock Card**:
+  - Background: Dark (`#121212`) regardless of theme.
+  - Typography: Large price display, green/red trend colors.
+  - Charts: Plotly.js integration, minimal grid lines.
+
+---
+
+## 4. Animations & Transitions
+
+### 4.1 Keyframes
+- **fade-in-up**:
+  - From: `opacity: 0`, `transform: translateY(10px)`
+  - To: `opacity: 1`, `transform: translateY(0)`
+  - Duration: `0.3s ease-out`
+- **pulse**: Standard opacity pulse for loaders.
+
+### 4.2 Standard Transitions
+- **Hover effects**: `transition-colors duration-200`.
+- **Panel Movements**: `duration-500 ease-[cubic-bezier(0.2,0,0,1)]` (Smooth, heavy easing).
+- **Modal Entrance**: `duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]`.
+
+---
+
+## 5. Icons & Assets
+- **Library**: Custom SVG paths (Lucide-style).
+- **Stroke Width**: Generally `2px` or `1.5px`.
+- **Specific Icons**:
+  - `Sparkles/Wand`: For AI actions.
+  - `Paperclip`: Attachments.
+  - `Chevrons`: Navigation.
+- **Logo**: 
+  - Dual version (Black for light mode, White for dark mode).
+  - Used in Sidebar header and Greeting screen.

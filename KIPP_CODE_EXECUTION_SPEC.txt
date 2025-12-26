@@ -1,0 +1,258 @@
+
+# KIPP TECHNICAL SPECIFICATION: CODE EXECUTION ENGINE
+Version: 2.3 (Pyodide + Web Workers + Generative UI)
+
+================================================================================
+PART 1: ARCHITECTURE OVERVIEW
+================================================================================
+
+The code execution system allows KIPP to run Python code natively in the user's browser without needing a backend server. It uses a **Sandboxed Web Worker** to ensure the main UI thread remains responsive during heavy computations.
+
+## 1.1 The Stack
+1.  **UI Layer (`CodeExecutor.tsx`)**: Displays code, handles user inputs (Run/Stop), and renders outputs (Text, Charts, Files).
+2.  **Service Layer (`pythonExecutorService.ts`)**: Acts as a bridge. It manages the Worker instance, handles queuing, and routes messages.
+3.  **Worker Layer (`python.worker.js`)**: The isolated environment running the **Pyodide** WASM runtime.
+
+## 1.2 Data Flow
+`[User Clicks Run]` -> `React Component` -> `Service Bridge` -> `postMessage()` -> `Web Worker` -> `Pyodide Execution` -> `Stdout/Stderr Capture` -> `postMessage()` -> `Service Bridge` -> `React State Update` -> `[User Sees Output]`
+
+================================================================================
+PART 2: THE BACKGROUND WORKER (THE BRAIN)
+================================================================================
+
+The worker is responsible for loading the Python runtime and patching standard libraries to make them work in a browser environment (e.g., intercepting `plt.show()` to return images instead of opening windows).
+
+## Source Code (`public/python.worker.js`)
+
+```javascript
+importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js");
+let pyodide = null;
+
+// 1. Initialization & Package Loading
+async function loadPyodideAndPackages() {
+    // Load the WASM runtime
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/" });
+    
+    // Load Core Data Science Stack
+    await pyodide.loadPackage([
+        'numpy', 'pandas', 'scikit-learn', 'scipy', 'sympy', 
+        'matplotlib', 'seaborn', 'pillow', 'beautifulsoup4', 
+        'requests', 'opencv-python'
+    ]);
+    
+    // Install Specialized Packages via Micropip
+    await pyodide.loadPackage('micropip');
+    const micropip = pyodide.pyimport('micropip');
+    await micropip.install(['plotly', 'fpdf2', 'openpyxl', 'python-docx']);
+    
+    self.postMessage({ type: 'ready' });
+}
+
+const pyodideReadyPromise = loadPyodideAndPackages();
+
+// 2. Message Handling
+self.onmessage = async (event) => {
+    await pyodideReadyPromise;
+    const { code } = event.data;
+
+    try {
+        // Stream Standard Output
+        pyodide.setStdout({ batched: (str) => {
+            // Check for custom protocols defined in the preamble
+            if (str.startsWith('__KIPP_PLOT_MATPLOTLIB__:')) {
+                self.postMessage({ type: 'plot', plotType: 'image', data: str.split(':')[1] });
+            } else if (str.startsWith('__KIPP_PLOT_PLOTLY__:')) {
+                self.postMessage({ type: 'plot', plotType: 'plotly', data: str.substring(str.indexOf(':') + 1) });
+            } else if (str.startsWith('__KIPP_DOWNLOAD_FILE__:')) {
+                const parts = str.split(':');
+                // Format: __KIPP_DOWNLOAD_FILE__:filename:mimetype:base64data
+                self.postMessage({ type: 'download', filename: parts[1], mimetype: parts[2], data: parts.slice(3).join(':') });
+            } else {
+                self.postMessage({ type: 'stdout', data: str });
+            }
+        }});
+        
+        pyodide.setStderr({ batched: (str) => self.postMessage({ type: 'stderr', error: str }) });
+
+        // 3. The Preamble (Monkey-Patching Libraries)
+        // This Python code runs before the user's code to hook into library functions.
+        const preamble = `
+import io, base64, json, matplotlib
+import matplotlib.pyplot as plt
+from PIL import Image
+import plotly.graph_objects as go
+
+# -- Patch Matplotlib --
+matplotlib.use('agg')
+def custom_plt_show():
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode('utf-8')
+    print(f"__KIPP_PLOT_MATPLOTLIB__:{b64}")
+    plt.clf()
+plt.show = custom_plt_show
+
+# -- Patch Plotly --
+def custom_plotly_show(self, *args, **kwargs):
+    print(f"__KIPP_PLOT_PLOTLY__:{self.to_json()}")
+go.Figure.show = custom_plotly_show
+
+# -- Patch File Savers (Excel, PDF, Word) --
+# (Simplification: We override .save() methods to print base64 data to stdout with a specific prefix)
+`;
+        
+        await pyodide.runPythonAsync(preamble + '\n' + code);
+        self.postMessage({ type: 'success' });
+    } catch (error) {
+        self.postMessage({ type: 'error', error: error.message });
+    }
+};
+```
+
+================================================================================
+PART 3: THE CODE BLOCK UI (VISUAL DESIGN)
+================================================================================
+
+## 3.1 Design Logic
+The code block is designed to look like a modern IDE window or a MacOS terminal.
+
+-   **Header**:
+    -   Background: `bg-background/30` (Semi-transparent).
+    -   Left: Language Label (e.g., "PYTHON", "HTML") + "Loading..." status if the worker isn't ready.
+    -   Right: Action Buttons (Expand/Collapse, Run, Copy).
+-   **Content Area**:
+    -   Background: `bg-code-bg` (Distinct from the main chat background).
+    -   Syntax Highlighting: Uses `highlight.js` with `github-dark` theme.
+    -   Overflow: Horizontal scroll for long lines.
+-   **Output Area**:
+    -   Separated from code by a border.
+    -   **Text**: Monospace font.
+    -   **Images**: Rendered with `max-w-full rounded-lg`.
+    -   **Interactive**: Plotly charts are rendered in a dedicated `div`.
+    -   **Files**: A styled download button appears if a file was generated.
+
+## 3.2 HTML/React Preview Logic
+For non-Python code (like HTML/CSS/JS), the executor creates a **Blob URL**.
+1.  User clicks "Run".
+2.  App creates `new Blob([code], {type: 'text/html'})`.
+3.  App generates a URL `URL.createObjectURL(blob)`.
+4.  App opens this URL in a new tab (`window.open`).
+This prevents XSS attacks on the main app while allowing full preview capabilities.
+
+## 3.3 Source Code (`components/CodeExecutor.tsx`)
+
+```tsx
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { PlayIcon, RefreshCwIcon, DownloadIcon, CopyIcon, CheckIcon, Wand2Icon } from './icons';
+import { runPythonCode, stopPythonExecution } from '../services/pythonExecutorService';
+
+// ... (Imports & Types)
+
+export const CodeExecutor: React.FC<CodeExecutorProps> = ({ code, lang, isExecutable, ...props }) => {
+    const [status, setStatus] = useState<'idle' | 'executing' | 'success' | 'error'>('idle');
+    const [output, setOutput] = useState<any>('');
+    
+    // EXECUTION HANDLER
+    const handleRun = useCallback(async () => {
+        if (lang === 'python') {
+            setStatus('executing');
+            runPythonCode(code, (update) => {
+                if (update.type === 'stdout') setOutput(prev => prev + update.data + '\n');
+                if (update.type === 'plot') {
+                    if (update.plotType === 'plotly') {
+                        // Render Plotly JSON
+                        setOutput(JSON.parse(update.data));
+                    } else {
+                        // Render Base64 Image
+                        setOutput(<img src={`data:image/png;base64,${update.data}`} />);
+                    }
+                }
+                if (update.type === 'download') {
+                    // Show Download Button
+                    setDownloadableFile({ ...update });
+                }
+                if (update.type === 'success') setStatus('success');
+                if (update.type === 'error') setStatus('error');
+            });
+        } else if (lang === 'html') {
+            // Preview HTML
+            const blob = new Blob([code], { type: 'text/html' });
+            window.open(URL.createObjectURL(blob), '_blank');
+        }
+    }, [code, lang]);
+
+    return (
+        <div className="not-prose my-4 font-sans max-w-full rounded-lg border border-default overflow-hidden shadow-sm">
+            
+            {/* HEADER BAR */}
+            <div className="flex items-center justify-between px-3 py-1.5 bg-background/30 border-b border-default">
+                <span className="font-mono text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                    {lang}
+                </span>
+                <div className="flex items-center gap-1">
+                    {isExecutable && (
+                        <button 
+                            onClick={handleRun}
+                            disabled={status === 'executing'}
+                            className="p-1.5 hover:bg-surface-secondary rounded-md transition-colors"
+                        >
+                            {status === 'executing' ? <div className="animate-spin size-3.5 border-2 border-current rounded-full border-t-transparent"/> : <PlayIcon className="size-3.5" />}
+                        </button>
+                    )}
+                    <button onClick={copyCode} className="p-1.5 hover:bg-surface-secondary rounded-md">
+                        <CopyIcon className="size-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            {/* CODE AREA */}
+            <div className="p-0 bg-code-bg overflow-x-auto">
+                <pre className="!m-0 !p-3 text-[13px] leading-relaxed">
+                    <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                </pre>
+            </div>
+
+            {/* OUTPUT AREA */}
+            {(output || status === 'error') && (
+                <div className="border-t border-default p-3 bg-surface-base">
+                    {status === 'error' && (
+                        <div className="text-red-500 text-xs font-mono mb-2 flex justify-between">
+                            <span>{errorMsg}</span>
+                            <button onClick={fixCode}><Wand2Icon className="size-3" /> Fix</button>
+                        </div>
+                    )}
+                    <div className="text-sm font-mono whitespace-pre-wrap overflow-x-auto">
+                        {/* If output is string, render text. If object (React Node or Plotly), render it directly. */}
+                        {typeof output === 'string' ? output : (
+                            // Check if Plotly
+                            output.data && output.layout ? <div id="chart-div" /> : output
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+```
+
+================================================================================
+PART 4: WHAT CAN IT GENERATE? (CAPABILITIES)
+================================================================================
+
+1.  **Data Analysis**:
+    -   Can read CSV strings or generate synthetic data using `pandas` and `numpy`.
+    -   Can perform regressions, statistics, and matrix math.
+
+2.  **Visualization**:
+    -   **Static**: High-quality PNGs via `matplotlib` and `seaborn`.
+    -   **Interactive**: Zoomable, pannable charts via `plotly`.
+
+3.  **File Generation (The "Office" Suite)**:
+    -   **Excel**: Creates `.xlsx` files with multiple sheets using `openpyxl`.
+    -   **PDF**: Generates reports using `fpdf2`.
+    -   **Word**: Creates `.docx` documents using `python-docx`.
+    -   **Images**: Manipulates images (crop, resize, filter) using `Pillow`.
+
+4.  **Web Prototypes**:
+    -   Can output complete single-page HTML applications with embedded CSS and JS, previewable instantly in a new tab.

@@ -80,7 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .filter(c => c.parts.length > 0);
 
         // 2. Consolidate History: Merge consecutive messages with the same role
-        // Gemini API will error or return empty if history is [User, User, Model]
         const consolidatedHistory: Content[] = [];
         if (rawHistory.length > 0) {
             let currentMsg = rawHistory[0];
@@ -111,8 +110,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Final contents array
         const contents: Content[] = [...consolidatedHistory, { role: 'user', parts: userMessageParts }];
         
-        // Use gemini-2.0-flash for stability
-        const model = 'gemini-2.0-flash';
+        // Updated model to gemini-3-flash-preview
+        const model = 'gemini-3-flash-preview';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         
@@ -221,7 +220,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const apiKey = process.env.GOOGLE_API_KEY || process.env.API_KEY;
                         const cseId = process.env.GOOGLE_CSE_ID;
                         
-                        let searchResultText = "Search failed.";
+                        let searchResultText = "Search failed or no results found.";
                         if (apiKey && cseId) {
                             try {
                                 const sRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}&num=10`);
@@ -236,16 +235,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                      write({ type: 'sources', payload: sources });
                                      searchResultText = sData.items.map((item: any) => `Title: ${item.title}\nSnippet: ${item.snippet}\nURL: ${item.link}`).join('\n\n');
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                console.error("Search API Error:", e);
+                            }
                         }
                         
-                        // 2. Add the function response. 
-                        // IMPORTANT: For the manual tool execution flow here, we append the response as a 'model' role part 
-                        // if we want to simulate the continued conversation, OR as 'user' if strictly following API docs. 
-                        // However, to fix "empty response" errors and state corruption, mimicking a 'model' continuation often works best in stateless loop.
-                        // But strictly speaking, FunctionResponse should be part of the flow.
-                        // We will use 'model' role for the response content to ensure the model accepts it as context without breaking 'user-model' alternation strictness.
-                        contents.push({ role: 'model', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
+                        // 2. Add the function response with role 'tool'
+                        contents.push({ role: 'tool', parts: [{ functionResponse: { name: 'google_search', response: { content: searchResultText } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;
@@ -253,8 +249,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         // Handle generic tool calls
                         write({ type: 'tool_call', payload: { name: fc.name, args: fc.args, id: Math.random().toString(36).substring(7) } });
                         
-                        // Pass confirmation back
-                        contents.push({ role: 'model', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
+                        // Pass confirmation back with role 'tool'
+                        contents.push({ role: 'tool', parts: [{ functionResponse: { name: fc.name, response: { content: "Processed" } } }] });
                         
                         currentStream = await ai.models.generateContentStream({ model, contents, config });
                         keepGoing = true;

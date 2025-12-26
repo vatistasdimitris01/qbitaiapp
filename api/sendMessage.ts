@@ -103,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         const contents: Content[] = [...consolidatedHistory, { role: 'user', parts: userMessageParts }];
-        const model = 'gemini-3-flash-preview';
+        const model = 'gemini-2.0-flash-lite';
         const langCode = (language as string) || 'en';
         const userLanguageName = languageMap[langCode] || 'English';
         const locationStr = location ? `User's Exact Location: ${location.city}, ${location.country}.` : 'Location hidden or unknown.';

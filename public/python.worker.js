@@ -1,4 +1,3 @@
-
 // This script is run in a separate thread by a Web Worker.
 // It's responsible for setting up the Pyodide environment and executing Python code.
 
@@ -67,7 +66,7 @@ self.onmessage = async (event) => {
         }});
 
         // Python preamble to patch libraries for seamless integration
-        // sys.stdin = io.StringIO("") prevents OSError: [Errno 29] I/O error on reads
+        // sys.stdin = io.StringIO("") prevents OSError: [Errno 29] I/O error on reads/seeks
         const preamble = `
 import io, base64, json, matplotlib, warnings, sys
 import matplotlib.pyplot as plt
@@ -76,7 +75,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
-# Prevent blocking I/O errors on stdin
+# Prevent blocking I/O errors (Errno 29 ESPIPE) on stdin
+# io.StringIO is seekable, which satisfies libraries that try to tell/seek on stdin
 sys.stdin = io.StringIO("")
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
